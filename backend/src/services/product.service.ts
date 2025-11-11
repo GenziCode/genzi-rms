@@ -1,0 +1,552 @@
+import { Connection } from 'mongoose';
+import { getTenantConnection } from '../config/database';
+import { ProductSchema, IProduct } from '../models/product.model';
+import { AppError } from '../utils/appError';
+import { logger } from '../utils/logger';
+import QRCode from 'qrcode';
+import path from 'path';
+import fs from 'fs';
+import sharp from 'sharp';
+
+export class ProductService {
+  private async getProductModel(tenantId: string) {
+    const connection = await getTenantConnection(tenantId);
+    return connection.model<IProduct>('Product', ProductSchema);
+  }
+
+  /**
+   * Generate QR code for product
+   */
+  private async generateQRCode(
+    tenantId: string,
+    productId: string,
+    sku: string
+  ): Promise<string> {
+    try {
+      // QR code data (can be customized to include more info)
+      const qrData = JSON.stringify({
+        tenantId,
+        productId,
+        sku,
+        type: 'product',
+      });
+
+      // Create QR codes directory
+      const qrDir = path.join(process.cwd(), 'uploads', tenantId, 'qrcodes');
+      if (!fs.existsSync(qrDir)) {
+        fs.mkdirSync(qrDir, { recursive: true });
+      }
+
+      // Generate QR code filename
+      const qrFileName = `qr-${productId}.png`;
+      const qrFilePath = path.join(qrDir, qrFileName);
+
+      // Generate QR code
+      await QRCode.toFile(qrFilePath, qrData, {
+        width: 300,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF',
+        },
+      });
+
+      // Return relative path
+      return `${tenantId}/qrcodes/${qrFileName}`;
+    } catch (error) {
+      logger.error('Error generating QR code:', error);
+      throw new AppError('Failed to generate QR code', 500);
+    }
+  }
+
+  /**
+   * Process uploaded image (resize, optimize)
+   */
+  private async processImage(filePath: string): Promise<void> {
+    try {
+      await sharp(filePath)
+        .resize(800, 800, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality: 85 })
+        .toFile(filePath + '.processed');
+
+      // Replace original with processed
+      fs.renameSync(filePath + '.processed', filePath);
+    } catch (error) {
+      logger.error('Error processing image:', error);
+      // Don't throw error, use original image
+    }
+  }
+
+  /**
+   * Create a new product
+   */
+  async createProduct(
+    tenantId: string,
+    userId: string,
+    data: {
+      name: string;
+      description?: string;
+      category: string;
+      sku?: string;
+      barcode?: string;
+      price: number;
+      cost?: number;
+      trackInventory?: boolean;
+      stock?: number;
+      minStock?: number;
+      unit?: string;
+      taxRate?: number;
+      images?: string[];
+      isActive?: boolean;
+      variants?: any[];
+    }
+  ): Promise<IProduct> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      // Generate SKU if not provided
+      if (!data.sku) {
+        const count = await Product.countDocuments();
+        data.sku = `PRD${String(count + 1).padStart(6, '0')}`;
+      }
+
+      // Check if SKU already exists
+      const existingSKU = await Product.findOne({ sku: data.sku });
+      if (existingSKU) {
+        throw new AppError('Product with this SKU already exists', 409);
+      }
+
+      // Check if barcode already exists
+      if (data.barcode) {
+        const existingBarcode = await Product.findOne({
+          barcode: data.barcode,
+        });
+        if (existingBarcode) {
+          throw new AppError('Product with this barcode already exists', 409);
+        }
+      }
+
+      // Create product
+      const product = new Product({
+        ...data,
+        createdBy: userId,
+        updatedBy: userId,
+      });
+
+      await product.save();
+
+      // Generate QR code
+      const qrCodePath = await this.generateQRCode(
+        tenantId,
+        product._id.toString(),
+        product.sku
+      );
+      product.qrCode = qrCodePath;
+      await product.save();
+
+      logger.info(`Product created: ${product.name} (${product._id})`);
+      return product;
+    } catch (error) {
+      logger.error('Error creating product:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all products
+   */
+  async getProducts(
+    tenantId: string,
+    options: {
+      category?: string;
+      search?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      inStock?: boolean;
+      isActive?: boolean;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+      page?: number;
+      limit?: number;
+    } = {}
+  ): Promise<{
+    products: IProduct[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const {
+        category,
+        search,
+        minPrice,
+        maxPrice,
+        inStock,
+        isActive = true,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        page = 1,
+        limit = 50,
+      } = options;
+
+      // Build query
+      const query: any = {};
+
+      if (isActive !== undefined) {
+        query.isActive = isActive;
+      }
+
+      if (category) {
+        query.category = category;
+      }
+
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { sku: { $regex: search, $options: 'i' } },
+          { barcode: { $regex: search, $options: 'i' } },
+        ];
+      }
+
+      if (minPrice !== undefined || maxPrice !== undefined) {
+        query.price = {};
+        if (minPrice !== undefined) query.price.$gte = minPrice;
+        if (maxPrice !== undefined) query.price.$lte = maxPrice;
+      }
+
+      if (inStock) {
+        query.stock = { $gt: 0 };
+      }
+
+      // Count total
+      const total = await Product.countDocuments(query);
+
+      // Build sort
+      const sort: any = {};
+      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+      // Get products
+      const products = await Product.find(query)
+        .sort(sort)
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate('category', 'name color icon');
+
+      return {
+        products,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      logger.error('Error getting products:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get product by ID
+   */
+  async getProductById(
+    tenantId: string,
+    productId: string
+  ): Promise<IProduct> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const product = await Product.findById(productId)
+        .populate('category', 'name color icon');
+
+      if (!product) {
+        throw new AppError('Product not found', 404);
+      }
+
+      return product;
+    } catch (error) {
+      logger.error('Error getting product:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get product by SKU
+   */
+  async getProductBySKU(tenantId: string, sku: string): Promise<IProduct> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const product = await Product.findOne({ sku })
+        .populate('category', 'name color icon');
+
+      if (!product) {
+        throw new AppError('Product not found', 404);
+      }
+
+      return product;
+    } catch (error) {
+      logger.error('Error getting product by SKU:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get product by QR code data
+   */
+  async getProductByQRCode(
+    tenantId: string,
+    qrData: string
+  ): Promise<IProduct> {
+    try {
+      // Parse QR code data
+      const data = JSON.parse(qrData);
+
+      if (data.type !== 'product') {
+        throw new AppError('Invalid QR code type', 400);
+      }
+
+      // Tenant validation is flexible (string comparison)
+      // Just ensure the product belongs to the correct tenant
+
+      return await this.getProductById(tenantId, data.productId);
+    } catch (error) {
+      logger.error('Error getting product by QR code:', error);
+      if (error instanceof SyntaxError) {
+        throw new AppError('Invalid QR code format', 400);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update product
+   */
+  async updateProduct(
+    tenantId: string,
+    productId: string,
+    userId: string,
+    data: Partial<IProduct>
+  ): Promise<IProduct> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const product = await Product.findById(productId);
+      if (!product) {
+        throw new AppError('Product not found', 404);
+      }
+
+      // Check SKU uniqueness if being updated
+      if (data.sku && data.sku !== product.sku) {
+        const existingSKU = await Product.findOne({
+          sku: data.sku,
+          _id: { $ne: productId },
+        });
+        if (existingSKU) {
+          throw new AppError('Product with this SKU already exists', 409);
+        }
+      }
+
+      // Check barcode uniqueness if being updated
+      if (data.barcode && data.barcode !== product.barcode) {
+        const existingBarcode = await Product.findOne({
+          barcode: data.barcode,
+          _id: { $ne: productId },
+        });
+        if (existingBarcode) {
+          throw new AppError('Product with this barcode already exists', 409);
+        }
+      }
+
+      // Update fields
+      Object.assign(product, data, { updatedBy: userId });
+
+      // Regenerate QR code if SKU changed
+      if (data.sku && data.sku !== product.sku) {
+        const qrCodePath = await this.generateQRCode(
+          tenantId,
+          product._id.toString(),
+          data.sku
+        );
+        product.qrCode = qrCodePath;
+      }
+
+      await product.save();
+
+      logger.info(`Product updated: ${product.name} (${product._id})`);
+      return product;
+    } catch (error) {
+      logger.error('Error updating product:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload product image
+   */
+  async uploadProductImage(
+    tenantId: string,
+    productId: string,
+    userId: string,
+    file: Express.Multer.File
+  ): Promise<IProduct> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const product = await Product.findById(productId);
+      if (!product) {
+        throw new AppError('Product not found', 404);
+      }
+
+      // Process image
+      await this.processImage(file.path);
+
+      // Get relative path
+      const relativePath = path.relative(
+        path.join(process.cwd(), 'uploads'),
+        file.path
+      );
+
+      // Add image to product
+      if (!product.images) {
+        product.images = [];
+      }
+      product.images.push(relativePath);
+      product.updatedBy = userId as any;
+
+      await product.save();
+
+      logger.info(`Image uploaded for product: ${product.name}`);
+      return product;
+    } catch (error) {
+      logger.error('Error uploading product image:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete product (soft delete)
+   */
+  async deleteProduct(
+    tenantId: string,
+    productId: string,
+    userId: string
+  ): Promise<void> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const product = await Product.findById(productId);
+      if (!product) {
+        throw new AppError('Product not found', 404);
+      }
+
+      // Soft delete
+      product.isActive = false;
+      product.updatedBy = userId as any;
+      await product.save();
+
+      logger.info(`Product deleted: ${product.name} (${product._id})`);
+    } catch (error) {
+      logger.error('Error deleting product:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Adjust product stock
+   */
+  async adjustStock(
+    tenantId: string,
+    productId: string,
+    userId: string,
+    adjustment: number,
+    reason?: string
+  ): Promise<IProduct> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const product = await Product.findById(productId);
+      if (!product) {
+        throw new AppError('Product not found', 404);
+      }
+
+      if (!product.trackInventory) {
+        throw new AppError('Inventory tracking not enabled for this product', 400);
+      }
+
+      const newStock = product.stock + adjustment;
+      if (newStock < 0) {
+        throw new AppError('Insufficient stock', 400);
+      }
+
+      product.stock = newStock;
+      product.updatedBy = userId as any;
+      await product.save();
+
+      logger.info(
+        `Stock adjusted for ${product.name}: ${adjustment} (reason: ${reason})`
+      );
+      return product;
+    } catch (error) {
+      logger.error('Error adjusting stock:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get low stock products
+   */
+  async getLowStockProducts(tenantId: string): Promise<IProduct[]> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const products = await Product.find({
+        trackInventory: true,
+        isActive: true,
+        $expr: { $lte: ['$stock', '$minStock'] },
+      })
+        .populate('category', 'name color')
+        .sort('stock');
+
+      return products;
+    } catch (error) {
+      logger.error('Error getting low stock products:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Bulk import products
+   */
+  async bulkImportProducts(
+    tenantId: string,
+    userId: string,
+    products: any[]
+  ): Promise<{ success: number; failed: number; errors: any[] }> {
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [] as any[],
+    };
+
+    for (const productData of products) {
+      try {
+        await this.createProduct(tenantId, userId, productData);
+        results.success++;
+      } catch (error: any) {
+        results.failed++;
+        results.errors.push({
+          product: productData.name || productData.sku,
+          error: error.message,
+        });
+      }
+    }
+
+    return results;
+  }
+}
+
