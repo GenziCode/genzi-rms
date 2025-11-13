@@ -51,7 +51,6 @@ export const VendorSchema = new Schema<IVendor>(
     tenantId: {
       type: Schema.Types.ObjectId,
       required: true,
-      index: true,
     },
     name: {
       type: String,
@@ -72,7 +71,6 @@ export const VendorSchema = new Schema<IVendor>(
       type: String,
       required: true,
       trim: true,
-      index: true,
     },
     address: {
       type: String,
@@ -135,7 +133,6 @@ export const VendorSchema = new Schema<IVendor>(
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
     notes: String,
     tags: [String],

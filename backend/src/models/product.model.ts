@@ -49,7 +49,6 @@ export const ProductSchema = new Schema<IProduct>(
     sku: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       uppercase: true,
     },
@@ -139,7 +138,7 @@ export const ProductSchema = new Schema<IProduct>(
 );
 
 // Indexes
-ProductSchema.index({ sku: 1 });
+ProductSchema.index({ sku: 1 }, { unique: true });
 ProductSchema.index({ barcode: 1 }, { sparse: true });
 ProductSchema.index({ category: 1, isActive: 1 });
 ProductSchema.index({ name: 'text', description: 'text' });

@@ -148,17 +148,51 @@ export class POSService {
 
       const afterDiscount = subtotal - overallDiscount;
       const total = afterDiscount + totalTax;
+      const roundToTwo = (value: number) => Math.round(value * 100) / 100;
 
-      // Calculate payments
-      const amountPaid = data.payments.reduce((sum, p) => sum + p.amount, 0);
-      const change = Math.max(0, amountPaid - total);
+      const creditPayments = data.payments.filter((p) => p.method === 'credit');
+      const creditAmount = roundToTwo(
+        creditPayments.reduce((sum, payment) => sum + payment.amount, 0)
+      );
 
-      if (amountPaid < total) {
+      if (creditAmount < 0) {
+        throw new AppError('Credit payment amount cannot be negative', 400);
+      }
+
+      if (creditAmount > 0) {
+        if (!data.customerId) {
+          throw new AppError('Customer selection is required for credit sales', 400);
+        }
+
+        const customer = await this.customerService.getCustomerById(tenantId, data.customerId);
+
+        const availableCredit = (customer.creditLimit || 0) - (customer.creditBalance || 0);
+
+        if (creditAmount - availableCredit > 0.01) {
+          throw new AppError(
+            `Credit limit exceeded. Available credit: ${availableCredit.toFixed(2)}`,
+            400
+          );
+        }
+      }
+
+      const amountPaid = roundToTwo(data.payments.reduce((sum, p) => sum + p.amount, 0));
+      const change = Math.max(0, roundToTwo(amountPaid - total));
+
+      if (amountPaid + 0.01 < total) {
         throw new AppError(
-          `Insufficient payment. Required: ${total}, Received: ${amountPaid}`,
+          `Insufficient payment. Required: ${total.toFixed(2)}, Received: ${amountPaid.toFixed(2)}`,
           400
         );
       }
+
+      const metadata =
+        creditAmount > 0
+          ? {
+              creditAmount,
+              creditRefunded: 0,
+            }
+          : undefined;
 
       // Create sale
       const sale = new Sale({
@@ -178,9 +212,23 @@ export class POSService {
         status: 'completed',
         notes: data.notes,
         createdBy: userId,
+        metadata,
       });
 
       await sale.save();
+
+      if (creditAmount > 0 && data.customerId) {
+        try {
+          await this.customerService.adjustCustomerCreditBalance(
+            tenantId,
+            data.customerId,
+            creditAmount
+          );
+        } catch (creditError) {
+          await sale.deleteOne();
+          throw creditError;
+        }
+      }
 
       // Update product stock
       for (const item of saleItems) {
@@ -194,6 +242,9 @@ export class POSService {
       // Update customer stats if customer is provided
       if (data.customerId) {
         await this.customerService.updateCustomerStats(tenantId, data.customerId, total);
+        if (creditAmount > 0) {
+          logger.info(`Credit applied to customer ${data.customerId}: ${creditAmount.toFixed(2)}`);
+        }
       }
 
       logger.info(`Sale created: ${sale.saleNumber} - Total: ${total}`);
@@ -332,37 +383,112 @@ export class POSService {
         }
       }
 
-      const amountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-      const change = Math.max(0, amountPaid - sale.total);
+      const roundToTwo = (value: number) => Math.round(value * 100) / 100;
+      const creditPayments = payments.filter((p) => p.method === 'credit');
+      const creditAmount = roundToTwo(
+        creditPayments.reduce((sum, payment) => sum + payment.amount, 0)
+      );
 
-      if (amountPaid < sale.total) {
+      if (creditAmount < 0) {
+        throw new AppError('Credit payment amount cannot be negative', 400);
+      }
+
+      let creditCustomerId: string | null = null;
+      if (creditAmount > 0) {
+        if (!sale.customer) {
+          throw new AppError('Customer selection is required for credit sales', 400);
+        }
+
+        creditCustomerId = sale.customer.toString();
+        const customer = await this.customerService.getCustomerById(tenantId, creditCustomerId);
+
+        const availableCredit = (customer.creditLimit || 0) - (customer.creditBalance || 0);
+
+        if (creditAmount - availableCredit > 0.01) {
+          throw new AppError(
+            `Credit limit exceeded. Available credit: ${availableCredit.toFixed(2)}`,
+            400
+          );
+        }
+      }
+
+      const amountPaid = roundToTwo(payments.reduce((sum, p) => sum + p.amount, 0));
+      const change = Math.max(0, roundToTwo(amountPaid - sale.total));
+
+      if (amountPaid + 0.01 < sale.total) {
         throw new AppError(
-          `Insufficient payment. Required: ${sale.total}, Received: ${amountPaid}`,
+          `Insufficient payment. Required: ${sale.total.toFixed(
+            2
+          )}, Received: ${amountPaid.toFixed(2)}`,
           400
         );
       }
 
-      // Update sale
-      sale.payments = payments;
-      sale.amountPaid = amountPaid;
-      sale.change = change;
-      sale.status = 'completed';
-      sale.heldAt = undefined;
-      sale.heldBy = undefined;
+      let creditAdjusted = false;
 
-      await sale.save();
-
-      // Update product stock
-      for (const item of sale.items) {
-        const product = await Product.findById(item.product);
-        if (product && product.trackInventory) {
-          product.stock = (product.stock || 0) - item.quantity;
-          await product.save();
+      try {
+        if (creditAmount > 0 && creditCustomerId) {
+          await this.customerService.adjustCustomerCreditBalance(
+            tenantId,
+            creditCustomerId,
+            creditAmount
+          );
+          creditAdjusted = true;
         }
-      }
 
-      logger.info(`Transaction resumed and completed: ${sale.saleNumber}`);
-      return sale;
+        // Update sale
+        sale.payments = payments;
+        sale.amountPaid = amountPaid;
+        sale.change = change;
+        sale.status = 'completed';
+        sale.heldAt = undefined;
+        sale.heldBy = undefined;
+
+        if (creditAmount > 0 || (sale.metadata && 'creditAmount' in sale.metadata)) {
+          sale.metadata = {
+            ...(sale.metadata ?? {}),
+            creditAmount,
+            creditRefunded: sale.metadata?.creditRefunded ?? 0,
+          };
+          sale.markModified('metadata');
+        }
+
+        await sale.save();
+
+        // Update product stock
+        for (const item of sale.items) {
+          const product = await Product.findById(item.product);
+          if (product && product.trackInventory) {
+            product.stock = (product.stock || 0) - item.quantity;
+            await product.save();
+          }
+        }
+
+        if (creditCustomerId) {
+          await this.customerService.updateCustomerStats(tenantId, creditCustomerId, sale.total);
+          logger.info(`Credit applied to customer ${creditCustomerId}: ${creditAmount.toFixed(2)}`);
+        }
+
+        logger.info(`Transaction resumed and completed: ${sale.saleNumber}`);
+        return sale;
+      } catch (error) {
+        if (creditAdjusted && creditCustomerId) {
+          try {
+            await this.customerService.adjustCustomerCreditBalance(
+              tenantId,
+              creditCustomerId,
+              -creditAmount
+            );
+          } catch (rollbackError) {
+            logger.error(
+              'Failed to rollback customer credit after resume transaction error',
+              rollbackError
+            );
+          }
+        }
+
+        throw error;
+      }
     } catch (error) {
       logger.error('Error resuming transaction:', error);
       throw error;
@@ -498,25 +624,83 @@ export class POSService {
         throw new AppError('Cannot void a refunded sale', 400);
       }
 
-      // Restore stock
-      for (const item of sale.items) {
-        const product = await Product.findById(item.product);
-        if (product && product.trackInventory) {
-          product.stock = (product.stock || 0) + item.quantity;
-          await product.save();
+      const creditAmount =
+        typeof sale.metadata?.creditAmount === 'number'
+          ? Math.round(sale.metadata.creditAmount * 100) / 100
+          : sale.payments
+              .filter((payment) => payment.method === 'credit')
+              .reduce((sum, payment) => sum + payment.amount, 0);
+
+      const creditCustomerId = sale.customer && creditAmount > 0 ? sale.customer.toString() : null;
+
+      let creditAdjusted = false;
+
+      try {
+        if (creditCustomerId) {
+          await this.customerService.adjustCustomerCreditBalance(
+            tenantId,
+            creditCustomerId,
+            -creditAmount
+          );
+          creditAdjusted = true;
         }
+
+        // Restore stock
+        for (const item of sale.items) {
+          const product = await Product.findById(item.product);
+          if (product && product.trackInventory) {
+            product.stock = (product.stock || 0) + item.quantity;
+            await product.save();
+          }
+        }
+
+        sale.status = 'voided';
+        sale.voidedAt = new Date();
+        sale.voidedBy = userId as any;
+        sale.voidReason = reason;
+        sale.updatedBy = userId as any;
+
+        if (creditCustomerId) {
+          const previousRefunded =
+            typeof sale.metadata?.creditRefunded === 'number' ? sale.metadata.creditRefunded : 0;
+          sale.metadata = {
+            ...(sale.metadata ?? {}),
+            creditAmount,
+            creditRefunded: previousRefunded + creditAmount,
+          };
+          sale.markModified('metadata');
+        }
+
+        await sale.save();
+
+        if (creditCustomerId) {
+          logger.info(
+            `Credit reversed for customer ${creditCustomerId} due to void: ${creditAmount.toFixed(
+              2
+            )}`
+          );
+        }
+
+        logger.info(`Sale voided: ${sale.saleNumber} - Reason: ${reason}`);
+        return sale;
+      } catch (error) {
+        if (creditAdjusted && creditCustomerId) {
+          try {
+            await this.customerService.adjustCustomerCreditBalance(
+              tenantId,
+              creditCustomerId,
+              creditAmount
+            );
+          } catch (rollbackError) {
+            logger.error(
+              'Failed to restore customer credit after void operation error',
+              rollbackError
+            );
+          }
+        }
+
+        throw error;
       }
-
-      sale.status = 'voided';
-      sale.voidedAt = new Date();
-      sale.voidedBy = userId as any;
-      sale.voidReason = reason;
-      sale.updatedBy = userId as any;
-
-      await sale.save();
-
-      logger.info(`Sale voided: ${sale.saleNumber} - Reason: ${reason}`);
-      return sale;
     } catch (error) {
       logger.error('Error voiding sale:', error);
       throw error;
@@ -550,30 +734,92 @@ export class POSService {
         throw new AppError('Refund amount exceeds sale total', 400);
       }
 
-      // Full refund - restore all stock
-      if (amount === sale.total) {
-        for (const item of sale.items) {
-          const product = await Product.findById(item.product);
-          if (product && product.trackInventory) {
-            product.stock = (product.stock || 0) + item.quantity;
-            await product.save();
+      const creditAmount =
+        typeof sale.metadata?.creditAmount === 'number'
+          ? Math.round(sale.metadata.creditAmount * 100) / 100
+          : sale.payments
+              .filter((payment) => payment.method === 'credit')
+              .reduce((sum, payment) => sum + payment.amount, 0);
+
+      const previouslyRefunded =
+        typeof sale.metadata?.creditRefunded === 'number' ? sale.metadata.creditRefunded : 0;
+
+      const refundableCredit = Math.max(0, creditAmount - previouslyRefunded);
+      const creditToRefund = Math.min(refundableCredit, amount);
+      const creditCustomerId =
+        sale.customer && creditToRefund > 0 ? sale.customer.toString() : null;
+
+      let creditAdjusted = false;
+
+      try {
+        if (creditCustomerId && creditToRefund > 0) {
+          await this.customerService.adjustCustomerCreditBalance(
+            tenantId,
+            creditCustomerId,
+            -creditToRefund
+          );
+          creditAdjusted = true;
+        }
+
+        // Full refund - restore all stock
+        if (amount === sale.total) {
+          for (const item of sale.items) {
+            const product = await Product.findById(item.product);
+            if (product && product.trackInventory) {
+              product.stock = (product.stock || 0) + item.quantity;
+              await product.save();
+            }
+          }
+          sale.status = 'refunded';
+        } else {
+          sale.status = 'partial_refund';
+        }
+
+        sale.refundedAt = new Date();
+        sale.refundedBy = userId as any;
+        sale.refundAmount = amount;
+        sale.refundReason = reason;
+        sale.updatedBy = userId as any;
+
+        if (creditCustomerId && creditToRefund > 0) {
+          sale.metadata = {
+            ...(sale.metadata ?? {}),
+            creditAmount,
+            creditRefunded: previouslyRefunded + creditToRefund,
+          };
+          sale.markModified('metadata');
+        }
+
+        await sale.save();
+
+        if (creditCustomerId && creditToRefund > 0) {
+          logger.info(
+            `Credit reversed for customer ${creditCustomerId} due to refund: ${creditToRefund.toFixed(
+              2
+            )}`
+          );
+        }
+
+        logger.info(`Sale refunded: ${sale.saleNumber} - Amount: ${amount} - Reason: ${reason}`);
+        return sale;
+      } catch (error) {
+        if (creditAdjusted && creditCustomerId) {
+          try {
+            await this.customerService.adjustCustomerCreditBalance(
+              tenantId,
+              creditCustomerId,
+              creditToRefund
+            );
+          } catch (rollbackError) {
+            logger.error(
+              'Failed to restore customer credit after refund operation error',
+              rollbackError
+            );
           }
         }
-        sale.status = 'refunded';
-      } else {
-        sale.status = 'partial_refund';
+
+        throw error;
       }
-
-      sale.refundedAt = new Date();
-      sale.refundedBy = userId as any;
-      sale.refundAmount = amount;
-      sale.refundReason = reason;
-      sale.updatedBy = userId as any;
-
-      await sale.save();
-
-      logger.info(`Sale refunded: ${sale.saleNumber} - Amount: ${amount} - Reason: ${reason}`);
-      return sale;
     } catch (error) {
       logger.error('Error refunding sale:', error);
       throw error;

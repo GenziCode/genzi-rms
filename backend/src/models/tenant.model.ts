@@ -56,6 +56,10 @@ export interface ITenant extends Document {
     timeFormat: '12h' | '24h';
   };
   status: TenantStatus;
+  suspendedAt?: Date;
+  suspendedBy?: Schema.Types.ObjectId;
+  suspendReason?: string;
+  reactivatedAt?: Date;
   deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -156,6 +160,13 @@ const TenantSchema = new Schema<ITenant>(
       enum: Object.values(TenantStatus),
       default: TenantStatus.ACTIVE,
     },
+    suspendedAt: Date,
+    suspendedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    suspendReason: String,
+    reactivatedAt: Date,
     deletedAt: Date,
   },
   {

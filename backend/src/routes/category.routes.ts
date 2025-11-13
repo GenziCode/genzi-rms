@@ -3,14 +3,15 @@ import { CategoryController } from '../controllers/category.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
+import { auditMiddleware } from '../middleware/audit.middleware';
 import { body, param, query } from 'express-validator';
 
 const router = Router();
 const categoryController = new CategoryController();
 
-// All routes require authentication and tenant context
+// All routes require authentication
+// Note: resolveTenant is already applied in routes/index.ts
 router.use(authenticate);
-router.use(resolveTenant);
 
 /**
  * Validation rules
@@ -79,8 +80,8 @@ const categoryIdValidation = [
 const getCategoriesValidation = [
   query('includeInactive')
     .optional()
-    .isBoolean()
-    .withMessage('includeInactive must be a boolean'),
+    .isIn(['true', 'false', '1', '0'])
+    .withMessage('includeInactive must be a boolean value'),
   query('search').optional().trim(),
   query('sortBy')
     .optional()
@@ -115,6 +116,7 @@ router.put(
   '/sort-order',
   sortOrderValidation,
   validate,
+  auditMiddleware({ action: 'update', entityType: 'category' }),
   categoryController.updateSortOrder
 );
 
@@ -123,6 +125,7 @@ router.post(
   '/',
   createCategoryValidation,
   validate,
+  auditMiddleware({ action: 'create', entityType: 'category' }),
   categoryController.createCategory
 );
 
@@ -147,6 +150,7 @@ router.put(
   '/:id',
   updateCategoryValidation,
   validate,
+  auditMiddleware({ action: 'update', entityType: 'category' }),
   categoryController.updateCategory
 );
 
@@ -155,6 +159,7 @@ router.delete(
   '/:id',
   categoryIdValidation,
   validate,
+  auditMiddleware({ action: 'delete', entityType: 'category' }),
   categoryController.deleteCategory
 );
 

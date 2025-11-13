@@ -8,9 +8,9 @@ import { query } from 'express-validator';
 const router = Router();
 const reportsController = new ReportsController();
 
-// All routes require authentication and tenant context
+// All routes require authentication
+// Note: resolveTenant is already applied in routes/index.ts
 router.use(authenticate);
-router.use(resolveTenant);
 
 /**
  * Validation rules

@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ProductService } from '../services/product.service';
 import { successResponse } from '../utils/response';
 import { AppError } from '../utils/appError';
-import { getFileUrl } from '../middleware/upload.middleware';
+// File upload disabled - import { getFileUrl } from '../middleware/upload.middleware';
 
 export class ProductController {
   private productService: ProductService;
@@ -15,37 +15,25 @@ export class ProductController {
    * Create a new product
    * POST /api/products
    */
-  createProduct = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  createProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const userId = req.user!.id;
 
-      const product = await this.productService.createProduct(
-        tenantId,
-        userId,
-        req.body
-      );
+      const product = await this.productService.createProduct(tenantId, userId, req.body);
 
       // Add full URLs for images and QR code
       const productData = product.toObject();
-      if (productData.images && productData.images.length > 0) {
-        productData.images = productData.images.map((img: string) =>
-          getFileUrl(req, img)
-        );
-      }
-      if (productData.qrCode) {
-        productData.qrCode = getFileUrl(req, productData.qrCode);
-      }
+      // Image URL processing disabled
+      // if (productData.images && productData.images.length > 0) {
+      //   productData.images = productData.images.map((img: string) => getFileUrl(req, img));
+      // }
+      // QR code URL processing disabled
+      // if (productData.qrCode) {
+      //   productData.qrCode = getFileUrl(req, productData.qrCode);
+      // }
 
-      res
-        .status(201)
-        .json(
-          successResponse(productData, 'Product created successfully', 201)
-        );
+      res.status(201).json(successResponse(productData, 'Product created successfully', 201));
     } catch (error) {
       next(error);
     }
@@ -55,11 +43,7 @@ export class ProductController {
    * Get all products
    * GET /api/products
    */
-  getProducts = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getProducts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const {
@@ -88,34 +72,17 @@ export class ProductController {
         limit: limit ? parseInt(limit as string) : undefined,
       });
 
-      // Add full URLs for images and QR codes
-      const productsWithUrls = result.products.map((p) => {
-        const product = p.toObject();
-        if (product.images && product.images.length > 0) {
-          product.images = product.images.map((img: string) =>
-            getFileUrl(req, img)
-          );
-        }
-        if (product.qrCode) {
-          product.qrCode = getFileUrl(req, product.qrCode);
-        }
-        return product;
-      });
+      // File URL processing disabled
 
       res.json(
-        successResponse(
-          { ...result, products: productsWithUrls },
-          'Products retrieved successfully',
-          200,
-          {
-            pagination: {
-              page: result.page,
-              limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
-              total: result.total,
-              totalPages: result.totalPages,
-            },
-          }
-        )
+        successResponse(result, 'Products retrieved successfully', 200, {
+          pagination: {
+            page: result.page,
+            limit: req.query.limit ? parseInt(req.query.limit as string) : 50,
+            total: result.total,
+            totalPages: result.totalPages,
+          },
+        })
       );
     } catch (error) {
       next(error);
@@ -126,11 +93,7 @@ export class ProductController {
    * Get product by ID
    * GET /api/products/:id
    */
-  getProductById = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getProductById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const { id } = req.params;
@@ -139,14 +102,14 @@ export class ProductController {
 
       // Add full URLs
       const productData = product.toObject();
-      if (productData.images && productData.images.length > 0) {
-        productData.images = productData.images.map((img: string) =>
-          getFileUrl(req, img)
-        );
-      }
-      if (productData.qrCode) {
-        productData.qrCode = getFileUrl(req, productData.qrCode);
-      }
+      // Image URL processing disabled
+      // if (productData.images && productData.images.length > 0) {
+      //   productData.images = productData.images.map((img: string) => getFileUrl(req, img));
+      // }
+      // QR code URL processing disabled
+      // if (productData.qrCode) {
+      //   productData.qrCode = getFileUrl(req, productData.qrCode);
+      // }
 
       res.json(successResponse(productData, 'Product retrieved successfully'));
     } catch (error) {
@@ -158,11 +121,7 @@ export class ProductController {
    * Get product by SKU
    * GET /api/products/sku/:sku
    */
-  getProductBySKU = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getProductBySKU = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const { sku } = req.params;
@@ -171,14 +130,14 @@ export class ProductController {
 
       // Add full URLs
       const productData = product.toObject();
-      if (productData.images && productData.images.length > 0) {
-        productData.images = productData.images.map((img: string) =>
-          getFileUrl(req, img)
-        );
-      }
-      if (productData.qrCode) {
-        productData.qrCode = getFileUrl(req, productData.qrCode);
-      }
+      // Image URL processing disabled
+      // if (productData.images && productData.images.length > 0) {
+      //   productData.images = productData.images.map((img: string) => getFileUrl(req, img));
+      // }
+      // QR code URL processing disabled
+      // if (productData.qrCode) {
+      //   productData.qrCode = getFileUrl(req, productData.qrCode);
+      // }
 
       res.json(successResponse(productData, 'Product retrieved successfully'));
     } catch (error) {
@@ -190,11 +149,7 @@ export class ProductController {
    * Scan QR code and get product
    * POST /api/products/scan-qr
    */
-  scanQRCode = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  scanQRCode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const { qrData } = req.body;
@@ -203,21 +158,18 @@ export class ProductController {
         throw new AppError('QR code data is required', 400);
       }
 
-      const product = await this.productService.getProductByQRCode(
-        tenantId,
-        qrData
-      );
+      const product = await this.productService.getProductByQRCode(tenantId, qrData);
 
       // Add full URLs
       const productData = product.toObject();
-      if (productData.images && productData.images.length > 0) {
-        productData.images = productData.images.map((img: string) =>
-          getFileUrl(req, img)
-        );
-      }
-      if (productData.qrCode) {
-        productData.qrCode = getFileUrl(req, productData.qrCode);
-      }
+      // Image URL processing disabled
+      // if (productData.images && productData.images.length > 0) {
+      //   productData.images = productData.images.map((img: string) => getFileUrl(req, img));
+      // }
+      // QR code URL processing disabled
+      // if (productData.qrCode) {
+      //   productData.qrCode = getFileUrl(req, productData.qrCode);
+      // }
 
       res.json(successResponse(productData, 'Product scanned successfully'));
     } catch (error) {
@@ -229,33 +181,24 @@ export class ProductController {
    * Update product
    * PUT /api/products/:id
    */
-  updateProduct = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  updateProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const userId = req.user!.id;
       const { id } = req.params;
 
-      const product = await this.productService.updateProduct(
-        tenantId,
-        id,
-        userId,
-        req.body
-      );
+      const product = await this.productService.updateProduct(tenantId, id, userId, req.body);
 
       // Add full URLs
       const productData = product.toObject();
-      if (productData.images && productData.images.length > 0) {
-        productData.images = productData.images.map((img: string) =>
-          getFileUrl(req, img)
-        );
-      }
-      if (productData.qrCode) {
-        productData.qrCode = getFileUrl(req, productData.qrCode);
-      }
+      // Image URL processing disabled
+      // if (productData.images && productData.images.length > 0) {
+      //   productData.images = productData.images.map((img: string) => getFileUrl(req, img));
+      // }
+      // QR code URL processing disabled
+      // if (productData.qrCode) {
+      //   productData.qrCode = getFileUrl(req, productData.qrCode);
+      // }
 
       res.json(successResponse(productData, 'Product updated successfully'));
     } catch (error) {
@@ -263,57 +206,16 @@ export class ProductController {
     }
   };
 
-  /**
-   * Upload product image
-   * POST /api/products/:id/upload-image
-   */
-  uploadImage = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
-    try {
-      const tenantId = req.tenant!.id;
-      const userId = req.user!.id;
-      const { id } = req.params;
-
-      if (!req.file) {
-        throw new AppError('No image file provided', 400);
-      }
-
-      const product = await this.productService.uploadProductImage(
-        tenantId,
-        id,
-        userId,
-        req.file
-      );
-
-      // Add full URLs
-      const productData = product.toObject();
-      if (productData.images && productData.images.length > 0) {
-        productData.images = productData.images.map((img: string) =>
-          getFileUrl(req, img)
-        );
-      }
-      if (productData.qrCode) {
-        productData.qrCode = getFileUrl(req, productData.qrCode);
-      }
-
-      res.json(successResponse(productData, 'Image uploaded successfully'));
-    } catch (error) {
-      next(error);
-    }
-  };
+  // ========================================
+  // IMAGE UPLOAD METHOD - DISABLED
+  // ========================================
+  // uploadImage method removed - file uploads disabled
 
   /**
    * Delete product
    * DELETE /api/products/:id
    */
-  deleteProduct = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  deleteProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const userId = req.user!.id;
@@ -331,11 +233,7 @@ export class ProductController {
    * Adjust product stock
    * POST /api/products/:id/adjust-stock
    */
-  adjustStock = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  adjustStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const userId = req.user!.id;
@@ -364,33 +262,15 @@ export class ProductController {
    * Get low stock products
    * GET /api/products/low-stock
    */
-  getLowStockProducts = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getLowStockProducts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
 
       const products = await this.productService.getLowStockProducts(tenantId);
 
-      // Add full URLs
-      const productsWithUrls = products.map((p) => {
-        const product = p.toObject();
-        if (product.images && product.images.length > 0) {
-          product.images = product.images.map((img: string) =>
-            getFileUrl(req, img)
-          );
-        }
-        if (product.qrCode) {
-          product.qrCode = getFileUrl(req, product.qrCode);
-        }
-        return product;
-      });
+      const plainProducts = products.map((product) => product.toObject());
 
-      res.json(
-        successResponse(productsWithUrls, 'Low stock products retrieved successfully')
-      );
+      res.json(successResponse(plainProducts, 'Low stock products retrieved successfully'));
     } catch (error) {
       next(error);
     }
@@ -400,11 +280,7 @@ export class ProductController {
    * Bulk import products
    * POST /api/products/bulk-import
    */
-  bulkImport = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  bulkImport = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const userId = req.user!.id;
@@ -414,18 +290,11 @@ export class ProductController {
         throw new AppError('Products must be an array', 400);
       }
 
-      const results = await this.productService.bulkImportProducts(
-        tenantId,
-        userId,
-        products
-      );
+      const results = await this.productService.bulkImportProducts(tenantId, userId, products);
 
-      res.json(
-        successResponse(results, 'Bulk import completed', 200)
-      );
+      res.json(successResponse(results, 'Bulk import completed', 200));
     } catch (error) {
       next(error);
     }
   };
 }
-

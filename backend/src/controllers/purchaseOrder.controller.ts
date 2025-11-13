@@ -21,13 +21,28 @@ export class PurchaseOrderController {
 
   getPOs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { vendorId, storeId, status, startDate, endDate, page, limit } = req.query;
+      const { vendorId, storeId, status, startDate, endDate, search, page, limit } = req.query;
+      
+      // Build search query if provided
+      let searchQuery: any = {};
+      if (search) {
+        searchQuery = {
+          $or: [
+            { poNumber: { $regex: search as string, $options: 'i' } },
+            { 'vendor.name': { $regex: search as string, $options: 'i' } },
+            { 'vendor.company': { $regex: search as string, $options: 'i' } },
+            { 'items.name': { $regex: search as string, $options: 'i' } },
+          ],
+        };
+      }
+      
       const result = await this.poService.getPurchaseOrders(req.tenant!.id, {
         vendorId: vendorId as string,
         storeId: storeId as string,
         status: status as string,
         startDate: startDate ? new Date(startDate as string) : undefined,
         endDate: endDate ? new Date(endDate as string) : undefined,
+        search: Object.keys(searchQuery).length > 0 ? searchQuery : undefined,
         page: page ? parseInt(page as string) : undefined,
         limit: limit ? parseInt(limit as string) : undefined,
       });
@@ -74,6 +89,22 @@ export class PurchaseOrderController {
       }
       const po = await this.poService.cancelPO(req.tenant!.id, req.params.id, req.user!.id, reason);
       res.json(successResponse(po, 'Purchase order cancelled successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { startDate, endDate } = req.query;
+      const dateRange = startDate && endDate
+        ? {
+            start: new Date(startDate as string),
+            end: new Date(endDate as string),
+          }
+        : undefined;
+      const stats = await this.poService.getPOStats(req.tenant!.id, dateRange);
+      res.json(successResponse(stats, 'Purchase order statistics retrieved successfully'));
     } catch (error) {
       next(error);
     }

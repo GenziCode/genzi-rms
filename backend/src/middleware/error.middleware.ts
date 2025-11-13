@@ -39,7 +39,16 @@ export const errorHandler = (
 
   // Handle Mongoose validation errors
   if (err.name === 'ValidationError') {
-    return sendError(res, 'Validation failed', 400, 'VALIDATION_ERROR');
+    const mongooseError = err as any;
+    const details = mongooseError?.errors
+      ? Object.keys(mongooseError.errors).map((key) => ({
+          field: key,
+          message: mongooseError.errors[key]?.message,
+          value: mongooseError.errors[key]?.value,
+        }))
+      : undefined;
+
+    return sendError(res, 'Validation failed', 400, 'VALIDATION_ERROR', details);
   }
 
   // Handle Mongoose duplicate key errors

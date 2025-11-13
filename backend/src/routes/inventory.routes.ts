@@ -8,9 +8,9 @@ import { body, param, query } from 'express-validator';
 const router = Router();
 const inventoryController = new InventoryController();
 
-// All routes require authentication and tenant context
+// All routes require authentication
+// Note: resolveTenant is already applied in routes/index.ts
 router.use(authenticate);
-router.use(resolveTenant);
 
 /**
  * Validation rules
@@ -49,30 +49,24 @@ const adjustStockValidation = [
 ];
 
 const getMovementsValidation = [
-  query('productId')
-    .optional()
-    .isMongoId()
-    .withMessage('Invalid product ID'),
-  query('storeId')
-    .optional()
-    .isMongoId()
-    .withMessage('Invalid store ID'),
+  query('productId').optional().isMongoId().withMessage('Invalid product ID'),
+  query('storeId').optional().isMongoId().withMessage('Invalid store ID'),
   query('type')
     .optional()
-    .isIn(['sale', 'adjustment', 'transfer_in', 'transfer_out', 'return', 'damage', 'restock', 'initial'])
+    .isIn([
+      'sale',
+      'adjustment',
+      'transfer_in',
+      'transfer_out',
+      'return',
+      'damage',
+      'restock',
+      'initial',
+    ])
     .withMessage('Invalid movement type'),
-  query('startDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Invalid start date'),
-  query('endDate')
-    .optional()
-    .isISO8601()
-    .withMessage('Invalid end date'),
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
+  query('startDate').optional().isISO8601().withMessage('Invalid start date'),
+  query('endDate').optional().isISO8601().withMessage('Invalid end date'),
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
   query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
@@ -84,27 +78,50 @@ const getAlertsValidation = [
     .optional()
     .isIn(['low_stock', 'out_of_stock', 'overstock'])
     .withMessage('Invalid alert type'),
-  query('storeId')
-    .optional()
-    .isMongoId()
-    .withMessage('Invalid store ID'),
+  query('storeId').optional().isMongoId().withMessage('Invalid store ID'),
   query('status')
     .optional()
     .isIn(['active', 'resolved', 'acknowledged'])
     .withMessage('Invalid status'),
 ];
 
-const acknowledgeAlertValidation = [
-  param('id')
-    .isMongoId()
-    .withMessage('Invalid alert ID'),
-];
+const acknowledgeAlertValidation = [param('id').isMongoId().withMessage('Invalid alert ID')];
 
-const storeIdValidation = [
-  query('storeId')
-    .optional()
+const storeIdValidation = [query('storeId').optional().isMongoId().withMessage('Invalid store ID')];
+
+const transferStockValidation = [
+  body('productId')
+    .notEmpty()
+    .withMessage('Product ID is required')
     .isMongoId()
-    .withMessage('Invalid store ID'),
+    .withMessage('Invalid product ID'),
+  body('fromStoreId')
+    .notEmpty()
+    .withMessage('Source store is required')
+    .isMongoId()
+    .withMessage('Invalid source store ID'),
+  body('toStoreId')
+    .notEmpty()
+    .withMessage('Destination store is required')
+    .isMongoId()
+    .withMessage('Invalid destination store ID')
+    .custom((value, { req }) => value !== req.body.fromStoreId)
+    .withMessage('Destination store must be different from source store'),
+  body('quantity')
+    .notEmpty()
+    .withMessage('Quantity is required')
+    .isInt({ min: 1 })
+    .withMessage('Quantity must be at least 1'),
+  body('reason')
+    .optional()
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('Reason cannot exceed 200 characters'),
+  body('notes')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Notes cannot exceed 500 characters'),
 ];
 
 /**
@@ -112,52 +129,25 @@ const storeIdValidation = [
  */
 
 // GET /api/inventory/status - Get inventory status summary (must be before others)
-router.get(
-  '/status',
-  storeIdValidation,
-  validate,
-  inventoryController.getStatus
-);
+router.get('/status', storeIdValidation, validate, inventoryController.getStatus);
 
 // GET /api/inventory/valuation - Get inventory valuation
-router.get(
-  '/valuation',
-  storeIdValidation,
-  validate,
-  inventoryController.getValuation
-);
+router.get('/valuation', storeIdValidation, validate, inventoryController.getValuation);
 
 // GET /api/inventory/low-stock - Get low stock products
-router.get(
-  '/low-stock',
-  storeIdValidation,
-  validate,
-  inventoryController.getLowStock
-);
+router.get('/low-stock', storeIdValidation, validate, inventoryController.getLowStock);
 
 // GET /api/inventory/movements - Get stock movement history
-router.get(
-  '/movements',
-  getMovementsValidation,
-  validate,
-  inventoryController.getMovements
-);
+router.get('/movements', getMovementsValidation, validate, inventoryController.getMovements);
 
 // GET /api/inventory/alerts - Get active alerts
-router.get(
-  '/alerts',
-  getAlertsValidation,
-  validate,
-  inventoryController.getAlerts
-);
+router.get('/alerts', getAlertsValidation, validate, inventoryController.getAlerts);
 
 // POST /api/inventory/adjust - Adjust stock
-router.post(
-  '/adjust',
-  adjustStockValidation,
-  validate,
-  inventoryController.adjustStock
-);
+router.post('/adjust', adjustStockValidation, validate, inventoryController.adjustStock);
+
+// POST /api/inventory/transfer - Transfer stock between stores
+router.post('/transfer', transferStockValidation, validate, inventoryController.transferStock);
 
 // POST /api/inventory/alerts/:id/acknowledge - Acknowledge alert
 router.post(
@@ -168,4 +158,3 @@ router.post(
 );
 
 export default router;
-

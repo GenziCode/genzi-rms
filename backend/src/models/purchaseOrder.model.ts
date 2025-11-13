@@ -6,6 +6,8 @@ export interface IPurchaseOrderItem {
   sku: string;
   quantity: number;
   unitCost: number;
+  discount?: number; // Discount percentage
+  discountAmount?: number; // Calculated discount amount
   tax: number;
   taxRate: number;
   total: number;
@@ -54,25 +56,21 @@ export const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
   {
     poNumber: {
       type: String,
-      unique: true,
       trim: true,
     },
     tenantId: {
       type: Schema.Types.ObjectId,
       required: true,
-      index: true,
     },
     vendor: {
       type: Schema.Types.ObjectId,
       ref: 'Vendor',
       required: true,
-      index: true,
     },
     store: {
       type: Schema.Types.ObjectId,
       ref: 'Store',
       required: true,
-      index: true,
     },
     items: [
       {
@@ -85,6 +83,8 @@ export const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
         sku: { type: String, required: true },
         quantity: { type: Number, required: true, min: 0 },
         unitCost: { type: Number, required: true, min: 0 },
+        discount: { type: Number, default: 0, min: 0, max: 100 }, // Discount percentage
+        discountAmount: { type: Number, default: 0, min: 0 }, // Calculated discount amount
         tax: { type: Number, default: 0, min: 0 },
         taxRate: { type: Number, default: 0, min: 0, max: 100 },
         total: { type: Number, required: true, min: 0 },
@@ -115,7 +115,6 @@ export const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
       type: String,
       enum: ['draft', 'sent', 'confirmed', 'partially_received', 'received', 'cancelled'],
       default: 'draft',
-      index: true,
     },
     orderDate: {
       type: Date,
@@ -126,6 +125,7 @@ export const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     receivedDate: Date,
     cancelledDate: Date,
     vendorInvoiceNumber: String,
+    paymentTerms: String,
     notes: String,
     sentBy: Schema.Types.ObjectId,
     receivedBy: Schema.Types.ObjectId,

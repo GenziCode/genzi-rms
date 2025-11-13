@@ -22,18 +22,23 @@
 ## 🚀 Getting Started
 
 ### Base URL
+
 ```
 http://localhost:5000
 ```
 
 ### Authentication
+
 Most endpoints require a JWT token in the Authorization header:
+
 ```
 Authorization: Bearer {your_access_token}
 ```
 
 ### Tenant Context
+
 In development, include tenant subdomain in header:
+
 ```
 X-Tenant: {tenant_subdomain}
 ```
@@ -45,11 +50,12 @@ X-Tenant: {tenant_subdomain}
 ### How It Works
 
 1. **Register Tenant** → Get access + refresh tokens
-2. **OR Login** → Get access + refresh tokens  
+2. **OR Login** → Get access + refresh tokens
 3. **Use Access Token** → Make authenticated requests
 4. **When Expired** → Use refresh token to get new access token
 
 ### Token Expiration
+
 - **Access Token:** 15 minutes
 - **Refresh Token:** 7 days
 
@@ -66,11 +72,13 @@ Get basic API information and available endpoints.
 **Authentication:** Not required
 
 **Request:**
+
 ```bash
 curl http://localhost:5000/
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "success": true,
@@ -94,11 +102,13 @@ Check if the API server is healthy and running.
 **Authentication:** Not required
 
 **Request:**
+
 ```bash
 curl http://localhost:5000/api/health
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "success": true,
@@ -112,6 +122,7 @@ curl http://localhost:5000/api/health
 ```
 
 **Response Fields:**
+
 - `status` (string): "healthy" or "unhealthy"
 - `timestamp` (string): Current server time (ISO 8601)
 - `uptime` (number): Server uptime in seconds
@@ -130,6 +141,7 @@ Create a new tenant with owner account. Automatically provisions a new database 
 **Authentication:** Not required
 
 **Request Body:**
+
 ```json
 {
   "name": "Demo Restaurant",
@@ -144,17 +156,18 @@ Create a new tenant with owner account. Automatically provisions a new database 
 
 **Field Validation:**
 
-| Field | Type | Required | Validation |
-|-------|------|----------|------------|
-| `name` | string | Yes | 2-100 characters |
-| `subdomain` | string | Yes | 3-30 chars, alphanumeric + hyphens, lowercase |
-| `email` | string | Yes | Valid email format |
-| `password` | string | Yes | Min 8 chars, 1 uppercase, 1 lowercase, 1 number |
-| `firstName` | string | Yes | 1-50 characters |
-| `lastName` | string | Yes | 1-50 characters |
-| `phone` | string | No | Valid phone number (any format) |
+| Field       | Type   | Required | Validation                                      |
+| ----------- | ------ | -------- | ----------------------------------------------- |
+| `name`      | string | Yes      | 2-100 characters                                |
+| `subdomain` | string | Yes      | 3-30 chars, alphanumeric + hyphens, lowercase   |
+| `email`     | string | Yes      | Valid email format                              |
+| `password`  | string | Yes      | Min 8 chars, 1 uppercase, 1 lowercase, 1 number |
+| `firstName` | string | Yes      | 1-50 characters                                 |
+| `lastName`  | string | Yes      | 1-50 characters                                 |
+| `phone`     | string | No       | Valid phone number (any format)                 |
 
 **Example Request:**
+
 ```bash
 curl -X POST http://localhost:5000/api/tenants/register \
   -H "Content-Type: application/json" \
@@ -169,6 +182,7 @@ curl -X POST http://localhost:5000/api/tenants/register \
 ```
 
 **Response:** `201 Created`
+
 ```json
 {
   "success": true,
@@ -192,6 +206,7 @@ curl -X POST http://localhost:5000/api/tenants/register \
 ```
 
 **What Gets Created:**
+
 1. Tenant record in master database
 2. Owner user account
 3. New isolated database for tenant
@@ -202,6 +217,7 @@ curl -X POST http://localhost:5000/api/tenants/register \
 **Error Responses:**
 
 `400 Bad Request` - Validation failed
+
 ```json
 {
   "success": false,
@@ -220,6 +236,7 @@ curl -X POST http://localhost:5000/api/tenants/register \
 ```
 
 `409 Conflict` - Subdomain or email already exists
+
 ```json
 {
   "success": false,
@@ -241,14 +258,17 @@ Check if a subdomain is available before registration.
 **Authentication:** Not required
 
 **Path Parameters:**
+
 - `subdomain` (string): Subdomain to check
 
 **Example Request:**
+
 ```bash
 curl http://localhost:5000/api/tenants/check-subdomain/demo
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "success": true,
@@ -260,6 +280,7 @@ curl http://localhost:5000/api/tenants/check-subdomain/demo
 ```
 
 **Available Subdomain:**
+
 ```json
 {
   "success": true,
@@ -283,12 +304,14 @@ Authenticate a user and receive JWT tokens.
 **Authentication:** Not required
 
 **Headers:**
+
 ```
 Content-Type: application/json
 X-Tenant: {tenant_subdomain}  (required in development)
 ```
 
 **Request Body:**
+
 ```json
 {
   "email": "owner@demo.com",
@@ -297,6 +320,7 @@ X-Tenant: {tenant_subdomain}  (required in development)
 ```
 
 **Example Request:**
+
 ```bash
 curl -X POST http://localhost:5000/api/auth/login \
   -H "Content-Type: application/json" \
@@ -308,6 +332,7 @@ curl -X POST http://localhost:5000/api/auth/login \
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "success": true,
@@ -334,6 +359,7 @@ curl -X POST http://localhost:5000/api/auth/login \
 **Error Responses:**
 
 `401 Unauthorized` - Invalid credentials
+
 ```json
 {
   "success": false,
@@ -345,6 +371,7 @@ curl -X POST http://localhost:5000/api/auth/login \
 ```
 
 `401 Unauthorized` - Account not active
+
 ```json
 {
   "success": false,
@@ -356,6 +383,7 @@ curl -X POST http://localhost:5000/api/auth/login \
 ```
 
 `429 Too Many Requests` - Rate limit exceeded (5 attempts per 15 min)
+
 ```json
 {
   "success": false,
@@ -377,6 +405,7 @@ Get a new access token using a valid refresh token.
 **Authentication:** Not required (uses refresh token)
 
 **Request Body:**
+
 ```json
 {
   "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
@@ -384,6 +413,7 @@ Get a new access token using a valid refresh token.
 ```
 
 **Example Request:**
+
 ```bash
 curl -X POST http://localhost:5000/api/auth/refresh \
   -H "Content-Type: application/json" \
@@ -393,6 +423,7 @@ curl -X POST http://localhost:5000/api/auth/refresh \
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "success": true,
@@ -407,6 +438,7 @@ curl -X POST http://localhost:5000/api/auth/refresh \
 **Error Responses:**
 
 `401 Unauthorized` - Invalid or expired refresh token
+
 ```json
 {
   "success": false,
@@ -428,12 +460,14 @@ Get the authenticated user's profile information.
 **Authentication:** Required (Bearer token)
 
 **Headers:**
+
 ```
 Authorization: Bearer {access_token}
 X-Tenant: {tenant_subdomain}
 ```
 
 **Example Request:**
+
 ```bash
 curl http://localhost:5000/api/auth/me \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
@@ -441,6 +475,7 @@ curl http://localhost:5000/api/auth/me \
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "success": true,
@@ -470,6 +505,7 @@ curl http://localhost:5000/api/auth/me \
 **Error Responses:**
 
 `401 Unauthorized` - No token provided
+
 ```json
 {
   "success": false,
@@ -481,6 +517,7 @@ curl http://localhost:5000/api/auth/me \
 ```
 
 `401 Unauthorized` - Token expired
+
 ```json
 {
   "success": false,
@@ -502,12 +539,14 @@ Logout the current user (client should discard tokens).
 **Authentication:** Required
 
 **Headers:**
+
 ```
 Authorization: Bearer {access_token}
 X-Tenant: {tenant_subdomain}
 ```
 
 **Example Request:**
+
 ```bash
 curl -X POST http://localhost:5000/api/auth/logout \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
@@ -515,6 +554,7 @@ curl -X POST http://localhost:5000/api/auth/logout \
 ```
 
 **Response:** `200 OK`
+
 ```json
 {
   "success": true,
@@ -567,37 +607,37 @@ All error responses follow this format:
 
 ## ❌ Error Codes
 
-| HTTP Status | Error Code | Description |
-|-------------|------------|-------------|
-| 400 | `VALIDATION_ERROR` | Invalid input data |
-| 400 | `INVALID_HOST` | Invalid host format |
-| 400 | `TENANT_NOT_SPECIFIED` | Tenant not specified |
-| 401 | `UNAUTHORIZED` | Not authenticated |
-| 401 | `TOKEN_EXPIRED` | Access token expired |
-| 401 | `INVALID_TOKEN` | Invalid or malformed token |
-| 401 | `REFRESH_TOKEN_EXPIRED` | Refresh token expired |
-| 403 | `FORBIDDEN` | Insufficient permissions |
-| 403 | `TENANT_SUSPENDED` | Tenant account suspended |
-| 404 | `NOT_FOUND` | Resource not found |
-| 404 | `TENANT_NOT_FOUND` | Tenant does not exist |
-| 404 | `ROUTE_NOT_FOUND` | API endpoint does not exist |
-| 409 | `CONFLICT` | Duplicate entry (email, subdomain, etc.) |
-| 429 | `TOO_MANY_REQUESTS` | Rate limit exceeded |
-| 429 | `LIMIT_EXCEEDED` | Usage limit exceeded |
-| 500 | `SERVER_ERROR` | Internal server error |
+| HTTP Status | Error Code              | Description                              |
+| ----------- | ----------------------- | ---------------------------------------- |
+| 400         | `VALIDATION_ERROR`      | Invalid input data                       |
+| 400         | `INVALID_HOST`          | Invalid host format                      |
+| 400         | `TENANT_NOT_SPECIFIED`  | Tenant not specified                     |
+| 401         | `UNAUTHORIZED`          | Not authenticated                        |
+| 401         | `TOKEN_EXPIRED`         | Access token expired                     |
+| 401         | `INVALID_TOKEN`         | Invalid or malformed token               |
+| 401         | `REFRESH_TOKEN_EXPIRED` | Refresh token expired                    |
+| 403         | `FORBIDDEN`             | Insufficient permissions                 |
+| 403         | `TENANT_SUSPENDED`      | Tenant account suspended                 |
+| 404         | `NOT_FOUND`             | Resource not found                       |
+| 404         | `TENANT_NOT_FOUND`      | Tenant does not exist                    |
+| 404         | `ROUTE_NOT_FOUND`       | API endpoint does not exist              |
+| 409         | `CONFLICT`              | Duplicate entry (email, subdomain, etc.) |
+| 429         | `TOO_MANY_REQUESTS`     | Rate limit exceeded                      |
+| 429         | `LIMIT_EXCEEDED`        | Usage limit exceeded                     |
+| 500         | `SERVER_ERROR`          | Internal server error                    |
 
 ---
 
 ## 🔑 User Roles
 
-| Role | Description | Permissions |
-|------|-------------|-------------|
-| `owner` | Tenant owner | All permissions (*) |
-| `admin` | Administrator | Most permissions |
-| `manager` | Store manager | Store operations, reports |
-| `cashier` | POS operator | Sales, customers |
-| `kitchen_staff` | Kitchen staff | Kitchen orders only |
-| `waiter` | Wait staff | Orders, tables |
+| Role            | Description   | Permissions               |
+| --------------- | ------------- | ------------------------- |
+| `owner`         | Tenant owner  | All permissions (\*)      |
+| `admin`         | Administrator | Most permissions          |
+| `manager`       | Store manager | Store operations, reports |
+| `cashier`       | POS operator  | Sales, customers          |
+| `kitchen_staff` | Kitchen staff | Kitchen orders only       |
+| `waiter`        | Wait staff    | Orders, tables            |
 
 ---
 
@@ -677,16 +717,19 @@ curl -X POST http://localhost:5000/api/auth/refresh \
 2. **Create Requests:**
 
 **Register Tenant:**
+
 - Method: POST
 - URL: `{{base_url}}/api/tenants/register`
 - Body: JSON (see example above)
 - Tests (save tokens):
+
 ```javascript
-pm.environment.set("access_token", pm.response.json().data.accessToken);
-pm.environment.set("refresh_token", pm.response.json().data.refreshToken);
+pm.environment.set('access_token', pm.response.json().data.accessToken);
+pm.environment.set('refresh_token', pm.response.json().data.refreshToken);
 ```
 
 **Login:**
+
 - Method: POST
 - URL: `{{base_url}}/api/auth/login`
 - Headers: `X-Tenant: {{tenant}}`
@@ -694,6 +737,7 @@ pm.environment.set("refresh_token", pm.response.json().data.refreshToken);
 - Tests: Same as above
 
 **Get Profile:**
+
 - Method: GET
 - URL: `{{base_url}}/api/auth/me`
 - Headers:
@@ -821,13 +865,13 @@ pm.environment.set("refresh_token", pm.response.json().data.refreshToken);
 
 ## 📈 Rate Limits
 
-| Endpoint Type | Limit | Window |
-|---------------|-------|--------|
-| **Global** | 100 requests | 15 minutes |
-| **Auth Endpoints** | 5 attempts | 15 minutes |
-| **Per-Tenant (Free)** | 100 requests | 15 minutes |
-| **Per-Tenant (Basic)** | 500 requests | 15 minutes |
-| **Per-Tenant (Pro)** | 2000 requests | 15 minutes |
+| Endpoint Type          | Limit         | Window     |
+| ---------------------- | ------------- | ---------- |
+| **Global**             | 100 requests  | 15 minutes |
+| **Auth Endpoints**     | 5 attempts    | 15 minutes |
+| **Per-Tenant (Free)**  | 100 requests  | 15 minutes |
+| **Per-Tenant (Basic)** | 500 requests  | 15 minutes |
+| **Per-Tenant (Pro)**   | 2000 requests | 15 minutes |
 
 ---
 
@@ -836,6 +880,7 @@ pm.environment.set("refresh_token", pm.response.json().data.refreshToken);
 **Coming Soon:**
 
 ### Product Management
+
 - `GET /api/products` - List products
 - `POST /api/products` - Create product
 - `GET /api/products/:id` - Get product
@@ -843,16 +888,19 @@ pm.environment.set("refresh_token", pm.response.json().data.refreshToken);
 - `DELETE /api/products/:id` - Delete product
 
 ### POS System
+
 - `POST /api/sales` - Create sale
 - `GET /api/sales` - List sales
 - `POST /api/sales/hold` - Hold transaction
 - `GET /api/sales/hold/:id` - Resume held transaction
 
 ### Inventory
+
 - `GET /api/inventory` - Get inventory status
 - `POST /api/inventory/adjust` - Adjust stock
 
 ### Customers
+
 - `GET /api/customers` - List customers
 - `POST /api/customers` - Create customer
 - `GET /api/customers/:id` - Get customer
@@ -873,4 +921,3 @@ pm.environment.set("refresh_token", pm.response.json().data.refreshToken);
 **Authentication:** JWT with refresh tokens  
 **Multi-Tenancy:** Database-per-tenant  
 **Security:** 0 vulnerabilities ✅
-
