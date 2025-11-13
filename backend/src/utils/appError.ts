@@ -88,3 +88,9 @@ export class LimitExceededError extends AppError {
   current: number;
 }
 
+export class BadRequestError extends AppError {
+  constructor(message: string = 'Bad request') {
+    super(message, 400, 'BAD_REQUEST');
+  }
+}
+

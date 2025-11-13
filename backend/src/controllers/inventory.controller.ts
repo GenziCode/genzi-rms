@@ -14,22 +14,31 @@ export class InventoryController {
    * Adjust stock manually
    * POST /api/inventory/adjust
    */
-  adjustStock = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  adjustStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const userId = req.user!.id;
 
-      const product = await this.inventoryService.adjustStock(
-        tenantId,
-        userId,
-        req.body
-      );
+      const product = await this.inventoryService.adjustStock(tenantId, userId, req.body);
 
       res.json(successResponse(product, 'Stock adjusted successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Transfer stock between stores
+   * POST /api/inventory/transfer
+   */
+  transferStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+      const userId = req.user!.id;
+
+      const result = await this.inventoryService.transferStock(tenantId, userId, req.body);
+
+      res.json(successResponse(result, 'Stock transferred successfully'));
     } catch (error) {
       next(error);
     }
@@ -39,22 +48,10 @@ export class InventoryController {
    * Get stock movement history
    * GET /api/inventory/movements
    */
-  getMovements = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getMovements = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
-      const {
-        productId,
-        storeId,
-        type,
-        startDate,
-        endDate,
-        page,
-        limit,
-      } = req.query;
+      const { productId, storeId, type, startDate, endDate, page, limit } = req.query;
 
       const result = await this.inventoryService.getMovementHistory(tenantId, {
         productId: productId as string,
@@ -85,11 +82,7 @@ export class InventoryController {
    * Get active stock alerts
    * GET /api/inventory/alerts
    */
-  getAlerts = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getAlerts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const { type, storeId, status } = req.query;
@@ -110,21 +103,13 @@ export class InventoryController {
    * Acknowledge an alert
    * POST /api/inventory/alerts/:id/acknowledge
    */
-  acknowledgeAlert = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  acknowledgeAlert = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const userId = req.user!.id;
       const { id } = req.params;
 
-      const alert = await this.inventoryService.acknowledgeAlert(
-        tenantId,
-        id,
-        userId
-      );
+      const alert = await this.inventoryService.acknowledgeAlert(tenantId, id, userId);
 
       res.json(successResponse(alert, 'Alert acknowledged successfully'));
     } catch (error) {
@@ -136,11 +121,7 @@ export class InventoryController {
    * Get inventory valuation
    * GET /api/inventory/valuation
    */
-  getValuation = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getValuation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const { storeId } = req.query;
@@ -160,19 +141,12 @@ export class InventoryController {
    * Get low stock products
    * GET /api/inventory/low-stock
    */
-  getLowStock = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getLowStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const { storeId } = req.query;
 
-      const products = await this.inventoryService.getLowStockProducts(
-        tenantId,
-        storeId as string
-      );
+      const products = await this.inventoryService.getLowStockProducts(tenantId, storeId as string);
 
       res.json(successResponse(products, 'Low stock products retrieved successfully'));
     } catch (error) {
@@ -184,19 +158,12 @@ export class InventoryController {
    * Get inventory status summary
    * GET /api/inventory/status
    */
-  getStatus = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
       const { storeId } = req.query;
 
-      const status = await this.inventoryService.getInventoryStatus(
-        tenantId,
-        storeId as string
-      );
+      const status = await this.inventoryService.getInventoryStatus(tenantId, storeId as string);
 
       res.json(successResponse(status, 'Inventory status retrieved successfully'));
     } catch (error) {
@@ -204,4 +171,3 @@ export class InventoryController {
     }
   };
 }
-

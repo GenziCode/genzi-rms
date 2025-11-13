@@ -1,5 +1,12 @@
 import mongoose, { Connection } from 'mongoose';
 import { logger } from '../utils/logger';
+import { CustomerSchema } from '../models/customer.model';
+import { UserSchema } from '../models/user.model';
+import { SyncDeviceSchema } from '../models/syncDevice.model';
+import { CategorySchema } from '../models/category.model';
+import { ProductSchema } from '../models/product.model';
+import { StoreSchema } from '../models/store.model';
+import { VendorSchema } from '../models/vendor.model';
 
 // Connection cache for tenant databases
 const connections = new Map<string, Connection>();
@@ -62,19 +69,42 @@ export const getMasterConnection = async (): Promise<Connection> => {
   }
 };
 
+const registerBaseTenantModels = (connection: Connection) => {
+  const baseModels: Array<{ name: string; schema: mongoose.Schema }> = [
+    { name: 'Customer', schema: CustomerSchema },
+    { name: 'User', schema: UserSchema },
+    { name: 'SyncDevice', schema: SyncDeviceSchema },
+    { name: 'Category', schema: CategorySchema },
+    { name: 'Product', schema: ProductSchema },
+    { name: 'Store', schema: StoreSchema },
+    { name: 'Vendor', schema: VendorSchema },
+  ];
+
+  baseModels.forEach(({ name, schema }) => {
+    if (!connection.models[name]) {
+      connection.model(name, schema);
+    }
+  });
+};
+
 /**
  * Get or create Tenant database connection
  * Each tenant has their own database for data isolation
  */
 export const getTenantConnection = async (
   tenantId: string,
-  dbName: string
+  dbName?: string
 ): Promise<Connection> => {
   if (connections.has(tenantId)) {
-    return connections.get(tenantId)!;
+    const existing = connections.get(tenantId)!;
+    registerBaseTenantModels(existing);
+    return existing;
   }
 
   try {
+    if (!dbName) {
+      throw new Error('Tenant database name is required to establish new connection');
+    }
     const baseUri = process.env.TENANT_DB_BASE_URI || 'mongodb://localhost:27017';
     const uri = `${baseUri}/${dbName}`;
 
@@ -94,6 +124,8 @@ export const getTenantConnection = async (
     connection.on('error', (err) => {
       logger.error(`Tenant database error (${dbName}):`, err);
     });
+
+    registerBaseTenantModels(connection);
 
     connections.set(tenantId, connection);
 
@@ -123,7 +155,10 @@ export const getTenantModel = <T>(
 /**
  * Initialize tenant database with default collections and data
  */
-export const initializeTenantDatabase = async (connection: Connection): Promise<void> => {
+export const initializeTenantDatabase = async (
+  connection: Connection,
+  tenantId?: string
+): Promise<void> => {
   try {
     logger.info(`Initializing tenant database: ${connection.name}`);
 
@@ -146,20 +181,27 @@ export const initializeTenantDatabase = async (connection: Connection): Promise<
       await Category.findOneAndUpdate({ slug: cat.slug }, cat, { upsert: true, new: true });
     }
 
-    // Create default store
-    const existingStore = await Store.findOne({ isDefault: true });
-    if (!existingStore) {
-      await Store.create({
-        name: 'Main Store',
-        code: 'MAIN',
-        isActive: true,
-        isDefault: true,
-        settings: {
-          timezone: 'America/New_York',
-          currency: 'USD',
-          taxRate: 0,
-        },
-      });
+    // Create default store only if tenantId is provided
+    // Note: Stores should be created via seedTenantSampleData with proper tenantId
+    // This is kept for backward compatibility but should not be used for new tenants
+    if (tenantId) {
+      const mongoose = require('mongoose');
+      const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
+      const existingStore = await Store.findOne({ tenantId: tenantObjectId, isDefault: true });
+      if (!existingStore) {
+        await Store.create({
+          tenantId: tenantObjectId,
+          name: 'Main Store',
+          code: 'MAIN',
+          isActive: true,
+          isDefault: true,
+          settings: {
+            timezone: 'America/New_York',
+            currency: 'USD',
+            taxRate: 0,
+          },
+        });
+      }
     }
 
     logger.info(`Tenant database initialized successfully: ${connection.name}`);

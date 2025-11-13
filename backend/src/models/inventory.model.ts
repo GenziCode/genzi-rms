@@ -38,19 +38,16 @@ export const StockMovementSchema = new Schema<IStockMovement>(
     tenantId: {
       type: Schema.Types.ObjectId,
       required: true,
-      index: true,
     },
     product: {
       type: Schema.Types.ObjectId,
       ref: 'Product',
       required: true,
-      index: true,
     },
     store: {
       type: Schema.Types.ObjectId,
       ref: 'Store',
       required: true,
-      index: true,
     },
     type: {
       type: String,
@@ -65,7 +62,6 @@ export const StockMovementSchema = new Schema<IStockMovement>(
         'initial',
       ],
       required: true,
-      index: true,
     },
     quantity: {
       type: Number,
@@ -129,25 +125,21 @@ export const StockAlertSchema = new Schema<IStockAlert>(
     tenantId: {
       type: Schema.Types.ObjectId,
       required: true,
-      index: true,
     },
     product: {
       type: Schema.Types.ObjectId,
       ref: 'Product',
       required: true,
-      index: true,
     },
     store: {
       type: Schema.Types.ObjectId,
       ref: 'Store',
       required: true,
-      index: true,
     },
     type: {
       type: String,
       enum: ['low_stock', 'out_of_stock', 'overstock'],
       required: true,
-      index: true,
     },
     threshold: {
       type: Number,
@@ -161,7 +153,6 @@ export const StockAlertSchema = new Schema<IStockAlert>(
       type: String,
       enum: ['active', 'resolved', 'acknowledged'],
       default: 'active',
-      index: true,
     },
     acknowledgedBy: Schema.Types.ObjectId,
     acknowledgedAt: Date,
@@ -204,12 +195,10 @@ export const InventorySnapshotSchema = new Schema<IInventorySnapshot>(
     tenantId: {
       type: Schema.Types.ObjectId,
       required: true,
-      index: true,
     },
     date: {
       type: Date,
       required: true,
-      index: true,
     },
     snapshots: [
       {

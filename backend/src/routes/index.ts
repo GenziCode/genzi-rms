@@ -10,7 +10,15 @@ import exportRoutes from './export.routes';
 import syncRoutes from './sync.routes';
 import vendorRoutes from './vendor.routes';
 import purchaseOrderRoutes from './purchaseOrder.routes';
+import invoiceRoutes from './invoice.routes';
+// import fileRoutes from './file.routes'; // DISABLED - File uploads
+import notificationRoutes from './notification.routes';
+import auditRoutes from './audit.routes';
+import paymentRoutes from './payment.routes';
+import webhookRoutes from './webhook.routes';
+import systemWebhookRoutes from './system-webhook.routes';
 import userRoutes from './user.routes';
+import storeRoutes from './store.routes';
 import settingsRoutes from './settings.routes';
 import reportsRoutes from './reports.routes';
 import { resolveTenant } from '../middleware/tenant.middleware';
@@ -23,30 +31,42 @@ const router = Router();
 router.use('/tenants', tenantRoutes);
 
 /**
- * Tenant-specific routes (require tenant resolution)
+ * Webhook routes (no auth required, verified by signature)
  */
-router.use('/auth', resolveTenant, authRoutes);
+router.use('/webhooks', webhookRoutes);
+
+/**
+ * Auth routes (login doesn't need tenant resolution, other auth endpoints do)
+ */
+router.use('/auth', authRoutes);
 
 /**
  * Protected routes (require authentication and tenant)
  */
-router.use('/categories', categoryRoutes);
-router.use('/products', productRoutes);
-router.use('/sales', posRoutes);
-router.use('/inventory', inventoryRoutes);
-router.use('/customers', customerRoutes);
-router.use('/vendors', vendorRoutes);
-router.use('/purchase-orders', purchaseOrderRoutes);
-router.use('/users', userRoutes);
-router.use('/settings', settingsRoutes);
-router.use('/reports', reportsRoutes);
-router.use('/export', exportRoutes);
-router.use('/sync', syncRoutes);
+router.use('/categories', resolveTenant, categoryRoutes);
+router.use('/products', resolveTenant, productRoutes);
+router.use('/sales', resolveTenant, posRoutes);
+router.use('/inventory', resolveTenant, inventoryRoutes);
+router.use('/customers', resolveTenant, customerRoutes);
+router.use('/vendors', resolveTenant, vendorRoutes);
+router.use('/stores', resolveTenant, storeRoutes);
+router.use('/purchase-orders', resolveTenant, purchaseOrderRoutes);
+router.use('/invoices', resolveTenant, invoiceRoutes);
+// router.use('/files', fileRoutes); // DISABLED - File uploads
+router.use('/notifications', resolveTenant, notificationRoutes);
+router.use('/audit-logs', resolveTenant, auditRoutes);
+router.use('/payments', resolveTenant, paymentRoutes);
+router.use('/webhooks-config', resolveTenant, systemWebhookRoutes);
+router.use('/users', resolveTenant, userRoutes);
+router.use('/settings', resolveTenant, settingsRoutes);
+router.use('/reports', resolveTenant, reportsRoutes);
+router.use('/export', resolveTenant, exportRoutes);
+router.use('/sync', resolveTenant, syncRoutes);
 
 /**
  * Health check endpoint
  */
-router.get('/health', (req, res) => {
+router.get('/health', (_req, res) => {
   res.json({
     success: true,
     data: {

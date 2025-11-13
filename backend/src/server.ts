@@ -3,9 +3,11 @@ import { createApp } from './app';
 import { getMasterConnection, closeAllConnections } from './config/database';
 import { initRedis, closeRedis } from './config/redis';
 import { logger } from './utils/logger';
+import { initObservability } from './utils/observability';
 
 // Load environment variables
 dotenv.config();
+initObservability();
 
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';

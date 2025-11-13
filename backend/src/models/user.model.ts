@@ -19,6 +19,20 @@ export interface IUser extends Document {
   lastLoginIp?: string;
   loginCount: number;
   status: 'active' | 'inactive' | 'suspended';
+  resetPasswordToken?: string;
+  resetPasswordExpiry?: Date;
+  emailVerificationToken?: string;
+  emailVerificationExpiry?: Date;
+  notificationPreferences?: {
+    inApp: boolean;
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+    types: Record<
+      'sale' | 'payment' | 'inventory' | 'order' | 'customer' | 'alert' | 'reminder',
+      boolean
+    >;
+  };
   createdAt: Date;
   updatedAt: Date;
   // Methods
@@ -32,12 +46,10 @@ const UserSchema = new Schema<IUser>(
       type: Schema.Types.ObjectId,
       required: true,
       ref: 'Tenant',
-      index: true,
     },
     email: {
       type: String,
       required: true,
-      unique: true,
       lowercase: true,
       trim: true,
       match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -91,6 +103,37 @@ const UserSchema = new Schema<IUser>(
       type: String,
       enum: ['active', 'inactive', 'suspended'],
       default: 'active',
+    },
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+    resetPasswordExpiry: {
+      type: Date,
+      select: false,
+    },
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpiry: {
+      type: Date,
+      select: false,
+    },
+    notificationPreferences: {
+      inApp: { type: Boolean, default: true },
+      email: { type: Boolean, default: false },
+      sms: { type: Boolean, default: false },
+      push: { type: Boolean, default: false },
+      types: {
+        sale: { type: Boolean, default: true },
+        payment: { type: Boolean, default: true },
+        inventory: { type: Boolean, default: true },
+        order: { type: Boolean, default: true },
+        customer: { type: Boolean, default: true },
+        alert: { type: Boolean, default: true },
+        reminder: { type: Boolean, default: true },
+      },
     },
   },
   {

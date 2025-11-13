@@ -21,10 +21,11 @@ export class SyncController {
   ): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
-      const { lastSync } = req.body;
+      const { lastSync, device } = req.body;
 
       const data = await this.syncService.pullData(
         tenantId,
+        device,
         lastSync ? new Date(lastSync) : undefined
       );
 
@@ -46,13 +47,13 @@ export class SyncController {
     try {
       const tenantId = req.tenant!.id;
       const userId = req.user!.id;
-      const { sales } = req.body;
+      const { sales, device } = req.body;
 
       if (!Array.isArray(sales)) {
         throw new AppError('Sales must be an array', 400);
       }
 
-      const results = await this.syncService.pushSales(tenantId, userId, sales);
+      const results = await this.syncService.pushSales(tenantId, userId, sales, device);
 
       res.json(successResponse(results, 'Offline sales synced'));
     } catch (error) {
@@ -76,6 +77,24 @@ export class SyncController {
       const status = await this.syncService.getSyncStatus(tenantId, deviceId);
 
       res.json(successResponse(status, 'Sync status retrieved'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/sync/devices
+   * List registered sync devices
+   */
+  listDevices = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+      const devices = await this.syncService.listDevices(tenantId);
+      res.json(successResponse(devices, 'Sync devices retrieved'));
     } catch (error) {
       next(error);
     }

@@ -71,19 +71,22 @@ export class ReportsService {
       };
 
       // Product stats
-      const totalProducts = await Product.countDocuments({ status: 'active' });
+      const totalProducts = await Product.countDocuments({ isActive: true });
       const lowStockProducts = await Product.countDocuments({
-        status: 'active',
+        isActive: true,
+        trackInventory: true,
         stock: { $lte: 10 },
       });
       const outOfStockProducts = await Product.countDocuments({
-        status: 'active',
-        stock: 0,
+        isActive: true,
+        trackInventory: true,
+        stock: { $lte: 0 },
       });
 
       // Customer stats
-      const totalCustomers = await Customer.countDocuments({ status: 'active' });
+      const totalCustomers = await Customer.countDocuments({ isActive: true });
       const newCustomersCount = await Customer.countDocuments({
+        isActive: true,
         createdAt: { $gte: startDate },
       });
 
@@ -345,7 +348,7 @@ export class ReportsService {
 
       const valuation = await Product.aggregate([
         {
-          $match: { status: 'active' },
+          $match: { isActive: true },
         },
         {
           $group: {
@@ -417,17 +420,17 @@ export class ReportsService {
 
       const customers = topCustomers.map((c) => ({
         customerId: c._id,
-        customerName: c.customerInfo
-          ? `${c.customerInfo.firstName} ${c.customerInfo.lastName}`
-          : 'Guest',
+        customerName: c.customerInfo?.name || c.customerInfo?.fullName || 'Guest',
         email: c.customerInfo?.email,
         totalSpent: Math.round(c.totalSpent * 100) / 100,
         visits: c.visits,
-        avgOrderValue: Math.round((c.totalSpent / c.visits) * 100) / 100,
+        avgOrderValue:
+          c.visits > 0 ? Math.round((c.totalSpent / c.visits) * 100) / 100 : 0,
       }));
 
-      const totalCustomers = await Customer.countDocuments({ status: 'active' });
+      const totalCustomers = await Customer.countDocuments({ isActive: true });
       const newCustomers = await Customer.countDocuments({
+        isActive: true,
         createdAt: { $gte: startDate, $lte: endDate },
       });
 
@@ -450,7 +453,7 @@ export class ReportsService {
     try {
       const { Vendor } = await this.getModels(tenantId);
 
-      const vendors = await Vendor.find({ status: 'active' })
+      const vendors = await Vendor.find({ isActive: true })
         .select('name email phone stats')
         .sort('-stats.totalPurchased')
         .limit(10);

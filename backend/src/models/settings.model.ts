@@ -43,6 +43,7 @@ export interface ISettings extends Document {
     taxName: string; // "VAT", "GST", "Sales Tax", etc.
     taxNumber?: string;
     includedInPrice: boolean;
+    showTaxBreakdown: boolean;
   };
 
   // Receipt Settings
@@ -51,8 +52,21 @@ export interface ISettings extends Document {
     footerText?: string;
     showLogo: boolean;
     showTaxId: boolean;
+    showBarcode: boolean;
+    showBarcode: boolean;
     showQRCode: boolean;
     paperSize: 'A4' | '80mm' | '58mm';
+    logoUrl?: string;
+    accentColor: string;
+    template: 'classic' | 'modern' | 'compact';
+    showStoreDetails: boolean;
+    showCustomerDetails: boolean;
+    showCashier: boolean;
+    showItemNotes: boolean;
+    showDiscounts: boolean;
+    showTaxBreakdown: boolean;
+    showPaymentSummary: boolean;
+    showNotes: boolean;
   };
 
   // POS Settings
@@ -62,6 +76,14 @@ export interface ISettings extends Document {
     barcodeScanner: boolean;
     customerDisplayEnabled: boolean;
     printReceiptAutomatically: boolean;
+    enableBarcodeScanner: boolean;
+    autoComplete: boolean;
+    playSound: boolean;
+    showCostPrice: boolean;
+    requireCustomer: boolean;
+    allowNegativeStock: boolean;
+    quickPaymentButtons: number[];
+    defaultPaymentMethod: 'cash' | 'card' | 'mobile' | 'bank';
   };
 
   // Notifications
@@ -71,6 +93,87 @@ export interface ISettings extends Document {
     weeklyReport: boolean;
     emailNotifications: boolean;
     smsNotifications: boolean;
+    emailConfig: {
+      enabled: boolean;
+      host?: string;
+      port?: number;
+      secure: boolean;
+      user?: string;
+      password?: string;
+      fromEmail?: string;
+      replyTo?: string;
+      lastTestedAt?: Date;
+      lastTestResult?: 'success' | 'failure';
+    };
+    smsConfig: {
+      enabled: boolean;
+      provider: 'twilio';
+      accountSid?: string;
+      authToken?: string;
+      fromNumber?: string;
+      lastTestedAt?: Date;
+      lastTestResult?: 'success' | 'failure';
+    };
+  };
+
+  // Payments
+  payments: {
+    allowCash: boolean;
+    allowCard: boolean;
+    allowBankTransfer: boolean;
+    allowStoreCredit: boolean;
+    requireSignature: boolean;
+    autoCapture: boolean;
+    stripe: {
+      enabled: boolean;
+      publishableKey?: string;
+      secretKey?: string;
+      webhookSecret?: string;
+      lastTestedAt?: Date;
+      lastTestResult?: 'success' | 'failure';
+    };
+  };
+
+  // Integrations
+  integrations: {
+    ecommerce: {
+      shopify: {
+        enabled: boolean;
+        storeDomain?: string;
+        accessToken?: string;
+      };
+    };
+    accounting: {
+      quickbooks: {
+        enabled: boolean;
+        realmId?: string;
+        clientId?: string;
+        clientSecret?: string;
+      };
+    };
+    crm: {
+      hubspot: {
+        enabled: boolean;
+        apiKey?: string;
+      };
+    };
+    webhooks: {
+      enabled: boolean;
+      url?: string;
+      secret?: string;
+      lastTestedAt?: Date;
+      lastTestResult?: 'success' | 'failure';
+    };
+  };
+
+  // Compliance & Security
+  compliance: {
+    requireTwoFactor: boolean;
+    sessionTimeoutMinutes: number;
+    dataRetentionDays: number;
+    allowDataExport: boolean;
+    autoPurgeAuditLogs: boolean;
+    auditNotificationEmails: string[];
   };
 
   updatedBy?: Schema.Types.ObjectId;
@@ -83,7 +186,6 @@ export const SettingsSchema = new Schema<ISettings>(
       type: Schema.Types.ObjectId,
       required: true,
       unique: true,
-      index: true,
     },
     store: {
       name: { type: String, required: true },
@@ -112,14 +214,27 @@ export const SettingsSchema = new Schema<ISettings>(
       taxName: { type: String, default: 'Tax' },
       taxNumber: String,
       includedInPrice: { type: Boolean, default: false },
+      showTaxBreakdown: { type: Boolean, default: true },
     },
     receipt: {
       headerText: String,
       footerText: String,
       showLogo: { type: Boolean, default: true },
       showTaxId: { type: Boolean, default: true },
+      showBarcode: { type: Boolean, default: true },
       showQRCode: { type: Boolean, default: false },
       paperSize: { type: String, enum: ['A4', '80mm', '58mm'], default: '80mm' },
+      logoUrl: String,
+      accentColor: { type: String, default: '#2563eb' },
+      template: { type: String, enum: ['classic', 'modern', 'compact'], default: 'classic' },
+      showStoreDetails: { type: Boolean, default: true },
+      showCustomerDetails: { type: Boolean, default: true },
+      showCashier: { type: Boolean, default: true },
+      showItemNotes: { type: Boolean, default: false },
+      showDiscounts: { type: Boolean, default: true },
+      showTaxBreakdown: { type: Boolean, default: true },
+      showPaymentSummary: { type: Boolean, default: true },
+      showNotes: { type: Boolean, default: true },
     },
     pos: {
       autoLogoutMinutes: { type: Number, default: 30 },
@@ -127,6 +242,18 @@ export const SettingsSchema = new Schema<ISettings>(
       barcodeScanner: { type: Boolean, default: false },
       customerDisplayEnabled: { type: Boolean, default: false },
       printReceiptAutomatically: { type: Boolean, default: true },
+      enableBarcodeScanner: { type: Boolean, default: true },
+      autoComplete: { type: Boolean, default: true },
+      playSound: { type: Boolean, default: true },
+      showCostPrice: { type: Boolean, default: false },
+      requireCustomer: { type: Boolean, default: false },
+      allowNegativeStock: { type: Boolean, default: false },
+      quickPaymentButtons: { type: [Number], default: [10, 20, 50, 100] },
+      defaultPaymentMethod: {
+        type: String,
+        enum: ['cash', 'card', 'mobile', 'bank'],
+        default: 'cash',
+      },
     },
     notifications: {
       lowStockAlert: { type: Boolean, default: true },
@@ -134,6 +261,81 @@ export const SettingsSchema = new Schema<ISettings>(
       weeklyReport: { type: Boolean, default: false },
       emailNotifications: { type: Boolean, default: false },
       smsNotifications: { type: Boolean, default: false },
+      emailConfig: {
+        enabled: { type: Boolean, default: false },
+        host: String,
+        port: { type: Number, default: 587 },
+        secure: { type: Boolean, default: false },
+        user: String,
+        password: String,
+        fromEmail: String,
+        replyTo: String,
+        lastTestedAt: Date,
+        lastTestResult: { type: String, enum: ['success', 'failure'] },
+      },
+      smsConfig: {
+        enabled: { type: Boolean, default: false },
+        provider: { type: String, enum: ['twilio'], default: 'twilio' },
+        accountSid: String,
+        authToken: String,
+        fromNumber: String,
+        lastTestedAt: Date,
+        lastTestResult: { type: String, enum: ['success', 'failure'] },
+      },
+    },
+    payments: {
+      allowCash: { type: Boolean, default: true },
+      allowCard: { type: Boolean, default: true },
+      allowBankTransfer: { type: Boolean, default: false },
+      allowStoreCredit: { type: Boolean, default: false },
+      requireSignature: { type: Boolean, default: false },
+      autoCapture: { type: Boolean, default: true },
+      stripe: {
+        enabled: { type: Boolean, default: false },
+        publishableKey: String,
+        secretKey: String,
+        webhookSecret: String,
+        lastTestedAt: Date,
+        lastTestResult: { type: String, enum: ['success', 'failure'] },
+      },
+    },
+    integrations: {
+      ecommerce: {
+        shopify: {
+          enabled: { type: Boolean, default: false },
+          storeDomain: String,
+          accessToken: String,
+        },
+      },
+      accounting: {
+        quickbooks: {
+          enabled: { type: Boolean, default: false },
+          realmId: String,
+          clientId: String,
+          clientSecret: String,
+        },
+      },
+      crm: {
+        hubspot: {
+          enabled: { type: Boolean, default: false },
+          apiKey: String,
+        },
+      },
+      webhooks: {
+        enabled: { type: Boolean, default: false },
+        url: String,
+        secret: String,
+        lastTestedAt: Date,
+        lastTestResult: { type: String, enum: ['success', 'failure'] },
+      },
+    },
+    compliance: {
+      requireTwoFactor: { type: Boolean, default: false },
+      sessionTimeoutMinutes: { type: Number, default: 30 },
+      dataRetentionDays: { type: Number, default: 365 },
+      allowDataExport: { type: Boolean, default: true },
+      autoPurgeAuditLogs: { type: Boolean, default: false },
+      auditNotificationEmails: { type: [String], default: [] },
     },
     updatedBy: Schema.Types.ObjectId,
   },

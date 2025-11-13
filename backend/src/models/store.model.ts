@@ -1,6 +1,7 @@
 import { Schema, Document } from 'mongoose';
 
 export interface IStore extends Document {
+  tenantId: Schema.Types.ObjectId;
   name: string;
   code: string;
   address?: {
@@ -12,6 +13,18 @@ export interface IStore extends Document {
   };
   phone?: string;
   email?: string;
+  contact?: {
+    phone?: string;
+    email?: string;
+    website?: string;
+  };
+  businessDetails?: {
+    registrationNumber?: string;
+    taxId?: string;
+    businessType?: string;
+  };
+  timezone?: string;
+  currency?: string;
   manager?: Schema.Types.ObjectId;
   isActive: boolean;
   isDefault: boolean;
@@ -26,6 +39,12 @@ export interface IStore extends Document {
 
 export const StoreSchema = new Schema<IStore>(
   {
+    tenantId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      ref: 'Tenant',
+      index: true,
+    },
     name: {
       type: String,
       required: true,
@@ -34,7 +53,6 @@ export const StoreSchema = new Schema<IStore>(
     code: {
       type: String,
       required: true,
-      unique: true,
       uppercase: true,
       trim: true,
     },
@@ -51,6 +69,18 @@ export const StoreSchema = new Schema<IStore>(
       lowercase: true,
       trim: true,
     },
+    contact: {
+      phone: String,
+      email: String,
+      website: String,
+    },
+    businessDetails: {
+      registrationNumber: String,
+      taxId: String,
+      businessType: String,
+    },
+    timezone: { type: String, default: 'America/New_York' },
+    currency: { type: String, default: 'USD' },
     manager: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -75,6 +105,6 @@ export const StoreSchema = new Schema<IStore>(
 );
 
 // Indexes
-StoreSchema.index({ code: 1 });
-StoreSchema.index({ isActive: 1 });
+StoreSchema.index({ tenantId: 1, code: 1 }, { unique: true });
+StoreSchema.index({ tenantId: 1, isActive: 1 });
 

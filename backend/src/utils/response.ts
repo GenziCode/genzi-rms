@@ -48,11 +48,29 @@ export const sendError = (
   code = 'SERVER_ERROR',
   details?: any[]
 ): Response => {
+  let formattedMessage = message;
+
+  if (details && details.length > 0) {
+    const summary = details
+      .map((detail) => {
+        if (typeof detail === 'string') return detail;
+        const field = detail.field || detail.param;
+        const msg = detail.message || detail.msg;
+        return field ? `${field}: ${msg}` : msg;
+      })
+      .filter(Boolean)
+      .join('; ');
+
+    if (summary) {
+      formattedMessage = `${message} – ${summary}`;
+    }
+  }
+
   const response: ApiError = {
     success: false,
     error: {
       code,
-      message,
+      message: formattedMessage,
       ...(details && { details }),
     },
   };
@@ -65,9 +83,18 @@ export const sendError = (
  */
 export const sendValidationError = (
   res: Response,
-  errors: any[]
+  errors: Array<{ field?: string; message: string; value?: any }>
 ): Response => {
-  return sendError(res, 'Validation failed', 400, 'VALIDATION_ERROR', errors);
+  const summary = errors
+    ?.map((err) => {
+      const label = err.field ? `${err.field}` : 'field';
+      return `${label}: ${err.message}`;
+    })
+    .join('; ');
+
+  const message = summary ? `Validation failed – ${summary}` : 'Validation failed';
+
+  return sendError(res, message, 400, 'VALIDATION_ERROR', errors);
 };
 
 /**

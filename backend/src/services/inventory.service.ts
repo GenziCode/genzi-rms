@@ -19,6 +19,15 @@ interface AdjustStockData {
   notes?: string;
 }
 
+interface TransferStockData {
+  productId: string;
+  fromStoreId: string;
+  toStoreId: string;
+  quantity: number;
+  reason?: string;
+  notes?: string;
+}
+
 export class InventoryService {
   private async getStockMovementModel(tenantId: string) {
     const connection = await getTenantConnection(tenantId);
@@ -206,11 +215,7 @@ export class InventoryService {
   /**
    * Adjust stock manually
    */
-  async adjustStock(
-    tenantId: string,
-    userId: string,
-    data: AdjustStockData
-  ): Promise<IProduct> {
+  async adjustStock(tenantId: string, userId: string, data: AdjustStockData): Promise<IProduct> {
     try {
       const Product = await this.getProductModel(tenantId);
 
@@ -256,13 +261,106 @@ export class InventoryService {
         product.maxStock
       );
 
-      logger.info(
-        `Stock adjusted for ${product.name}: ${quantityBefore} → ${quantityAfter}`
-      );
+      logger.info(`Stock adjusted for ${product.name}: ${quantityBefore} → ${quantityAfter}`);
 
       return product;
     } catch (error) {
       logger.error('Error adjusting stock:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Transfer stock between stores
+   */
+  async transferStock(
+    tenantId: string,
+    userId: string,
+    data: TransferStockData
+  ): Promise<{ transferOut: IStockMovement; transferIn: IStockMovement }> {
+    try {
+      if (data.fromStoreId === data.toStoreId) {
+        throw new AppError('Source and destination stores must be different', 400);
+      }
+
+      if (data.quantity <= 0) {
+        throw new AppError('Transfer quantity must be greater than zero', 400);
+      }
+
+      const Product = await this.getProductModel(tenantId);
+      const product = await Product.findById(data.productId);
+
+      if (!product) {
+        throw new AppError('Product not found', 404);
+      }
+
+      if (!product.trackInventory) {
+        throw new AppError('Inventory tracking not enabled for this product', 400);
+      }
+
+      const availableStock = product.stock || 0;
+      if (!product.allowNegativeStock && availableStock < data.quantity) {
+        throw new AppError('Insufficient stock available for transfer', 400);
+      }
+
+      const quantityBeforeSource = availableStock;
+      const quantityAfterSource = quantityBeforeSource - data.quantity;
+
+      const transferOut = await this.recordMovement(tenantId, userId, {
+        productId: data.productId,
+        storeId: data.fromStoreId,
+        type: 'transfer_out',
+        quantity: -data.quantity,
+        quantityBefore: quantityBeforeSource,
+        quantityAfter: quantityAfterSource,
+        reason: data.reason,
+        notes: data.notes,
+        referenceType: 'Transfer',
+      });
+
+      const quantityBeforeDestination = quantityAfterSource;
+      const quantityAfterDestination = quantityBeforeDestination + data.quantity;
+
+      const transferIn = await this.recordMovement(tenantId, userId, {
+        productId: data.productId,
+        storeId: data.toStoreId,
+        type: 'transfer_in',
+        quantity: data.quantity,
+        quantityBefore: quantityBeforeDestination,
+        quantityAfter: quantityAfterDestination,
+        reason: data.reason,
+        notes: data.notes,
+        referenceType: 'Transfer',
+      });
+
+      await this.checkStockAlerts(
+        tenantId,
+        data.productId,
+        data.fromStoreId,
+        quantityAfterSource,
+        product.minStock,
+        product.maxStock
+      );
+
+      await this.checkStockAlerts(
+        tenantId,
+        data.productId,
+        data.toStoreId,
+        quantityAfterDestination,
+        product.minStock,
+        product.maxStock
+      );
+
+      logger.info(
+        `Stock transferred for ${product.name}: ${data.quantity} units from ${data.fromStoreId} to ${data.toStoreId}`
+      );
+
+      return {
+        transferOut,
+        transferIn,
+      };
+    } catch (error) {
+      logger.error('Error transferring stock:', error);
       throw error;
     }
   }
@@ -290,15 +388,7 @@ export class InventoryService {
     try {
       const StockMovement = await this.getStockMovementModel(tenantId);
 
-      const {
-        productId,
-        storeId,
-        type,
-        startDate,
-        endDate,
-        page = 1,
-        limit = 50,
-      } = options;
+      const { productId, storeId, type, startDate, endDate, page = 1, limit = 50 } = options;
 
       const query: any = {};
 
@@ -365,11 +455,7 @@ export class InventoryService {
   /**
    * Acknowledge an alert
    */
-  async acknowledgeAlert(
-    tenantId: string,
-    alertId: string,
-    userId: string
-  ): Promise<IStockAlert> {
+  async acknowledgeAlert(tenantId: string, alertId: string, userId: string): Promise<IStockAlert> {
     try {
       const StockAlert = await this.getStockAlertModel(tenantId);
 
@@ -451,10 +537,7 @@ export class InventoryService {
   /**
    * Get low stock products
    */
-  async getLowStockProducts(
-    tenantId: string,
-    storeId?: string
-  ): Promise<IProduct[]> {
+  async getLowStockProducts(tenantId: string, storeId?: string): Promise<IProduct[]> {
     try {
       const Product = await this.getProductModel(tenantId);
 
@@ -554,4 +637,3 @@ export class InventoryService {
     }
   }
 }
-

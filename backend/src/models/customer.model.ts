@@ -40,7 +40,6 @@ export const CustomerSchema = new Schema<ICustomer>(
     tenantId: {
       type: Schema.Types.ObjectId,
       required: true,
-      index: true,
     },
     name: {
       type: String,
@@ -57,7 +56,6 @@ export const CustomerSchema = new Schema<ICustomer>(
       type: String,
       required: true,
       trim: true,
-      index: true,
     },
     address: {
       type: String,
@@ -105,7 +103,6 @@ export const CustomerSchema = new Schema<ICustomer>(
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

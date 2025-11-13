@@ -16,7 +16,7 @@ export interface ISaleItem {
 }
 
 export interface IPayment {
-  method: 'cash' | 'card' | 'mobile' | 'bank' | 'other';
+  method: 'cash' | 'card' | 'mobile' | 'bank' | 'credit' | 'other';
   amount: number;
   reference?: string;
   cardLast4?: string;
@@ -78,29 +78,24 @@ export const SaleSchema = new Schema<ISale>(
   {
     saleNumber: {
       type: String,
-      unique: true,
       trim: true,
     },
     tenantId: {
       type: Schema.Types.ObjectId,
       required: true,
-      index: true,
     },
     store: {
       type: Schema.Types.ObjectId,
       ref: 'Store',
       required: true,
-      index: true,
     },
     cashier: {
       type: Schema.Types.ObjectId,
       required: true,
-      index: true,
     },
     customer: {
       type: Schema.Types.ObjectId,
       ref: 'Customer',
-      index: true,
     },
     items: [
       {
@@ -155,7 +150,7 @@ export const SaleSchema = new Schema<ISale>(
       {
         method: {
           type: String,
-          enum: ['cash', 'card', 'mobile', 'bank', 'other'],
+          enum: ['cash', 'card', 'mobile', 'bank', 'credit', 'other'],
           required: true,
         },
         amount: { type: Number, required: true, min: 0 },
@@ -178,7 +173,6 @@ export const SaleSchema = new Schema<ISale>(
       type: String,
       enum: ['completed', 'held', 'voided', 'refunded', 'partial_refund'],
       default: 'completed',
-      index: true,
     },
     notes: String,
     receiptUrl: String,
@@ -195,7 +189,6 @@ export const SaleSchema = new Schema<ISale>(
     clientId: {
       type: String,
       trim: true,
-      sparse: true, // Allow null but index if exists
     },
     offlineCreatedAt: Date,
     syncedAt: Date,

@@ -8,6 +8,7 @@ import path from 'path';
 import { errorHandler, notFound } from './middleware/error.middleware';
 import { globalRateLimit } from './middleware/rateLimit.middleware';
 import { httpLoggerStream, logger } from './utils/logger';
+import { monitoringMiddleware } from './middleware/monitoring.middleware';
 import routes from './routes';
 
 /**
@@ -64,12 +65,13 @@ export const createApp = (): Application => {
   } else {
     app.use(morgan('combined', { stream: httpLoggerStream }));
   }
+  app.use(monitoringMiddleware());
 
   // Global rate limiting
   app.use('/api', globalRateLimit);
 
-  // Serve static files (uploaded images, QR codes)
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+  // Serve static files (uploaded images, QR codes) - DISABLED
+  // app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Root endpoint
   app.get('/', (req: Request, res: Response) => {

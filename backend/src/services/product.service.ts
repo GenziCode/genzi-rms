@@ -3,82 +3,32 @@ import { getTenantConnection } from '../config/database';
 import { ProductSchema, IProduct } from '../models/product.model';
 import { AppError } from '../utils/appError';
 import { logger } from '../utils/logger';
-import QRCode from 'qrcode';
-import path from 'path';
-import fs from 'fs';
-import sharp from 'sharp';
+// File upload disabled - import QRCode from 'qrcode';
+// File upload disabled - import path from 'path';
+// File upload disabled - import fs from 'fs';
+// File upload disabled - import sharp from 'sharp';
 
 export class ProductService {
   private async getProductModel(tenantId: string) {
     const connection = await getTenantConnection(tenantId);
-    return connection.model<IProduct>('Product', ProductSchema);
-  }
-
-  /**
-   * Generate QR code for product
-   */
-  private async generateQRCode(
-    tenantId: string,
-    productId: string,
-    sku: string
-  ): Promise<string> {
-    try {
-      // QR code data (can be customized to include more info)
-      const qrData = JSON.stringify({
-        tenantId,
-        productId,
-        sku,
-        type: 'product',
-      });
-
-      // Create QR codes directory
-      const qrDir = path.join(process.cwd(), 'uploads', tenantId, 'qrcodes');
-      if (!fs.existsSync(qrDir)) {
-        fs.mkdirSync(qrDir, { recursive: true });
-      }
-
-      // Generate QR code filename
-      const qrFileName = `qr-${productId}.png`;
-      const qrFilePath = path.join(qrDir, qrFileName);
-
-      // Generate QR code
-      await QRCode.toFile(qrFilePath, qrData, {
-        width: 300,
-        margin: 1,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF',
-        },
-      });
-
-      // Return relative path
-      return `${tenantId}/qrcodes/${qrFileName}`;
-    } catch (error) {
-      logger.error('Error generating QR code:', error);
-      throw new AppError('Failed to generate QR code', 500);
+    // Ensure Category is registered before Product (needed for populate)
+    if (!connection.models.Category) {
+      const { CategorySchema } = require('../models/category.model');
+      connection.model('Category', CategorySchema);
     }
+    // Return Product model (will be registered by registerBaseTenantModels or create here)
+    return connection.models.Product || connection.model<IProduct>('Product', ProductSchema);
   }
 
-  /**
-   * Process uploaded image (resize, optimize)
-   */
-  private async processImage(filePath: string): Promise<void> {
-    try {
-      await sharp(filePath)
-        .resize(800, 800, {
-          fit: 'inside',
-          withoutEnlargement: true,
-        })
-        .jpeg({ quality: 85 })
-        .toFile(filePath + '.processed');
+  // ========================================
+  // QR CODE GENERATION - DISABLED
+  // ========================================
+  // generateQRCode method removed - QRCode library disabled
 
-      // Replace original with processed
-      fs.renameSync(filePath + '.processed', filePath);
-    } catch (error) {
-      logger.error('Error processing image:', error);
-      // Don't throw error, use original image
-    }
-  }
+  // ========================================
+  // IMAGE PROCESSING METHOD - DISABLED
+  // ========================================
+  // processImage method removed - Sharp disabled
 
   /**
    * Create a new product
@@ -138,13 +88,9 @@ export class ProductService {
 
       await product.save();
 
-      // Generate QR code
-      const qrCodePath = await this.generateQRCode(
-        tenantId,
-        product._id.toString(),
-        product.sku
-      );
-      product.qrCode = qrCodePath;
+      // QR code generation DISABLED
+      // const qrCodePath = await this.generateQRCode(tenantId, product._id.toString(), product.sku);
+      // product.qrCode = qrCodePath;
       await product.save();
 
       logger.info(`Product created: ${product.name} (${product._id})`);
@@ -295,33 +241,10 @@ export class ProductService {
     }
   }
 
-  /**
-   * Get product by QR code data
-   */
-  async getProductByQRCode(
-    tenantId: string,
-    qrData: string
-  ): Promise<IProduct> {
-    try {
-      // Parse QR code data
-      const data = JSON.parse(qrData);
-
-      if (data.type !== 'product') {
-        throw new AppError('Invalid QR code type', 400);
-      }
-
-      // Tenant validation is flexible (string comparison)
-      // Just ensure the product belongs to the correct tenant
-
-      return await this.getProductById(tenantId, data.productId);
-    } catch (error) {
-      logger.error('Error getting product by QR code:', error);
-      if (error instanceof SyntaxError) {
-        throw new AppError('Invalid QR code format', 400);
-      }
-      throw error;
-    }
-  }
+  // ========================================
+  // GET PRODUCT BY QR CODE - DISABLED
+  // ========================================
+  // getProductByQRCode method removed - QR code disabled
 
   /**
    * Update product
@@ -365,15 +288,11 @@ export class ProductService {
       // Update fields
       Object.assign(product, data, { updatedBy: userId });
 
-      // Regenerate QR code if SKU changed
-      if (data.sku && data.sku !== product.sku) {
-        const qrCodePath = await this.generateQRCode(
-          tenantId,
-          product._id.toString(),
-          data.sku
-        );
-        product.qrCode = qrCodePath;
-      }
+      // QR code regeneration DISABLED
+      // if (data.sku && data.sku !== product.sku) {
+      //   const qrCodePath = await this.generateQRCode(tenantId, product._id.toString(), data.sku);
+      //   product.qrCode = qrCodePath;
+      // }
 
       await product.save();
 
@@ -385,48 +304,10 @@ export class ProductService {
     }
   }
 
-  /**
-   * Upload product image
-   */
-  async uploadProductImage(
-    tenantId: string,
-    productId: string,
-    userId: string,
-    file: Express.Multer.File
-  ): Promise<IProduct> {
-    try {
-      const Product = await this.getProductModel(tenantId);
-
-      const product = await Product.findById(productId);
-      if (!product) {
-        throw new AppError('Product not found', 404);
-      }
-
-      // Process image
-      await this.processImage(file.path);
-
-      // Get relative path
-      const relativePath = path.relative(
-        path.join(process.cwd(), 'uploads'),
-        file.path
-      );
-
-      // Add image to product
-      if (!product.images) {
-        product.images = [];
-      }
-      product.images.push(relativePath);
-      product.updatedBy = userId as any;
-
-      await product.save();
-
-      logger.info(`Image uploaded for product: ${product.name}`);
-      return product;
-    } catch (error) {
-      logger.error('Error uploading product image:', error);
-      throw error;
-    }
-  }
+  // ========================================
+  // IMAGE UPLOAD METHOD - DISABLED
+  // ========================================
+  // uploadProductImage method removed - file uploads disabled
 
   /**
    * Delete product (soft delete)

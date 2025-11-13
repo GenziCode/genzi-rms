@@ -142,10 +142,7 @@ export class CustomerService {
   /**
    * Get customer by ID
    */
-  async getCustomerById(
-    tenantId: string,
-    customerId: string
-  ): Promise<ICustomer> {
+  async getCustomerById(tenantId: string, customerId: string): Promise<ICustomer> {
     try {
       const Customer = await this.getCustomerModel(tenantId);
 
@@ -215,11 +212,7 @@ export class CustomerService {
   /**
    * Delete customer (soft delete)
    */
-  async deleteCustomer(
-    tenantId: string,
-    customerId: string,
-    userId: string
-  ): Promise<void> {
+  async deleteCustomer(tenantId: string, customerId: string, userId: string): Promise<void> {
     try {
       const Customer = await this.getCustomerModel(tenantId);
 
@@ -322,6 +315,56 @@ export class CustomerService {
   /**
    * Update customer stats after purchase
    */
+  async adjustCustomerCreditBalance(
+    tenantId: string,
+    customerId: string,
+    delta: number
+  ): Promise<ICustomer> {
+    try {
+      const Customer = await this.getCustomerModel(tenantId);
+
+      const customer = await Customer.findById(customerId);
+      if (!customer) {
+        throw new AppError('Customer not found', 404);
+      }
+
+      const currentBalance = customer.creditBalance ?? 0;
+      const creditLimit = customer.creditLimit ?? 0;
+      const newBalance = currentBalance + delta;
+
+      if (delta > 0) {
+        const availableCredit = creditLimit - currentBalance;
+        if (delta - availableCredit > 0.01) {
+          throw new AppError(
+            `Customer credit limit exceeded. Available credit: ${availableCredit.toFixed(2)}`,
+            400
+          );
+        }
+      }
+
+      if (newBalance < -0.01) {
+        throw new AppError('Customer credit balance cannot be negative', 400);
+      }
+
+      customer.creditBalance = Math.max(0, Math.round(newBalance * 100) / 100);
+      await customer.save();
+
+      logger.info(
+        `Customer credit balance adjusted for ${customer.name}: ${
+          delta >= 0 ? '+' : ''
+        }${delta.toFixed(2)}`
+      );
+
+      return customer;
+    } catch (error) {
+      logger.error('Error adjusting customer credit balance:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update customer stats after purchase
+   */
   async updateCustomerStats(
     tenantId: string,
     customerId: string,
@@ -349,4 +392,3 @@ export class CustomerService {
     }
   }
 }
-
