@@ -17,6 +17,7 @@ import {
   DollarSign,
   Percent,
   FileCheck,
+  FileText,
   ShoppingCart,
   Loader2,
   Lock,
@@ -161,7 +162,7 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
         throw error;
       }
     },
-    enabled: productSearch && productSearch.trim().length >= 2,
+    enabled: !!(productSearch && productSearch.trim().length >= 2),
   });
 
   // Update search results when products data changes
