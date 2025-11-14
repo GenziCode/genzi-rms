@@ -8,15 +8,17 @@ interface TooltipProps {
   className?: string;
 }
 
-export default function Tooltip({ 
-  text, 
-  children, 
+export default function Tooltip({
+  text,
+  children,
   position = 'top',
   delay = 200,
-  className = ''
+  className = '',
 }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
+  const [timeoutId, setTimeoutId] = useState<ReturnType<
+    typeof setTimeout
+  > | null>(null);
 
   const handleMouseEnter = () => {
     const id = setTimeout(() => {
@@ -42,20 +44,22 @@ export default function Tooltip({
 
   const arrowClasses = {
     top: 'top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900',
-    bottom: 'bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900',
+    bottom:
+      'bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900',
     left: 'left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-gray-900',
-    right: 'right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900',
+    right:
+      'right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900',
   };
 
   return (
-    <div 
+    <div
       className={`relative inline-block ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {children}
       {isVisible && (
-        <div 
+        <div
           className={`
             absolute ${positionClasses[position]} z-[9999]
             px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl
@@ -77,4 +81,3 @@ export default function Tooltip({
     </div>
   );
 }
-

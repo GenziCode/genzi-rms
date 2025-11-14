@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Filter, X, Check, ChevronDown } from 'lucide-react';
+import { Filter, X, Check, ChevronDown, Loader2 } from 'lucide-react';
 
 interface FilterOption {
   id: string;
@@ -14,6 +14,8 @@ interface AdvancedFilterDropdownProps {
   onSelectionChange: (values: string[]) => void;
   multiSelect?: boolean;
   searchable?: boolean;
+  loading?: boolean;
+  placeholder?: string;
 }
 
 export default function AdvancedFilterDropdown({
@@ -23,6 +25,8 @@ export default function AdvancedFilterDropdown({
   onSelectionChange,
   multiSelect = true,
   searchable = true,
+  loading = false,
+  placeholder = 'Search...',
 }: AdvancedFilterDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,7 +34,10 @@ export default function AdvancedFilterDropdown({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -64,6 +71,7 @@ export default function AdvancedFilterDropdown({
     <div ref={dropdownRef} className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
+        disabled={loading}
         className={`
           flex items-center gap-2 px-4 py-2 bg-white border-2 rounded-lg font-medium text-sm
           transition-all duration-200
@@ -72,10 +80,12 @@ export default function AdvancedFilterDropdown({
               ? 'border-blue-500 bg-blue-50 text-blue-700'
               : 'border-gray-300 text-gray-700 hover:border-gray-400'
           }
+          ${loading ? 'opacity-70 cursor-not-allowed' : ''}
         `}
       >
         <Filter className="w-4 h-4" />
         <span>{label}</span>
+        {loading && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
         {selectedValues.length > 0 && (
           <span className="px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">
             {selectedValues.length}
@@ -95,15 +105,21 @@ export default function AdvancedFilterDropdown({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search..."
+                placeholder={loading ? 'Loading options...' : placeholder}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={loading}
               />
             </div>
           )}
 
           {/* Options */}
           <div className="max-h-64 overflow-y-auto">
-            {filteredOptions.length === 0 ? (
+            {loading ? (
+              <div className="p-4 flex items-center justify-center gap-2 text-gray-500 text-sm">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading...
+              </div>
+            ) : filteredOptions.length === 0 ? (
               <div className="p-4 text-center text-gray-500 text-sm">
                 No options found
               </div>
@@ -159,4 +175,3 @@ export default function AdvancedFilterDropdown({
     </div>
   );
 }
-

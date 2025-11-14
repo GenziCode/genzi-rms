@@ -7,6 +7,7 @@ export interface Permission {
   action: string;
   description?: string;
   category: 'crud' | 'action' | 'report' | 'admin';
+  isSystem?: boolean;
 }
 
 export interface FormPermission {
@@ -81,7 +82,9 @@ class PermissionsService {
   /**
    * Get fields for form
    */
-  async getFieldsForForm(formName: string): Promise<{ fields: FieldPermission[] }> {
+  async getFieldsForForm(
+    formName: string
+  ): Promise<{ fields: FieldPermission[] }> {
     const response = await api.get(`/field-permissions/forms/${formName}`);
     return response.data.data;
   }
@@ -89,11 +92,12 @@ class PermissionsService {
   /**
    * Get user fields for form
    */
-  async getUserFieldsForForm(formName: string): Promise<{ fields: FieldPermission[] }> {
+  async getUserFieldsForForm(
+    formName: string
+  ): Promise<{ fields: FieldPermission[] }> {
     const response = await api.get(`/field-permissions/forms/${formName}/user`);
     return response.data.data;
   }
 }
 
 export const permissionsService = new PermissionsService();
-

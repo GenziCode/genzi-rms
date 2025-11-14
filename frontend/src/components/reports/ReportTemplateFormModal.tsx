@@ -10,6 +10,16 @@ import {
 } from '@/services/reportTemplates.service';
 import { Spinner } from '@/components/ui/spinner';
 
+const defaultTemplateFormat: NonNullable<
+  CreateReportTemplateRequest['format']
+> = {
+  showHeader: true,
+  showFooter: true,
+  showTotals: true,
+  pageSize: 50,
+  orientation: 'portrait',
+};
+
 interface ReportTemplateFormModalProps {
   template: ReportTemplate | null;
   isOpen: boolean;
@@ -35,16 +45,11 @@ export default function ReportTemplateFormModal({
     filters: [],
     grouping: { enabled: false, fields: [] },
     sorting: { defaultField: '', defaultOrder: 'desc', allowedFields: [] },
-    format: {
-      showHeader: true,
-      showFooter: true,
-      showTotals: true,
-      pageSize: 50,
-      orientation: 'portrait',
-    },
+    format: { ...defaultTemplateFormat },
   });
 
   const [changeDescription, setChangeDescription] = useState('');
+  const format = formData.format ?? defaultTemplateFormat;
 
   useEffect(() => {
     if (template) {
@@ -58,7 +63,7 @@ export default function ReportTemplateFormModal({
         filters: template.filters,
         grouping: template.grouping,
         sorting: template.sorting,
-        format: template.format,
+        format: template.format ?? { ...defaultTemplateFormat },
       });
     } else {
       setFormData({
@@ -73,26 +78,23 @@ export default function ReportTemplateFormModal({
         filters: [],
         grouping: { enabled: false, fields: [] },
         sorting: { defaultField: '', defaultOrder: 'desc', allowedFields: [] },
-        format: {
-          showHeader: true,
-          showFooter: true,
-          showTotals: true,
-          pageSize: 50,
-          orientation: 'portrait',
-        },
+        format: { ...defaultTemplateFormat },
       });
     }
     setChangeDescription('');
   }, [template, isOpen]);
 
   const createMutation = useMutation({
-    mutationFn: (data: CreateReportTemplateRequest) => reportTemplatesService.create(data),
+    mutationFn: (data: CreateReportTemplateRequest) =>
+      reportTemplatesService.create(data),
     onSuccess: () => {
       toast.success('Report template created successfully');
       onSuccess();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error?.message || 'Failed to create template');
+      toast.error(
+        error.response?.data?.error?.message || 'Failed to create template'
+      );
     },
   });
 
@@ -104,7 +106,9 @@ export default function ReportTemplateFormModal({
       onSuccess();
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error?.message || 'Failed to update template');
+      toast.error(
+        error.response?.data?.error?.message || 'Failed to update template'
+      );
     },
   });
 
@@ -150,11 +154,16 @@ export default function ReportTemplateFormModal({
   const removeColumn = (index: number) => {
     setFormData({
       ...formData,
-      columns: formData.columns.filter((_, i) => i !== index).map((col, i) => ({ ...col, order: i })),
+      columns: formData.columns
+        .filter((_, i) => i !== index)
+        .map((col, i) => ({ ...col, order: i })),
     });
   };
 
-  const updateColumn = (index: number, updates: Partial<typeof formData.columns[0]>) => {
+  const updateColumn = (
+    index: number,
+    updates: Partial<(typeof formData.columns)[0]>
+  ) => {
     const newColumns = [...formData.columns];
     newColumns[index] = { ...newColumns[index], ...updates };
     setFormData({ ...formData, columns: newColumns });
@@ -176,7 +185,9 @@ export default function ReportTemplateFormModal({
                 {template ? 'Edit Report Template' : 'Create Report Template'}
               </h2>
               <p className="text-sm text-gray-600">
-                {template ? 'Update template configuration' : 'Define a new reusable report template'}
+                {template
+                  ? 'Update template configuration'
+                  : 'Define a new reusable report template'}
               </p>
             </div>
           </div>
@@ -205,7 +216,9 @@ export default function ReportTemplateFormModal({
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="e.g., Daily Sales Summary"
                     required
@@ -221,7 +234,8 @@ export default function ReportTemplateFormModal({
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        category: e.target.value as CreateReportTemplateRequest['category'],
+                        category: e.target
+                          .value as CreateReportTemplateRequest['category'],
                       })
                     }
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -243,7 +257,9 @@ export default function ReportTemplateFormModal({
                 </label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   rows={2}
                   placeholder="Describe what this report template does..."
@@ -258,7 +274,12 @@ export default function ReportTemplateFormModal({
                   <input
                     type="text"
                     value={formData.module}
-                    onChange={(e) => setFormData({ ...formData, module: e.target.value.toLowerCase() })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        module: e.target.value.toLowerCase(),
+                      })
+                    }
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="e.g., sales, inventory"
                     required
@@ -275,7 +296,10 @@ export default function ReportTemplateFormModal({
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        query: { ...formData.query, collection: e.target.value },
+                        query: {
+                          ...formData.query,
+                          collection: e.target.value,
+                        },
                       })
                     }
                     className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -328,7 +352,9 @@ export default function ReportTemplateFormModal({
                       className="p-4 border border-gray-200 rounded-lg bg-gray-50 space-y-3"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">Column {index + 1}</span>
+                        <span className="text-sm font-medium text-gray-700">
+                          Column {index + 1}
+                        </span>
                         <button
                           type="button"
                           onClick={() => removeColumn(index)}
@@ -339,29 +365,39 @@ export default function ReportTemplateFormModal({
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Field</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Field
+                          </label>
                           <input
                             type="text"
                             value={column.field}
-                            onChange={(e) => updateColumn(index, { field: e.target.value })}
+                            onChange={(e) =>
+                              updateColumn(index, { field: e.target.value })
+                            }
                             className="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-blue-500"
                             placeholder="field.path"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Label
+                          </label>
                           <input
                             type="text"
                             value={column.label}
-                            onChange={(e) => updateColumn(index, { label: e.target.value })}
+                            onChange={(e) =>
+                              updateColumn(index, { label: e.target.value })
+                            }
                             className="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-blue-500"
                             placeholder="Display Label"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">
+                            Type
+                          </label>
                           <select
                             value={column.type}
                             onChange={(e) =>
@@ -385,7 +421,9 @@ export default function ReportTemplateFormModal({
                           <input
                             type="checkbox"
                             checked={column.visible}
-                            onChange={(e) => updateColumn(index, { visible: e.target.checked })}
+                            onChange={(e) =>
+                              updateColumn(index, { visible: e.target.checked })
+                            }
                             className="rounded"
                           />
                           <span>Visible</span>
@@ -399,7 +437,8 @@ export default function ReportTemplateFormModal({
                               value={column.aggregate || ''}
                               onChange={(e) =>
                                 updateColumn(index, {
-                                  aggregate: e.target.value as typeof column.aggregate,
+                                  aggregate: e.target
+                                    .value as typeof column.aggregate,
                                 })
                               }
                               className="w-full px-2 py-1.5 text-sm border rounded focus:ring-1 focus:ring-blue-500"
@@ -430,11 +469,11 @@ export default function ReportTemplateFormModal({
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={formData.format.showHeader}
+                      checked={format.showHeader}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          format: { ...formData.format, showHeader: e.target.checked },
+                          format: { ...format, showHeader: e.target.checked },
                         })
                       }
                       className="rounded"
@@ -444,11 +483,11 @@ export default function ReportTemplateFormModal({
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={formData.format.showFooter}
+                      checked={format.showFooter}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          format: { ...formData.format, showFooter: e.target.checked },
+                          format: { ...format, showFooter: e.target.checked },
                         })
                       }
                       className="rounded"
@@ -458,11 +497,11 @@ export default function ReportTemplateFormModal({
                   <label className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
-                      checked={formData.format.showTotals}
+                      checked={format.showTotals}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          format: { ...formData.format, showTotals: e.target.checked },
+                          format: { ...format, showTotals: e.target.checked },
                         })
                       }
                       className="rounded"
@@ -472,14 +511,19 @@ export default function ReportTemplateFormModal({
                 </div>
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Page Size</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Page Size
+                    </label>
                     <input
                       type="number"
-                      value={formData.format.pageSize || 50}
+                      value={format.pageSize || 50}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          format: { ...formData.format, pageSize: parseInt(e.target.value) || 50 },
+                          format: {
+                            ...format,
+                            pageSize: parseInt(e.target.value) || 50,
+                          },
                         })
                       }
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -488,15 +532,19 @@ export default function ReportTemplateFormModal({
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Orientation</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Orientation
+                    </label>
                     <select
-                      value={formData.format.orientation}
+                      value={format.orientation}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
                           format: {
-                            ...formData.format,
-                            orientation: e.target.value as 'portrait' | 'landscape',
+                            ...format,
+                            orientation: e.target.value as
+                              | 'portrait'
+                              | 'landscape',
                           },
                         })
                       }
@@ -542,4 +590,3 @@ export default function ReportTemplateFormModal({
     </div>
   );
 }
-

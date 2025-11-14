@@ -38,8 +38,12 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { rolesService, type Role } from '@/services/roles.service';
-import { permissionsService, type Permission } from '@/services/permissions.service';
+import {
+  permissionsService,
+  type Permission,
+} from '@/services/permissions.service';
 import { usersService } from '@/services/users.service';
+import type { User, UserListResponse } from '@/types/user.types';
 import RoleFormModal from '@/components/roles/RoleFormModal';
 import PermissionMatrix from '@/components/roles/PermissionMatrix';
 import { Spinner } from '@/components/ui/spinner';
@@ -56,12 +60,23 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 
 type ViewMode = 'grid' | 'list' | 'matrix';
-type ActiveTab = 'overview' | 'roles' | 'permissions' | 'assignments' | 'analytics';
+type ActiveTab =
+  | 'overview'
+  | 'roles'
+  | 'permissions'
+  | 'assignments'
+  | 'analytics';
 
 export default function RolesPermissionsPage() {
   const queryClient = useQueryClient();
@@ -74,7 +89,11 @@ export default function RolesPermissionsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showPermissionMatrix, setShowPermissionMatrix] = useState(false);
 
-  const canManageRoles = user?.role === 'owner' || user?.role === 'admin' || useHasPermission('*') || useHasPermission('role:*');
+  const canManageRoles =
+    user?.role === 'owner' ||
+    user?.role === 'admin' ||
+    useHasPermission('*') ||
+    useHasPermission('role:*');
 
   // Fetch roles
   const { data: rolesData, isLoading: rolesLoading } = useQuery({
@@ -91,11 +110,12 @@ export default function RolesPermissionsPage() {
   });
 
   // Fetch users for assignments
-  const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['users-for-assignments'],
-    queryFn: () => usersService.getUsers({ limit: 100 }),
-    enabled: canManageRoles,
-  });
+  const { data: usersData, isLoading: usersLoading } =
+    useQuery<UserListResponse>({
+      queryKey: ['users-for-assignments'],
+      queryFn: () => usersService.getAll({ limit: 100 }),
+      enabled: canManageRoles,
+    });
 
   // Mutations
   const deleteMutation = useMutation({
@@ -105,13 +125,15 @@ export default function RolesPermissionsPage() {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error?.message || 'Failed to delete role');
+      toast.error(
+        error.response?.data?.error?.message || 'Failed to delete role'
+      );
     },
   });
 
   const roles = rolesData?.roles || [];
   const permissions = permissionsData || {};
-  const users = usersData?.users || [];
+  const users: User[] = usersData?.users || [];
 
   // Filter roles
   const filteredRoles = useMemo(() => {
@@ -119,15 +141,17 @@ export default function RolesPermissionsPage() {
 
     // Filter by category
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(role => role.category === selectedCategory);
+      filtered = filtered.filter((role) => role.category === selectedCategory);
     }
 
     // Filter by search
     if (searchTerm) {
-      filtered = filtered.filter(role =>
-        role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        role.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (role.description && role.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      filtered = filtered.filter(
+        (role) =>
+          role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          role.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (role.description &&
+            role.description.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -137,13 +161,15 @@ export default function RolesPermissionsPage() {
   // Analytics data
   const analyticsData = useMemo(() => {
     const totalRoles = roles.length;
-    const activeRoles = roles.filter(r => r.isActive).length;
-    const systemRoles = roles.filter(r => r.isSystemRole).length;
+    const activeRoles = roles.filter((r) => r.isActive).length;
+    const systemRoles = roles.filter((r) => r.isSystemRole).length;
     const customRoles = totalRoles - systemRoles;
 
     const totalPermissions = Object.values(permissions).flat().length;
     const totalUsers = users.length;
-    const assignedUsers = users.filter(u => u.role && u.role !== 'owner').length;
+    const assignedUsers = users.filter(
+      (u) => u.role && u.role !== 'owner'
+    ).length;
 
     return {
       totalRoles,
@@ -153,9 +179,17 @@ export default function RolesPermissionsPage() {
       totalPermissions,
       totalUsers,
       assignedUsers,
-      roleUtilization: totalUsers > 0 ? Math.round((assignedUsers / totalUsers) * 100) : 0,
+      roleUtilization:
+        totalUsers > 0 ? Math.round((assignedUsers / totalUsers) * 100) : 0,
     };
   }, [roles, permissions, users]);
+
+  const roleDistribution = useMemo(() => {
+    return roles.reduce<Record<string, number>>((acc, role) => {
+      acc[role.category] = (acc[role.category] || 0) + 1;
+      return acc;
+    }, {});
+  }, [roles]);
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -170,13 +204,13 @@ export default function RolesPermissionsPage() {
 
   const getRoleIcon = (role: Role) => {
     if (role.isSystemRole) return Crown;
-    if (role.category === 'admin') return Shield;
-    if (role.category === 'manager') return Settings;
+    if (role.code?.toLowerCase().includes('admin')) return Shield;
+    if (role.code?.toLowerCase().includes('manager')) return Settings;
     return Users;
   };
 
   const handleEdit = (role: Role) => {
-    if (role.isSystemRole && !user?.role === 'owner') {
+    if (role.isSystemRole && user?.role !== 'owner') {
       toast.warning('System roles can only be edited by owners');
       return;
     }
@@ -189,7 +223,9 @@ export default function RolesPermissionsPage() {
       toast.warning('System roles cannot be deleted');
       return;
     }
-    if (window.confirm(`Are you sure you want to delete role "${role.name}"?`)) {
+    if (
+      window.confirm(`Are you sure you want to delete role "${role.name}"?`)
+    ) {
       deleteMutation.mutate(role.id);
     }
   };
@@ -202,14 +238,17 @@ export default function RolesPermissionsPage() {
             <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
               <Lock className="w-8 h-8 text-red-600" />
             </div>
-            <CardTitle className="text-xl text-red-900">Access Denied</CardTitle>
+            <CardTitle className="text-xl text-red-900">
+              Access Denied
+            </CardTitle>
             <CardDescription className="text-red-700">
               You don't have permission to manage roles and permissions.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-sm text-gray-600 mb-4">
-              Contact your administrator to request access to role management features.
+              Contact your administrator to request access to role management
+              features.
             </p>
           </CardContent>
         </Card>
@@ -251,7 +290,11 @@ export default function RolesPermissionsPage() {
         {/* Navigation Tabs */}
         <div className="border-t border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full">
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as ActiveTab)}
+              className="w-full"
+            >
               <TabsList className="grid grid-cols-5 w-full h-12 bg-transparent border-0 p-1">
                 <TabsTrigger
                   value="overview"
@@ -296,7 +339,11 @@ export default function RolesPermissionsPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full">
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as ActiveTab)}
+          className="w-full"
+        >
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
             {/* Analytics Cards */}
@@ -304,12 +351,16 @@ export default function RolesPermissionsPage() {
               <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-blue-900">Total Roles</CardTitle>
+                    <CardTitle className="text-sm font-medium text-blue-900">
+                      Total Roles
+                    </CardTitle>
                     <Shield className="w-5 h-5 text-blue-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-900">{analyticsData.totalRoles}</div>
+                  <div className="text-2xl font-bold text-blue-900">
+                    {analyticsData.totalRoles}
+                  </div>
                   <div className="flex items-center gap-2 mt-2">
                     <div className="text-xs text-blue-700">
                       {analyticsData.activeRoles} active
@@ -317,7 +368,9 @@ export default function RolesPermissionsPage() {
                     <div className="w-16 bg-blue-200 rounded-full h-1.5">
                       <div
                         className="bg-blue-600 h-1.5 rounded-full"
-                        style={{ width: `${analyticsData.totalRoles > 0 ? (analyticsData.activeRoles / analyticsData.totalRoles) * 100 : 0}%` }}
+                        style={{
+                          width: `${analyticsData.totalRoles > 0 ? (analyticsData.activeRoles / analyticsData.totalRoles) * 100 : 0}%`,
+                        }}
                       ></div>
                     </div>
                   </div>
@@ -327,12 +380,16 @@ export default function RolesPermissionsPage() {
               <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-green-900">Permissions</CardTitle>
+                    <CardTitle className="text-sm font-medium text-green-900">
+                      Permissions
+                    </CardTitle>
                     <Key className="w-5 h-5 text-green-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-900">{analyticsData.totalPermissions}</div>
+                  <div className="text-2xl font-bold text-green-900">
+                    {analyticsData.totalPermissions}
+                  </div>
                   <p className="text-xs text-green-700 mt-2">
                     Across {Object.keys(permissions).length} modules
                   </p>
@@ -342,15 +399,23 @@ export default function RolesPermissionsPage() {
               <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-purple-900">User Coverage</CardTitle>
+                    <CardTitle className="text-sm font-medium text-purple-900">
+                      User Coverage
+                    </CardTitle>
                     <Users className="w-5 h-5 text-purple-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-purple-900">{analyticsData.roleUtilization}%</div>
-                  <Progress value={analyticsData.roleUtilization} className="mt-2 h-2" />
+                  <div className="text-2xl font-bold text-purple-900">
+                    {analyticsData.roleUtilization}%
+                  </div>
+                  <Progress
+                    value={analyticsData.roleUtilization}
+                    className="mt-2 h-2"
+                  />
                   <p className="text-xs text-purple-700 mt-2">
-                    {analyticsData.assignedUsers} of {analyticsData.totalUsers} users assigned
+                    {analyticsData.assignedUsers} of {analyticsData.totalUsers}{' '}
+                    users assigned
                   </p>
                 </CardContent>
               </Card>
@@ -358,12 +423,16 @@ export default function RolesPermissionsPage() {
               <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-orange-900">System Roles</CardTitle>
+                    <CardTitle className="text-sm font-medium text-orange-900">
+                      System Roles
+                    </CardTitle>
                     <Crown className="w-5 h-5 text-orange-600" />
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-900">{analyticsData.systemRoles}</div>
+                  <div className="text-2xl font-bold text-orange-900">
+                    {analyticsData.systemRoles}
+                  </div>
                   <p className="text-xs text-orange-700 mt-2">
                     {analyticsData.customRoles} custom roles
                   </p>
@@ -373,7 +442,10 @@ export default function RolesPermissionsPage() {
 
             {/* Quick Actions */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('roles')}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setActiveTab('roles')}
+              >
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-100 rounded-lg">
@@ -381,34 +453,48 @@ export default function RolesPermissionsPage() {
                     </div>
                     <div>
                       <CardTitle className="text-lg">Manage Roles</CardTitle>
-                      <CardDescription>Create, edit, and organize roles</CardDescription>
+                      <CardDescription>
+                        Create, edit, and organize roles
+                      </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setShowPermissionMatrix(true)}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setShowPermissionMatrix(true)}
+              >
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-green-100 rounded-lg">
                       <Key className="w-6 h-6 text-green-600" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">Permission Matrix</CardTitle>
-                      <CardDescription>View and manage permissions</CardDescription>
+                      <CardTitle className="text-lg">
+                        Permission Matrix
+                      </CardTitle>
+                      <CardDescription>
+                        View and manage permissions
+                      </CardDescription>
                     </div>
                   </div>
                 </CardHeader>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setActiveTab('assignments')}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setActiveTab('assignments')}
+              >
                 <CardHeader>
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-purple-100 rounded-lg">
                       <UserCheck className="w-6 h-6 text-purple-600" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">User Assignments</CardTitle>
+                      <CardTitle className="text-lg">
+                        User Assignments
+                      </CardTitle>
                       <CardDescription>Assign roles to users</CardDescription>
                     </div>
                   </div>
@@ -478,12 +564,18 @@ export default function RolesPermissionsPage() {
 
             {/* Roles Display */}
             {viewMode === 'matrix' ? (
-              <PermissionMatrix permissions={permissions} roles={filteredRoles} />
+              <PermissionMatrix
+                permissions={permissions}
+                roles={filteredRoles}
+              />
             ) : (
-              <div className={viewMode === 'grid'
-                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                : "space-y-4"
-              }>
+              <div
+                className={
+                  viewMode === 'grid'
+                    ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                    : 'space-y-4'
+                }
+              >
                 {rolesLoading ? (
                   <div className="col-span-full flex justify-center py-12">
                     <Spinner size="lg" />
@@ -491,12 +583,13 @@ export default function RolesPermissionsPage() {
                 ) : filteredRoles.length === 0 ? (
                   <div className="col-span-full text-center py-12">
                     <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No roles found</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      No roles found
+                    </h3>
                     <p className="text-gray-600 mb-4">
                       {searchTerm || selectedCategory !== 'all'
                         ? 'Try adjusting your search or filters'
-                        : 'Create your first role to get started'
-                      }
+                        : 'Create your first role to get started'}
                     </p>
                     {!searchTerm && selectedCategory === 'all' && (
                       <Button onClick={() => setShowForm(true)}>
@@ -509,20 +602,31 @@ export default function RolesPermissionsPage() {
                   filteredRoles.map((role) => {
                     const Icon = getRoleIcon(role);
                     return (
-                      <Card key={role.id} className={`hover:shadow-lg transition-all duration-200 ${!role.isActive ? 'opacity-60' : ''}`}>
+                      <Card
+                        key={role.id}
+                        className={`hover:shadow-lg transition-all duration-200 ${!role.isActive ? 'opacity-60' : ''}`}
+                      >
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg ${role.isSystemRole ? 'bg-yellow-100' : 'bg-blue-100'}`}>
-                                <Icon className={`w-5 h-5 ${role.isSystemRole ? 'text-yellow-600' : 'text-blue-600'}`} />
+                              <div
+                                className={`p-2 rounded-lg ${role.isSystemRole ? 'bg-yellow-100' : 'bg-blue-100'}`}
+                              >
+                                <Icon
+                                  className={`w-5 h-5 ${role.isSystemRole ? 'text-yellow-600' : 'text-blue-600'}`}
+                                />
                               </div>
                               <div>
-                                <CardTitle className="text-lg">{role.name}</CardTitle>
+                                <CardTitle className="text-lg">
+                                  {role.name}
+                                </CardTitle>
                                 <div className="flex items-center gap-2 mt-1">
                                   <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
                                     {role.code}
                                   </code>
-                                  <Badge className={getCategoryColor(role.category)}>
+                                  <Badge
+                                    className={getCategoryColor(role.category)}
+                                  >
                                     {role.category}
                                   </Badge>
                                 </div>
@@ -537,7 +641,9 @@ export default function RolesPermissionsPage() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleEdit(role)}>
+                                <DropdownMenuItem
+                                  onClick={() => handleEdit(role)}
+                                >
                                   <Edit className="w-4 h-4 mr-2" />
                                   Edit Role
                                 </DropdownMenuItem>
@@ -564,7 +670,9 @@ export default function RolesPermissionsPage() {
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-1">
                                 <Key className="w-4 h-4 text-gray-400" />
-                                <span className="text-gray-600">{role.permissions?.length || 0} permissions</span>
+                                <span className="text-gray-600">
+                                  {role.permissions?.length || 0} permissions
+                                </span>
                               </div>
                               <div className="flex items-center gap-1">
                                 {role.isActive ? (
@@ -572,13 +680,22 @@ export default function RolesPermissionsPage() {
                                 ) : (
                                   <XCircle className="w-4 h-4 text-red-500" />
                                 )}
-                                <span className={role.isActive ? 'text-green-600' : 'text-red-600'}>
+                                <span
+                                  className={
+                                    role.isActive
+                                      ? 'text-green-600'
+                                      : 'text-red-600'
+                                  }
+                                >
                                   {role.isActive ? 'Active' : 'Inactive'}
                                 </span>
                               </div>
                             </div>
                             {role.isSystemRole && (
-                              <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                              <Badge
+                                variant="secondary"
+                                className="bg-yellow-100 text-yellow-800"
+                              >
                                 <Crown className="w-3 h-3 mr-1" />
                                 System
                               </Badge>
@@ -626,9 +743,14 @@ export default function RolesPermissionsPage() {
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                               {perms.slice(0, 6).map((perm) => (
-                                <div key={perm.code} className="flex items-center gap-2 text-sm">
+                                <div
+                                  key={perm.code}
+                                  className="flex items-center gap-2 text-sm"
+                                >
                                   <CheckSquare className="w-4 h-4 text-green-500" />
-                                  <span className="text-gray-700">{perm.name}</span>
+                                  <span className="text-gray-700">
+                                    {perm.name}
+                                  </span>
                                 </div>
                               ))}
                               {perms.length > 6 && (
@@ -675,17 +797,29 @@ export default function RolesPermissionsPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Total Permissions</span>
-                      <span className="font-semibold">{analyticsData.totalPermissions}</span>
+                      <span className="text-sm text-gray-600">
+                        Total Permissions
+                      </span>
+                      <span className="font-semibold">
+                        {analyticsData.totalPermissions}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Modules</span>
-                      <span className="font-semibold">{Object.keys(permissions).length}</span>
+                      <span className="font-semibold">
+                        {Object.keys(permissions).length}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">System Permissions</span>
+                      <span className="text-sm text-gray-600">
+                        System Permissions
+                      </span>
                       <span className="font-semibold">
-                        {Object.values(permissions).flat().filter(p => p.isSystem).length}
+                        {
+                          Object.values(permissions)
+                            .flat()
+                            .filter((p) => p.isSystem).length
+                        }
                       </span>
                     </div>
                   </CardContent>
@@ -714,20 +848,30 @@ export default function RolesPermissionsPage() {
                 ) : (
                   <div className="space-y-4">
                     {users.slice(0, 20).map((user) => (
-                      <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div
+                        key={user._id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold">
-                            {user.firstName?.[0]}{user.lastName?.[0]}
+                            {user.firstName?.[0]}
+                            {user.lastName?.[0]}
                           </div>
                           <div>
                             <div className="font-medium text-gray-900">
                               {user.firstName} {user.lastName}
                             </div>
-                            <div className="text-sm text-gray-600">{user.email}</div>
+                            <div className="text-sm text-gray-600">
+                              {user.email}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge className={getCategoryColor(user.role === 'owner' ? 'system' : 'custom')}>
+                          <Badge
+                            className={getCategoryColor(
+                              user.role === 'owner' ? 'system' : 'custom'
+                            )}
+                          >
                             {user.role}
                           </Badge>
                           {user.role !== 'owner' && (
@@ -754,11 +898,21 @@ export default function RolesPermissionsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {roles.reduce((acc, role) => {
-                      const category = role.category;
-                      acc[category] = (acc[category] || 0) + 1;
-                      return acc;
-                    }, {} as Record<string, number>)}
+                    {Object.entries(roleDistribution).map(
+                      ([category, count]) => (
+                        <div
+                          key={category}
+                          className="flex items-center justify-between border rounded-lg p-3"
+                        >
+                          <span className="font-medium text-gray-700 capitalize">
+                            {category}
+                          </span>
+                          <span className="text-lg font-semibold text-gray-900">
+                            {count}
+                          </span>
+                        </div>
+                      )
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -770,7 +924,10 @@ export default function RolesPermissionsPage() {
                 <CardContent>
                   <div className="space-y-4">
                     {Object.entries(permissions).map(([module, perms]) => (
-                      <div key={module} className="flex justify-between items-center">
+                      <div
+                        key={module}
+                        className="flex justify-between items-center"
+                      >
                         <span className="capitalize">{module}</span>
                         <span className="font-semibold">{perms.length}</span>
                       </div>
@@ -805,7 +962,10 @@ export default function RolesPermissionsPage() {
           <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="text-xl font-semibold">Permission Matrix</h2>
-              <Button variant="ghost" onClick={() => setShowPermissionMatrix(false)}>
+              <Button
+                variant="ghost"
+                onClick={() => setShowPermissionMatrix(false)}
+              >
                 <X className="w-5 h-5" />
               </Button>
             </div>

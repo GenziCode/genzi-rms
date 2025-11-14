@@ -2,14 +2,22 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Search, Plus, User, Phone, Mail } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { customersService, type Customer } from '@/services/customers.service';
+import { customersService } from '@/services/customers.service';
+import type {
+  Customer,
+  CreateCustomerRequest,
+  CustomerListResponse,
+} from '@/types/customer.types';
 
 interface CustomerQuickAddProps {
   onClose: () => void;
   onSelect: (customer: Customer) => void;
 }
 
-export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAddProps) {
+export default function CustomerQuickAdd({
+  onClose,
+  onSelect,
+}: CustomerQuickAddProps) {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -21,15 +29,17 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
   });
 
   // Search customers
-  const { data: customers = [], isLoading } = useQuery({
+  const { data: customersResult, isLoading } = useQuery<CustomerListResponse>({
     queryKey: ['customers-search', searchTerm],
     queryFn: () => customersService.getAll({ search: searchTerm, limit: 20 }),
     enabled: !showForm && searchTerm.length >= 2,
   });
+  const customers: Customer[] = customersResult?.customers ?? [];
 
   // Create customer mutation
   const createMutation = useMutation({
-    mutationFn: customersService.create,
+    mutationFn: (payload: CreateCustomerRequest) =>
+      customersService.create(payload),
     onSuccess: (customer) => {
       toast.success('Customer created!');
       queryClient.invalidateQueries({ queryKey: ['customers'] });
@@ -46,7 +56,18 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
       toast.error('Name and phone are required');
       return;
     }
-    createMutation.mutate(formData);
+    const payload: CreateCustomerRequest = {
+      name: formData.name.trim(),
+      phone: formData.phone.trim(),
+      email: formData.email.trim() || undefined,
+      address: formData.address.trim()
+        ? {
+            street: formData.address.trim(),
+          }
+        : undefined,
+    };
+
+    createMutation.mutate(payload);
   };
 
   return (
@@ -59,7 +80,9 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
               {showForm ? 'Add New Customer' : 'Select Customer'}
             </h2>
             <p className="text-sm text-gray-600">
-              {showForm ? 'Enter customer details' : 'Search or create customer'}
+              {showForm
+                ? 'Enter customer details'
+                : 'Search or create customer'}
             </p>
           </div>
           <button
@@ -82,7 +105,9 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   placeholder="Customer name"
                   required
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -96,7 +121,9 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
                   placeholder="Phone number"
                   required
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -110,7 +137,9 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   placeholder="Email address"
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
@@ -122,7 +151,9 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
                 </label>
                 <textarea
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
                   placeholder="Full address"
                   rows={3}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
@@ -183,7 +214,7 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
                   <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500">Type to search customers...</p>
                 </div>
-              ) : (customers && 'customers' in customers && customers.customers?.length === 0) ? (
+              ) : customers.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-500 mb-2">No customers found</p>
                   <button
@@ -195,7 +226,7 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {customers && 'customers' in customers && customers.customers?.map((customer: any) => (
+                  {customers.map((customer) => (
                     <button
                       key={customer._id}
                       onClick={() => onSelect(customer)}
@@ -234,4 +265,3 @@ export default function CustomerQuickAdd({ onClose, onSelect }: CustomerQuickAdd
     </div>
   );
 }
-

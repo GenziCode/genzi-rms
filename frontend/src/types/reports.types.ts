@@ -7,6 +7,11 @@ export interface ReportFilters {
   period?: 'today' | 'week' | 'month' | 'year';
   startDate?: string;
   endDate?: string;
+  storeId?: string;
+  storeIds?: string[];
+  categoryId?: string;
+  categoryIds?: string[];
+  limit?: number;
 }
 
 export interface DashboardReport {
@@ -33,6 +38,17 @@ export interface DashboardReport {
     total: number;
     new: number;
   };
+  /**
+   * Derived/legacy fields used by analytics dashboards.
+   * These are optional because not every API payload supplies them,
+   * but the UI expects them when available.
+   */
+  totalSales?: number;
+  totalTransactions?: number;
+  totalItems?: number;
+  avgOrderValue?: number;
+  newCustomersCount?: number;
+  totalValue?: number;
 }
 
 export interface SalesTrend {
@@ -40,6 +56,7 @@ export interface SalesTrend {
   sales: number;
   transactions: number;
   averageOrderValue: number;
+  totalSales?: number;
 }
 
 export interface SalesTrendsReport {
@@ -50,6 +67,13 @@ export interface SalesTrendsReport {
     averageOrderValue: number;
     growth: number;
   };
+}
+
+export interface ProfitLossCategoryBreakdown {
+  category: string;
+  amount: number;
+  total?: number;
+  name?: string;
 }
 
 export interface ProfitLossReport {
@@ -66,6 +90,11 @@ export interface ProfitLossReport {
     net: number;
     margin: number;
   };
+  totalRevenue?: number;
+  totalExpenses?: number;
+  netProfit?: number;
+  expenses?: ProfitLossCategoryBreakdown[];
+  revenueByCategory?: ProfitLossCategoryBreakdown[];
 }
 
 export interface PaymentMethod {
@@ -80,19 +109,52 @@ export interface PaymentMethodsReport {
   total: number;
 }
 
+export interface InventoryCategoryBreakdown {
+  categoryId: string;
+  categoryName: string;
+  products: number;
+  quantity: number;
+  costValue: number;
+  retailValue: number;
+  category?: string;
+  name?: string;
+  totalValue?: number;
+  value?: number;
+  cost?: number;
+  profit?: number;
+}
+
+export interface InventoryProductBreakdown {
+  productId?: string;
+  productName?: string;
+  name?: string;
+  value?: number;
+  totalValue?: number;
+  retailValue?: number;
+  costValue?: number;
+}
+
 export interface InventoryValuationReport {
   totalProducts: number;
   totalQuantity: number;
   costValue: number;
   retailValue: number;
-  categories: Array<{
-    categoryId: string;
-    categoryName: string;
-    products: number;
-    quantity: number;
-    costValue: number;
-    retailValue: number;
-  }>;
+  categories: InventoryCategoryBreakdown[];
+  products?: InventoryProductBreakdown[];
+  lowStockCount?: number;
+  lowStockProducts?: number;
+  outOfStockCount?: number;
+  outOfStockProducts?: number;
+  totalValue?: number;
+}
+
+export interface TopProduct {
+  _id: string;
+  name: string;
+  sku?: string;
+  totalQuantity: number;
+  totalRevenue: number;
+  transactionCount: number;
 }
 
 export interface CustomerInsight {
@@ -104,6 +166,13 @@ export interface CustomerInsight {
   avgOrderValue: number;
 }
 
+export interface CustomerSegmentBreakdown {
+  segment: string;
+  name?: string;
+  count: number;
+  total?: number;
+}
+
 export interface CustomerInsightsReport {
   period: {
     start: string;
@@ -112,6 +181,9 @@ export interface CustomerInsightsReport {
   totalCustomers: number;
   newCustomers: number;
   topCustomers: CustomerInsight[];
+  customerSegments?: CustomerSegmentBreakdown[];
+  avgOrderValue?: number;
+  lifetimeValue?: number;
 }
 
 export interface VendorPerformance {
@@ -124,9 +196,22 @@ export interface VendorPerformance {
   avgOrderValue: number;
 }
 
+export interface VendorPerformanceMetric {
+  name: string;
+  value: number;
+  score?: number;
+  metric?: string;
+}
+
 export interface VendorPerformanceReport {
   topVendors: VendorPerformance[];
   totalVendors?: number;
   activePurchaseOrders?: number;
   totalPurchased?: number;
+  performanceMetrics?: VendorPerformanceMetric[];
+  onTimeDeliveryRate?: number;
+  qualityScore?: number;
+  responseRate?: number;
+  totalOrders?: number;
+  avgOrderValue?: number;
 }

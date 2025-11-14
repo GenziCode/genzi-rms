@@ -3,7 +3,7 @@
  * Comprehensive types for all business documents
  */
 
-export type DocumentType = 
+export type DocumentType =
   | 'sale_invoice'
   | 'purchase_order'
   | 'quotation'
@@ -13,7 +13,7 @@ export type DocumentType =
   | 'delivery_note'
   | 'receipt';
 
-export type DocumentStatus = 
+export type DocumentStatus =
   | 'draft'
   | 'pending'
   | 'sent'
@@ -23,7 +23,7 @@ export type DocumentStatus =
   | 'cancelled'
   | 'void';
 
-export type InvoiceTemplate = 
+export type InvoiceTemplateId =
   | 'modern'
   | 'classic'
   | 'minimal'
@@ -58,6 +58,7 @@ export interface InvoiceAddress {
   name: string;
   line1: string;
   line2?: string;
+  street?: string;
   city: string;
   state: string;
   zipCode: string;
@@ -69,14 +70,15 @@ export interface InvoiceAddress {
 export interface Invoice {
   // Core
   id: string;
+  _id?: string;
   invoiceNumber: string;
   type: DocumentType;
   status: DocumentStatus;
-  
+
   // Dates
   date: string;
   dueDate?: string;
-  
+
   // Parties
   from: {
     businessName: string;
@@ -86,17 +88,17 @@ export interface Invoice {
     logo?: string;
     website?: string;
   };
-  
+
   to: {
     customerId?: string;
     customerName: string;
     address: InvoiceAddress;
     taxId?: string;
   };
-  
+
   // Items
   items: InvoiceItem[];
-  
+
   // Amounts
   subtotal: number;
   totalDiscount: number;
@@ -106,24 +108,26 @@ export interface Invoice {
   total: number;
   amountPaid: number;
   amountDue: number;
-  
+  discountAmount?: number;
+  taxAmount?: number;
+
   // Payments
   payments?: InvoicePayment[];
-  
+
   // Additional Info
   notes?: string;
   terms?: string;
   footer?: string;
-  
+
   // References
   referenceNumber?: string;
   poNumber?: string;
   salesPerson?: string;
-  
+
   // Tracking
   qrCode?: string;
   barcode?: string;
-  
+
   // Metadata
   createdBy: string;
   createdAt: string;
@@ -133,7 +137,7 @@ export interface Invoice {
 export interface InvoiceTemplate {
   id: string;
   name: string;
-  type: InvoiceTemplate;
+  type: InvoiceTemplateId;
   description: string;
   thumbnail: string;
   isPremium?: boolean;
@@ -146,25 +150,25 @@ export interface DocumentSettings {
   poPrefix: string;
   autoIncrement: boolean;
   nextInvoiceNumber: number;
-  
+
   // Defaults
-  defaultTemplate: InvoiceTemplate;
+  defaultTemplate: InvoiceTemplateId;
   defaultTerms: string;
   defaultNotes: string;
   defaultDueDays: number;
-  
+
   // Features
   showLogo: boolean;
   showBarcode: boolean;
   showQRCode: boolean;
   showSignature: boolean;
   showStamp: boolean;
-  
+
   // Branding
   primaryColor: string;
   accentColor: string;
   fontFamily: string;
-  
+
   // Footer
   footerText: string;
   socialLinks?: {
@@ -174,4 +178,3 @@ export interface DocumentSettings {
     linkedin?: string;
   };
 }
-

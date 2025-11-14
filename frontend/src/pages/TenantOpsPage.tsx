@@ -32,7 +32,10 @@ import {
   Code,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { tenantService, type TenantUsageResponse } from '@/services/tenant.service';
+import {
+  tenantService,
+  type TenantUsageResponse,
+} from '@/services/tenant.service';
 import { useAuthStore } from '@/store/authStore';
 import { OffCanvas } from '@/components/ui/OffCanvas';
 import ProgressBar from '@/components/ui/ProgressBar';
@@ -134,7 +137,9 @@ interface UsageAlertsDraft {
 
 export default function TenantOpsPage() {
   const queryClient = useQueryClient();
-  const tenantId = useAuthStore((state) => state.tenantId ?? state.user?.tenantId ?? null);
+  const tenantId = useAuthStore(
+    (state) => state.tenantId ?? state.user?.tenantId ?? null
+  );
   const { data, isLoading, isFetching } = useQuery({
     enabled: Boolean(tenantId),
     queryKey: ['tenant-usage', tenantId],
@@ -143,7 +148,9 @@ export default function TenantOpsPage() {
   });
 
   const [isPlanDrawerOpen, setPlanDrawerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'plan' | 'limits' | 'features' | 'alerts' | 'api' | 'advanced'>('plan');
+  const [activeTab, setActiveTab] = useState<
+    'plan' | 'limits' | 'features' | 'alerts' | 'api' | 'advanced'
+  >('plan');
   const [limitsDraft, setLimitsDraft] = useState<LimitsDraft>({
     users: 0,
     stores: 0,
@@ -176,7 +183,9 @@ export default function TenantOpsPage() {
     autoRenew: true,
     gracePeriodDays: 7,
   });
-  const [featuresDraft, setFeaturesDraft] = useState<Record<string, boolean>>({});
+  const [featuresDraft, setFeaturesDraft] = useState<Record<string, boolean>>(
+    {}
+  );
   const [usageAlertsDraft, setUsageAlertsDraft] = useState<UsageAlertsDraft>({
     enabled: false,
     thresholds: {},
@@ -242,10 +251,10 @@ export default function TenantOpsPage() {
   const featureToggleMutation = useMutation({
     mutationFn: ({ key, value }: { key: string; value: boolean }) =>
       tenantService.updatePlan(tenantId!, { features: { [key]: value } }),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['tenant-usage', tenantId] });
       toast.success('Feature toggled', {
-        description: `Feature has been ${value ? 'enabled' : 'disabled'}.`,
+        description: `Feature has been ${variables.value ? 'enabled' : 'disabled'}.`,
       });
     },
     onError: () =>
@@ -400,7 +409,9 @@ export default function TenantOpsPage() {
   if (!tenantId) {
     return (
       <div className="p-4 md:p-6 bg-white rounded-lg shadow">
-        <h1 className="text-xl md:text-2xl font-semibold text-gray-900">Tenant Operations</h1>
+        <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
+          Tenant Operations
+        </h1>
         <p className="mt-2 text-sm md:text-base text-gray-600">
           Tenant context missing. Please sign in again to continue.
         </p>
@@ -429,15 +440,25 @@ export default function TenantOpsPage() {
           </h1>
           {data && (
             <p className="text-xs md:text-sm text-gray-500 mt-2">
-              Plan: <span className="font-medium text-gray-800">{data.tenant.plan}</span> • Billing cycle:{' '}
-              <span className="font-medium text-gray-800">{data.tenant.billingCycle}</span>
+              Plan:{' '}
+              <span className="font-medium text-gray-800">
+                {data.tenant.plan}
+              </span>{' '}
+              • Billing cycle:{' '}
+              <span className="font-medium text-gray-800">
+                {data.tenant.billingCycle}
+              </span>
             </p>
           )}
         </div>
         <div className="flex items-center gap-2 md:gap-3">
           <button
             className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 md:px-4 py-2 text-xs md:text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['tenant-usage', tenantId] })}
+            onClick={() =>
+              queryClient.invalidateQueries({
+                queryKey: ['tenant-usage', tenantId],
+              })
+            }
             disabled={isFetching}
           >
             {isFetching ? (
@@ -472,13 +493,18 @@ export default function TenantOpsPage() {
         <>
           <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {usageMetrics.map((metric) => (
-              <div key={metric.key} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-5 flex flex-col gap-3 md:gap-4">
+              <div
+                key={metric.key}
+                className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-5 flex flex-col gap-3 md:gap-4"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs uppercase tracking-wide text-gray-500">
                       {metric.title}
                     </p>
-                    <p className="text-xl md:text-2xl font-semibold text-gray-900">{metric.displayValue}</p>
+                    <p className="text-xl md:text-2xl font-semibold text-gray-900">
+                      {metric.displayValue}
+                    </p>
                     {metric.subtitle && (
                       <p className="text-xs text-gray-500 mt-1 leading-snug">
                         {metric.subtitle}
@@ -514,11 +540,16 @@ export default function TenantOpsPage() {
 
               <div className="space-y-3 md:space-y-4">
                 {Object.entries(data.tenant.features).map(([key, value]) => (
-                  <div key={key} className="bg-gray-50 border border-gray-100 rounded-lg p-3 md:p-4">
+                  <div
+                    key={key}
+                    className="bg-gray-50 border border-gray-100 rounded-lg p-3 md:p-4"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <label className="text-sm font-medium text-gray-900 cursor-pointer">
-                          {key.replace(/([A-Z])/g, ' $1').replace(/^\w/, (c) => c.toUpperCase())}
+                          {key
+                            .replace(/([A-Z])/g, ' $1')
+                            .replace(/^\w/, (c) => c.toUpperCase())}
                         </label>
                         <p className="text-xs text-gray-600 mt-1">
                           Toggle access to the {key} module for all users.
@@ -527,7 +558,10 @@ export default function TenantOpsPage() {
                       <Switch
                         checked={featuresDraft[key] ?? value}
                         onCheckedChange={(checked) => {
-                          setFeaturesDraft((prev) => ({ ...prev, [key]: checked }));
+                          setFeaturesDraft((prev) => ({
+                            ...prev,
+                            [key]: checked,
+                          }));
                           featureToggleMutation.mutate({ key, value: checked });
                         }}
                         disabled={featureToggleMutation.isPending}
@@ -552,11 +586,17 @@ export default function TenantOpsPage() {
               </div>
               <div className="grid grid-cols-3 gap-2 md:gap-3 text-center">
                 <div className="rounded-lg bg-blue-50 py-2 md:py-3">
-                  <p className="text-xs uppercase text-blue-500 font-medium">Devices</p>
-                  <p className="text-xl md:text-2xl font-semibold text-blue-700">{data.sync.deviceCount}</p>
+                  <p className="text-xs uppercase text-blue-500 font-medium">
+                    Devices
+                  </p>
+                  <p className="text-xl md:text-2xl font-semibold text-blue-700">
+                    {data.sync.deviceCount}
+                  </p>
                 </div>
                 <div className="rounded-lg bg-emerald-50 py-2 md:py-3">
-                  <p className="text-xs uppercase text-emerald-500 font-medium">Online</p>
+                  <p className="text-xs uppercase text-emerald-500 font-medium">
+                    Online
+                  </p>
                   <p className="text-xl md:text-2xl font-semibold text-emerald-700">
                     {data.sync.online}
                   </p>
@@ -567,7 +607,9 @@ export default function TenantOpsPage() {
                   </p>
                 </div>
                 <div className="rounded-lg bg-amber-50 py-2 md:py-3">
-                  <p className="text-xs uppercase text-amber-500 font-medium">Conflicts</p>
+                  <p className="text-xs uppercase text-amber-500 font-medium">
+                    Conflicts
+                  </p>
                   <p className="text-xl md:text-2xl font-semibold text-amber-700">
                     {data.sync.conflicts}
                   </p>
@@ -575,15 +617,20 @@ export default function TenantOpsPage() {
               </div>
               <div className="border border-gray-100 rounded-lg divide-y">
                 {data.sync.devices.slice(0, 4).map((device) => (
-                  <div key={device.id} className="p-3 md:p-4 flex items-center justify-between">
+                  <div
+                    key={device.id}
+                    className="p-3 md:p-4 flex items-center justify-between"
+                  >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {device.label ?? device.id}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         Status:{' '}
-                        <span className="font-medium capitalize">{device.status}</span> • Queue:{' '}
-                        {device.queueSize ?? 0}
+                        <span className="font-medium capitalize">
+                          {device.status}
+                        </span>{' '}
+                        • Queue: {device.queueSize ?? 0}
                       </p>
                     </div>
                     <span
@@ -600,7 +647,9 @@ export default function TenantOpsPage() {
                   </div>
                 ))}
                 {data.sync.devices.length === 0 && (
-                  <p className="text-sm text-gray-500 p-4">No devices have synced yet.</p>
+                  <p className="text-sm text-gray-500 p-4">
+                    No devices have synced yet.
+                  </p>
                 )}
               </div>
             </div>
@@ -609,17 +658,20 @@ export default function TenantOpsPage() {
           <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 md:p-6 space-y-4 md:space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base md:text-lg font-semibold text-gray-900">Audit Trail Snapshot</h2>
+                <h2 className="text-base md:text-lg font-semibold text-gray-900">
+                  Audit Trail Snapshot
+                </h2>
                 <p className="text-xs md:text-sm text-gray-500">
-                  Critical plan changes are automatically logged with diff metadata.
+                  Critical plan changes are automatically logged with diff
+                  metadata.
                 </p>
               </div>
               <ShieldCheck className="w-5 h-5 text-indigo-500" />
             </div>
             <p className="text-xs md:text-sm text-gray-600 leading-relaxed">
-              Use the Audit Logs section to drill down into plan updates, feature toggles, and
-              limit adjustments. Each action is captured with before/after fields to support
-              compliance reviews.
+              Use the Audit Logs section to drill down into plan updates,
+              feature toggles, and limit adjustments. Each action is captured
+              with before/after fields to support compliance reviews.
             </p>
           </section>
         </>
@@ -635,8 +687,12 @@ export default function TenantOpsPage() {
               <Settings className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Manage Plan & Limits</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Configure tenant subscription and resources</p>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                Manage Plan & Limits
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Configure tenant subscription and resources
+              </p>
             </div>
           </div>
         }
@@ -645,7 +701,9 @@ export default function TenantOpsPage() {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <ShieldCheck className="w-4 h-4 text-blue-500" />
-              <span>Changes are applied instantly and logged in the audit trail.</span>
+              <span>
+                Changes are applied instantly and logged in the audit trail.
+              </span>
             </div>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3">
               <button
@@ -657,9 +715,12 @@ export default function TenantOpsPage() {
               <button
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-2 text-sm font-semibold text-white hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-md"
                 onClick={handleSavePlan}
-                disabled={updatePlanMutation.isPending || updateLimitsMutation.isPending}
+                disabled={
+                  updatePlanMutation.isPending || updateLimitsMutation.isPending
+                }
               >
-                {updatePlanMutation.isPending || updateLimitsMutation.isPending ? (
+                {updatePlanMutation.isPending ||
+                updateLimitsMutation.isPending ? (
                   <>
                     <Spinner size="sm" className="text-white" />
                     Saving...
@@ -690,9 +751,10 @@ export default function TenantOpsPage() {
                       className={`
                         flex items-center gap-2 px-3 md:px-4 py-2 md:py-3 border-b-2 font-medium text-xs md:text-sm whitespace-nowrap
                         transition-all duration-200
-                        ${activeTab === tab.id
-                          ? 'border-blue-600 text-blue-600 bg-white'
-                          : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                        ${
+                          activeTab === tab.id
+                            ? 'border-blue-600 text-blue-600 bg-white'
+                            : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                         }
                       `}
                     >
@@ -711,9 +773,12 @@ export default function TenantOpsPage() {
                   <div className="flex items-start gap-3">
                     <CreditCard className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-semibold text-blue-900 mb-1">Plan & Billing Configuration</h3>
+                      <h3 className="text-sm font-semibold text-blue-900 mb-1">
+                        Plan & Billing Configuration
+                      </h3>
                       <p className="text-xs text-blue-700">
-                        Manage subscription plan, billing cycle, trial periods, and renewal settings.
+                        Manage subscription plan, billing cycle, trial periods,
+                        and renewal settings.
                       </p>
                     </div>
                   </div>
@@ -731,16 +796,25 @@ export default function TenantOpsPage() {
                     </div>
                     <select
                       value={planDraft.plan}
-                      onChange={(e) => setPlanDraft((prev) => ({ ...prev, plan: e.target.value }))}
+                      onChange={(e) =>
+                        setPlanDraft((prev) => ({
+                          ...prev,
+                          plan: e.target.value,
+                        }))
+                      }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
                     >
-                      {['free', 'basic', 'professional', 'enterprise'].map((plan) => (
-                        <option key={plan} value={plan}>
-                          {plan.charAt(0).toUpperCase() + plan.slice(1)}
-                        </option>
-                      ))}
+                      {['free', 'basic', 'professional', 'enterprise'].map(
+                        (plan) => (
+                          <option key={plan} value={plan}>
+                            {plan.charAt(0).toUpperCase() + plan.slice(1)}
+                          </option>
+                        )
+                      )}
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">Choose the subscription plan tier for this tenant.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Choose the subscription plan tier for this tenant.
+                    </p>
                   </div>
 
                   <div>
@@ -755,14 +829,19 @@ export default function TenantOpsPage() {
                     <select
                       value={planDraft.billingCycle}
                       onChange={(e) =>
-                        setPlanDraft((prev) => ({ ...prev, billingCycle: e.target.value as 'monthly' | 'yearly' }))
+                        setPlanDraft((prev) => ({
+                          ...prev,
+                          billingCycle: e.target.value as 'monthly' | 'yearly',
+                        }))
                       }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
                     >
                       <option value="monthly">Monthly</option>
                       <option value="yearly">Yearly</option>
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">Select how often the tenant will be billed.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select how often the tenant will be billed.
+                    </p>
                   </div>
 
                   <div>
@@ -776,7 +855,12 @@ export default function TenantOpsPage() {
                     </div>
                     <select
                       value={planDraft.status}
-                      onChange={(e) => setPlanDraft((prev) => ({ ...prev, status: e.target.value }))}
+                      onChange={(e) =>
+                        setPlanDraft((prev) => ({
+                          ...prev,
+                          status: e.target.value,
+                        }))
+                      }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
                     >
                       <option value="active">Active</option>
@@ -785,7 +869,9 @@ export default function TenantOpsPage() {
                       <option value="cancelled">Cancelled</option>
                       <option value="past_due">Past Due</option>
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">Current operational status of the tenant account.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Current operational status of the tenant account.
+                    </p>
                   </div>
 
                   <div>
@@ -800,13 +886,22 @@ export default function TenantOpsPage() {
                     <div className="flex items-center gap-3 mt-2">
                       <Switch
                         checked={planDraft.autoRenew ?? true}
-                        onCheckedChange={(checked) => setPlanDraft((prev) => ({ ...prev, autoRenew: checked }))}
+                        onCheckedChange={(checked) =>
+                          setPlanDraft((prev) => ({
+                            ...prev,
+                            autoRenew: checked,
+                          }))
+                        }
                       />
                       <span className="text-xs text-gray-600">
-                        {planDraft.autoRenew ? 'Automatically renew subscription' : 'Manual renewal required'}
+                        {planDraft.autoRenew
+                          ? 'Automatically renew subscription'
+                          : 'Manual renewal required'}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Control automatic subscription renewal.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Control automatic subscription renewal.
+                    </p>
                   </div>
 
                   <div>
@@ -821,10 +916,17 @@ export default function TenantOpsPage() {
                     <input
                       type="datetime-local"
                       value={planDraft.trialStartDate || ''}
-                      onChange={(e) => setPlanDraft((prev) => ({ ...prev, trialStartDate: e.target.value }))}
+                      onChange={(e) =>
+                        setPlanDraft((prev) => ({
+                          ...prev,
+                          trialStartDate: e.target.value,
+                        }))
+                      }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                     />
-                    <p className="text-xs text-gray-500 mt-1">When the trial period started (if applicable).</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      When the trial period started (if applicable).
+                    </p>
                   </div>
 
                   <div>
@@ -839,10 +941,17 @@ export default function TenantOpsPage() {
                     <input
                       type="datetime-local"
                       value={planDraft.trialEndDate || ''}
-                      onChange={(e) => setPlanDraft((prev) => ({ ...prev, trialEndDate: e.target.value }))}
+                      onChange={(e) =>
+                        setPlanDraft((prev) => ({
+                          ...prev,
+                          trialEndDate: e.target.value,
+                        }))
+                      }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                     />
-                    <p className="text-xs text-gray-500 mt-1">When the trial period ends (if applicable).</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      When the trial period ends (if applicable).
+                    </p>
                   </div>
 
                   <div>
@@ -857,10 +966,17 @@ export default function TenantOpsPage() {
                     <input
                       type="datetime-local"
                       value={planDraft.planStartDate || ''}
-                      onChange={(e) => setPlanDraft((prev) => ({ ...prev, planStartDate: e.target.value }))}
+                      onChange={(e) =>
+                        setPlanDraft((prev) => ({
+                          ...prev,
+                          planStartDate: e.target.value,
+                        }))
+                      }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                     />
-                    <p className="text-xs text-gray-500 mt-1">When the current plan period started.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      When the current plan period started.
+                    </p>
                   </div>
 
                   <div>
@@ -875,10 +991,17 @@ export default function TenantOpsPage() {
                     <input
                       type="datetime-local"
                       value={planDraft.planEndDate || ''}
-                      onChange={(e) => setPlanDraft((prev) => ({ ...prev, planEndDate: e.target.value }))}
+                      onChange={(e) =>
+                        setPlanDraft((prev) => ({
+                          ...prev,
+                          planEndDate: e.target.value,
+                        }))
+                      }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                     />
-                    <p className="text-xs text-gray-500 mt-1">When the current plan period ends.</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      When the current plan period ends.
+                    </p>
                   </div>
 
                   <div className="md:col-span-2">
@@ -895,12 +1018,18 @@ export default function TenantOpsPage() {
                       min={0}
                       max={30}
                       value={planDraft.gracePeriodDays || 7}
-                      onChange={(e) => setPlanDraft((prev) => ({ ...prev, gracePeriodDays: parseInt(e.target.value) || 0 }))}
+                      onChange={(e) =>
+                        setPlanDraft((prev) => ({
+                          ...prev,
+                          gracePeriodDays: parseInt(e.target.value) || 0,
+                        }))
+                      }
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       placeholder="7"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Number of days after expiration before suspending the account. Recommended: 7 days.
+                      Number of days after expiration before suspending the
+                      account. Recommended: 7 days.
                     </p>
                   </div>
                 </div>
@@ -914,9 +1043,12 @@ export default function TenantOpsPage() {
                   <div className="flex items-start gap-3">
                     <Database className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-semibold text-purple-900 mb-1">Resource Limits</h3>
+                      <h3 className="text-sm font-semibold text-purple-900 mb-1">
+                        Resource Limits
+                      </h3>
                       <p className="text-xs text-purple-700">
-                        Configure resource limits for users, stores, products, transactions, and storage.
+                        Configure resource limits for users, stores, products,
+                        transactions, and storage.
                       </p>
                     </div>
                   </div>
@@ -924,56 +1056,67 @@ export default function TenantOpsPage() {
 
                 <div className="space-y-4">
                   {[
-                    { 
-                      key: 'users', 
-                      label: 'Seats / Users', 
-                      icon: Users, 
+                    {
+                      key: 'users',
+                      label: 'Seats / Users',
+                      icon: Users,
                       description: 'Maximum number of user accounts',
-                      tooltip: 'Total number of user accounts that can be created. Each user can have different roles and permissions.',
-                      hint: 'Set to 0 for unlimited users'
+                      tooltip:
+                        'Total number of user accounts that can be created. Each user can have different roles and permissions.',
+                      hint: 'Set to 0 for unlimited users',
                     },
-                    { 
-                      key: 'stores', 
-                      label: 'Stores', 
-                      icon: Building2, 
+                    {
+                      key: 'stores',
+                      label: 'Stores',
+                      icon: Building2,
                       description: 'Maximum number of store locations',
-                      tooltip: 'Total number of physical or virtual store locations the tenant can manage. Each store can have its own inventory and settings.',
-                      hint: 'Each store can have separate inventory and settings'
+                      tooltip:
+                        'Total number of physical or virtual store locations the tenant can manage. Each store can have its own inventory and settings.',
+                      hint: 'Each store can have separate inventory and settings',
                     },
-                    { 
-                      key: 'products', 
-                      label: 'Products', 
-                      icon: Layers, 
+                    {
+                      key: 'products',
+                      label: 'Products',
+                      icon: Layers,
                       description: 'Maximum number of products in catalog',
-                      tooltip: 'Total number of products that can be added to the product catalog. Includes active, inactive, and archived products.',
-                      hint: 'Includes all product variants and SKUs'
+                      tooltip:
+                        'Total number of products that can be added to the product catalog. Includes active, inactive, and archived products.',
+                      hint: 'Includes all product variants and SKUs',
                     },
-                    { 
-                      key: 'monthlyTransactions', 
-                      label: 'Monthly Transactions', 
-                      icon: Activity, 
+                    {
+                      key: 'monthlyTransactions',
+                      label: 'Monthly Transactions',
+                      icon: Activity,
                       description: 'Maximum transactions per billing period',
-                      tooltip: 'Maximum number of transactions (sales, purchases, adjustments) allowed per calendar month. Resets at the start of each month.',
-                      hint: 'Resets monthly at the start of billing cycle'
+                      tooltip:
+                        'Maximum number of transactions (sales, purchases, adjustments) allowed per calendar month. Resets at the start of each month.',
+                      hint: 'Resets monthly at the start of billing cycle',
                     },
-                    { 
-                      key: 'storageBytes', 
-                      label: 'Storage', 
-                      icon: HardDrive, 
+                    {
+                      key: 'storageBytes',
+                      label: 'Storage',
+                      icon: HardDrive,
                       description: 'Maximum storage capacity',
-                      tooltip: 'Total storage capacity for files, images, documents, and other media. Includes product images, documents, and backups.',
-                      hint: '1 GB = 1,073,741,824 bytes'
+                      tooltip:
+                        'Total storage capacity for files, images, documents, and other media. Includes product images, documents, and backups.',
+                      hint: '1 GB = 1,073,741,824 bytes',
                     },
                   ].map((limit) => {
                     const Icon = limit.icon;
-                    const currentValue = data.limits[limit.key as keyof typeof data.limits];
-                    
+                    const currentValue =
+                      data.limits[limit.key as keyof typeof data.limits];
+
                     // Special handling for storage
                     if (limit.key === 'storageBytes') {
                       return (
-                        <div key={limit.key} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div
+                          key={limit.key}
+                          className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+                        >
                           <div className="flex items-start gap-3">
-                            <div className={`p-2 rounded-lg bg-white border border-gray-200`}>
+                            <div
+                              className={`p-2 rounded-lg bg-white border border-gray-200`}
+                            >
                               <Icon className="w-4 h-4 text-gray-600" />
                             </div>
                             <div className="flex-1">
@@ -987,10 +1130,13 @@ export default function TenantOpsPage() {
                                   </Tooltip>
                                 </div>
                                 <span className="text-xs text-gray-500">
-                                  Current: {formatBytes(currentValue)} ({bytesToGB(currentValue).toFixed(2)} GB)
+                                  Current: {formatBytes(currentValue)} (
+                                  {bytesToGB(currentValue).toFixed(2)} GB)
                                 </span>
                               </div>
-                              <p className="text-xs text-gray-600 mb-1">{limit.description}</p>
+                              <p className="text-xs text-gray-600 mb-1">
+                                {limit.description}
+                              </p>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
                                 <div>
                                   <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1000,9 +1146,12 @@ export default function TenantOpsPage() {
                                     type="number"
                                     step="0.01"
                                     min={0}
-                                    value={storageGB === 0 ? '0' : storageGB || ''}
+                                    value={
+                                      storageGB === 0 ? '0' : storageGB || ''
+                                    }
                                     onChange={(e) => {
-                                      const gbValue = parseFloat(e.target.value) || 0;
+                                      const gbValue =
+                                        parseFloat(e.target.value) || 0;
                                       setStorageGB(gbValue);
                                       setLimitsDraft((prev) => ({
                                         ...prev,
@@ -1012,7 +1161,9 @@ export default function TenantOpsPage() {
                                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
                                     placeholder="0.00"
                                   />
-                                  <p className="text-xs text-gray-500 mt-1">Enter value in GB (e.g., 0.01, 1.5, 100)</p>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Enter value in GB (e.g., 0.01, 1.5, 100)
+                                  </p>
                                 </div>
                                 <div>
                                   <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1021,9 +1172,12 @@ export default function TenantOpsPage() {
                                   <input
                                     type="number"
                                     min={0}
-                                    value={limitsDraft.storageBytes ?? currentValue}
+                                    value={
+                                      limitsDraft.storageBytes ?? currentValue
+                                    }
                                     onChange={(e) => {
-                                      const bytesValue = Number(e.target.value) || 0;
+                                      const bytesValue =
+                                        Number(e.target.value) || 0;
                                       setLimitsDraft((prev) => ({
                                         ...prev,
                                         storageBytes: bytesValue,
@@ -1033,7 +1187,9 @@ export default function TenantOpsPage() {
                                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
                                     placeholder="0"
                                   />
-                                  <p className="text-xs text-gray-500 mt-1">1 GB = {BYTES_PER_GB.toLocaleString()} bytes</p>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    1 GB = {BYTES_PER_GB.toLocaleString()} bytes
+                                  </p>
                                 </div>
                               </div>
                             </div>
@@ -1041,11 +1197,16 @@ export default function TenantOpsPage() {
                         </div>
                       );
                     }
-                    
+
                     return (
-                      <div key={limit.key} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <div
+                        key={limit.key}
+                        className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+                      >
                         <div className="flex items-start gap-3">
-                          <div className={`p-2 rounded-lg bg-white border border-gray-200`}>
+                          <div
+                            className={`p-2 rounded-lg bg-white border border-gray-200`}
+                          >
                             <Icon className="w-4 h-4 text-gray-600" />
                           </div>
                           <div className="flex-1">
@@ -1062,14 +1223,21 @@ export default function TenantOpsPage() {
                                 Current: {currentValue.toLocaleString()}
                               </span>
                             </div>
-                            <p className="text-xs text-gray-600 mb-1">{limit.description}</p>
+                            <p className="text-xs text-gray-600 mb-1">
+                              {limit.description}
+                            </p>
                             {limit.hint && (
-                              <p className="text-xs text-gray-500 mb-3 italic">{limit.hint}</p>
+                              <p className="text-xs text-gray-500 mb-3 italic">
+                                {limit.hint}
+                              </p>
                             )}
                             <input
                               type="number"
                               min={0}
-                              value={limitsDraft[limit.key as keyof LimitsDraft] ?? currentValue}
+                              value={
+                                limitsDraft[limit.key as keyof LimitsDraft] ??
+                                currentValue
+                              }
                               onChange={(e) =>
                                 setLimitsDraft((prev) => ({
                                   ...prev,
@@ -1118,7 +1286,9 @@ export default function TenantOpsPage() {
                         }
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Recommended: 60 requests/minute for standard usage</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Recommended: 60 requests/minute for standard usage
+                      </p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-2">
@@ -1141,7 +1311,9 @@ export default function TenantOpsPage() {
                         }
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Daily quota resets at midnight UTC</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Daily quota resets at midnight UTC
+                      </p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-2">
@@ -1164,7 +1336,9 @@ export default function TenantOpsPage() {
                         }
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Includes all webhook event types</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Includes all webhook event types
+                      </p>
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-2">
@@ -1187,7 +1361,9 @@ export default function TenantOpsPage() {
                         }
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Simultaneous API connections limit</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Simultaneous API connections limit
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1201,9 +1377,12 @@ export default function TenantOpsPage() {
                   <div className="flex items-start gap-3">
                     <Sparkles className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-semibold text-emerald-900 mb-1">Feature Management</h3>
+                      <h3 className="text-sm font-semibold text-emerald-900 mb-1">
+                        Feature Management
+                      </h3>
                       <p className="text-xs text-emerald-700">
-                        Enable or disable features and modules for this tenant. Changes take effect immediately.
+                        Enable or disable features and modules for this tenant.
+                        Changes take effect immediately.
                       </p>
                     </div>
                   </div>
@@ -1214,49 +1393,56 @@ export default function TenantOpsPage() {
                     {
                       key: 'multiStore',
                       label: 'Multi-Store Management',
-                      description: 'Manage multiple store locations, inter-store transfers, and store-wise reporting',
+                      description:
+                        'Manage multiple store locations, inter-store transfers, and store-wise reporting',
                       icon: Building2,
                       category: 'Core',
                     },
                     {
                       key: 'restaurant',
                       label: 'Restaurant Operations',
-                      description: 'Table management, kitchen order tickets (KOT), waiter assignment, and order tracking',
+                      description:
+                        'Table management, kitchen order tickets (KOT), waiter assignment, and order tracking',
                       icon: Layers,
                       category: 'Operations',
                     },
                     {
                       key: 'inventory',
                       label: 'Inventory Management',
-                      description: 'Stock tracking, adjustments, transfers, batch/lot tracking, and low stock alerts',
+                      description:
+                        'Stock tracking, adjustments, transfers, batch/lot tracking, and low stock alerts',
                       icon: Database,
                       category: 'Core',
                     },
                     {
                       key: 'loyalty',
                       label: 'Loyalty Program',
-                      description: 'Customer loyalty points, rewards, membership tiers, and promotional campaigns',
+                      description:
+                        'Customer loyalty points, rewards, membership tiers, and promotional campaigns',
                       icon: Sparkles,
                       category: 'CRM',
                     },
                     {
                       key: 'reporting',
                       label: 'Reporting & Analytics',
-                      description: 'Sales reports, inventory reports, financial reports, and custom dashboards',
+                      description:
+                        'Sales reports, inventory reports, financial reports, and custom dashboards',
                       icon: TrendingUp,
                       category: 'Analytics',
                     },
                     {
                       key: 'api',
                       label: 'API Access',
-                      description: 'RESTful API access for integrations, third-party apps, and custom development',
+                      description:
+                        'RESTful API access for integrations, third-party apps, and custom development',
                       icon: Globe,
                       category: 'Integration',
                     },
                     {
                       key: 'webhooks',
                       label: 'Webhooks',
-                      description: 'Real-time event notifications via HTTP callbacks for external integrations',
+                      description:
+                        'Real-time event notifications via HTTP callbacks for external integrations',
                       icon: Zap,
                       category: 'Integration',
                     },
@@ -1264,7 +1450,10 @@ export default function TenantOpsPage() {
                     const Icon = feature.icon;
                     const value = featuresDraft[feature.key] ?? false;
                     return (
-                      <div key={feature.key} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+                      <div
+                        key={feature.key}
+                        className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+                      >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-start gap-3 flex-1">
                             <div className="p-2 rounded-lg bg-white border border-gray-200 flex-shrink-0">
@@ -1279,8 +1468,13 @@ export default function TenantOpsPage() {
                                   {feature.category}
                                 </span>
                               </div>
-                              <p className="text-xs text-gray-600 mb-2">{feature.description}</p>
-                              <Tooltip text={`Toggle ${feature.label} module. When disabled, this feature will be hidden from the tenant's interface.`} position="top">
+                              <p className="text-xs text-gray-600 mb-2">
+                                {feature.description}
+                              </p>
+                              <Tooltip
+                                text={`Toggle ${feature.label} module. When disabled, this feature will be hidden from the tenant's interface.`}
+                                position="top"
+                              >
                                 <Info className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600 cursor-help inline-block" />
                               </Tooltip>
                             </div>
@@ -1298,28 +1492,65 @@ export default function TenantOpsPage() {
                       </div>
                     );
                   })}
-                  
+
                   {/* Additional modules that might be added later */}
                   <div className="border-t border-gray-200 pt-4 mt-4">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Coming Soon</h4>
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">
+                      Coming Soon
+                    </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {[
-                        { label: 'POS System', description: 'Point of sale with cart, payments, receipts' },
-                        { label: 'Purchase Orders', description: 'Vendor management and procurement' },
-                        { label: 'Financial Accounting', description: 'GL, P&L, balance sheets, tax reports' },
-                        { label: 'Employee Management', description: 'Staff scheduling, attendance, payroll' },
-                        { label: 'Export & Import', description: 'Bulk data operations, CSV/Excel support' },
-                        { label: 'Sync Center', description: 'Data synchronization and replication' },
-                        { label: 'Audit Logs', description: 'Complete audit trail and compliance' },
-                        { label: 'Notifications', description: 'In-app and email notifications' },
+                        {
+                          label: 'POS System',
+                          description:
+                            'Point of sale with cart, payments, receipts',
+                        },
+                        {
+                          label: 'Purchase Orders',
+                          description: 'Vendor management and procurement',
+                        },
+                        {
+                          label: 'Financial Accounting',
+                          description: 'GL, P&L, balance sheets, tax reports',
+                        },
+                        {
+                          label: 'Employee Management',
+                          description: 'Staff scheduling, attendance, payroll',
+                        },
+                        {
+                          label: 'Export & Import',
+                          description:
+                            'Bulk data operations, CSV/Excel support',
+                        },
+                        {
+                          label: 'Sync Center',
+                          description: 'Data synchronization and replication',
+                        },
+                        {
+                          label: 'Audit Logs',
+                          description: 'Complete audit trail and compliance',
+                        },
+                        {
+                          label: 'Notifications',
+                          description: 'In-app and email notifications',
+                        },
                       ].map((module) => (
-                        <div key={module.label} className="bg-gray-50 border border-gray-200 rounded-lg p-3 opacity-60">
+                        <div
+                          key={module.label}
+                          className="bg-gray-50 border border-gray-200 rounded-lg p-3 opacity-60"
+                        >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-xs font-medium text-gray-700">{module.label}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">{module.description}</p>
+                              <p className="text-xs font-medium text-gray-700">
+                                {module.label}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {module.description}
+                              </p>
                             </div>
-                            <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded">Soon</span>
+                            <span className="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded">
+                              Soon
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -1336,7 +1567,9 @@ export default function TenantOpsPage() {
                   <div className="flex items-start gap-3">
                     <Bell className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-semibold text-amber-900 mb-1">Usage Alerts & Notifications</h3>
+                      <h3 className="text-sm font-semibold text-amber-900 mb-1">
+                        Usage Alerts & Notifications
+                      </h3>
                       <p className="text-xs text-amber-700">
                         Configure alerts when resource usage approaches limits.
                       </p>
@@ -1348,7 +1581,9 @@ export default function TenantOpsPage() {
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-900">Enable Usage Alerts</label>
+                        <label className="text-sm font-medium text-gray-900">
+                          Enable Usage Alerts
+                        </label>
                         <p className="text-xs text-gray-600 mt-1">
                           Receive notifications when usage approaches limits
                         </p>
@@ -1356,7 +1591,10 @@ export default function TenantOpsPage() {
                       <Switch
                         checked={usageAlertsDraft.enabled}
                         onCheckedChange={(checked) =>
-                          setUsageAlertsDraft((prev) => ({ ...prev, enabled: checked }))
+                          setUsageAlertsDraft((prev) => ({
+                            ...prev,
+                            enabled: checked,
+                          }))
                         }
                       />
                     </div>
@@ -1372,7 +1610,10 @@ export default function TenantOpsPage() {
                               { key: 'users', label: 'Users' },
                               { key: 'stores', label: 'Stores' },
                               { key: 'products', label: 'Products' },
-                              { key: 'monthlyTransactions', label: 'Transactions' },
+                              {
+                                key: 'monthlyTransactions',
+                                label: 'Transactions',
+                              },
                               { key: 'storageBytes', label: 'Storage' },
                             ].map((item) => (
                               <div key={item.key}>
@@ -1380,7 +1621,11 @@ export default function TenantOpsPage() {
                                   type="number"
                                   min={0}
                                   max={100}
-                                  value={usageAlertsDraft.thresholds[item.key as keyof typeof usageAlertsDraft.thresholds] || 80}
+                                  value={
+                                    usageAlertsDraft.thresholds[
+                                      item.key as keyof typeof usageAlertsDraft.thresholds
+                                    ] || 80
+                                  }
                                   onChange={(e) =>
                                     setUsageAlertsDraft((prev) => ({
                                       ...prev,
@@ -1393,7 +1638,9 @@ export default function TenantOpsPage() {
                                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                                   placeholder="80"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">{item.label}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {item.label}
+                                </p>
                               </div>
                             ))}
                           </div>
@@ -1402,15 +1649,22 @@ export default function TenantOpsPage() {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <label className="text-sm font-medium text-gray-900">Email Notifications</label>
+                              <label className="text-sm font-medium text-gray-900">
+                                Email Notifications
+                              </label>
                               <p className="text-xs text-gray-600 mt-1">
                                 Send alerts via email
                               </p>
                             </div>
                             <Switch
-                              checked={usageAlertsDraft.emailNotifications ?? true}
+                              checked={
+                                usageAlertsDraft.emailNotifications ?? true
+                              }
                               onCheckedChange={(checked) =>
-                                setUsageAlertsDraft((prev) => ({ ...prev, emailNotifications: checked }))
+                                setUsageAlertsDraft((prev) => ({
+                                  ...prev,
+                                  emailNotifications: checked,
+                                }))
                               }
                             />
                           </div>
@@ -1423,7 +1677,10 @@ export default function TenantOpsPage() {
                               type="url"
                               value={usageAlertsDraft.webhookUrl || ''}
                               onChange={(e) =>
-                                setUsageAlertsDraft((prev) => ({ ...prev, webhookUrl: e.target.value }))
+                                setUsageAlertsDraft((prev) => ({
+                                  ...prev,
+                                  webhookUrl: e.target.value,
+                                }))
                               }
                               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                               placeholder="https://example.com/webhook"
@@ -1444,9 +1701,12 @@ export default function TenantOpsPage() {
                   <div className="flex items-start gap-3">
                     <Globe className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-semibold text-indigo-900 mb-1">Available API Endpoints</h3>
+                      <h3 className="text-sm font-semibold text-indigo-900 mb-1">
+                        Available API Endpoints
+                      </h3>
                       <p className="text-xs text-indigo-700">
-                        Manage tenant resources through RESTful API endpoints. All endpoints require authentication.
+                        Manage tenant resources through RESTful API endpoints.
+                        All endpoints require authentication.
                       </p>
                     </div>
                   </div>
@@ -1464,14 +1724,16 @@ export default function TenantOpsPage() {
                     {
                       method: 'PATCH',
                       endpoint: `/api/tenants/${tenantId}/limits`,
-                      description: 'Update resource limits (users, stores, products, transactions, storage)',
+                      description:
+                        'Update resource limits (users, stores, products, transactions, storage)',
                       color: 'bg-blue-100 text-blue-700 border-blue-200',
                       icon: Database,
                     },
                     {
                       method: 'PATCH',
                       endpoint: `/api/tenants/${tenantId}/plan`,
-                      description: 'Update subscription plan, billing cycle, and features',
+                      description:
+                        'Update subscription plan, billing cycle, and features',
                       color: 'bg-purple-100 text-purple-700 border-purple-200',
                       icon: CreditCard,
                     },
@@ -1500,7 +1762,8 @@ export default function TenantOpsPage() {
                       method: 'PATCH',
                       endpoint: `/api/tenants/${tenantId}/activate`,
                       description: 'Reactivate suspended tenant account',
-                      color: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                      color:
+                        'bg-emerald-100 text-emerald-700 border-emerald-200',
                       icon: Unlock,
                     },
                   ].map((api, index) => {
@@ -1541,7 +1804,8 @@ export default function TenantOpsPage() {
                                 onClick={() => {
                                   navigator.clipboard.writeText(api.endpoint);
                                   toast.success('Copied!', {
-                                    description: 'API endpoint copied to clipboard',
+                                    description:
+                                      'API endpoint copied to clipboard',
                                   });
                                 }}
                                 className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
@@ -1550,7 +1814,9 @@ export default function TenantOpsPage() {
                                 <Copy className="w-4 h-4" />
                               </button>
                             </div>
-                            <p className="text-xs text-gray-600">{api.description}</p>
+                            <p className="text-xs text-gray-600">
+                              {api.description}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -1606,9 +1872,12 @@ export default function TenantOpsPage() {
                   <div className="flex items-start gap-3">
                     <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-sm font-semibold text-blue-900 mb-1">API Documentation</h4>
+                      <h4 className="text-sm font-semibold text-blue-900 mb-1">
+                        API Documentation
+                      </h4>
                       <p className="text-xs text-blue-700 mb-3">
-                        For complete API documentation, request examples, and authentication details, visit the API docs.
+                        For complete API documentation, request examples, and
+                        authentication details, visit the API docs.
                       </p>
                       <button
                         type="button"
@@ -1635,7 +1904,9 @@ export default function TenantOpsPage() {
                   <div className="flex items-start gap-3">
                     <Settings className="w-5 h-5 text-gray-600 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900 mb-1">Advanced Settings</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                        Advanced Settings
+                      </h3>
                       <p className="text-xs text-gray-700">
                         Additional configuration options and system settings.
                       </p>
@@ -1648,16 +1919,20 @@ export default function TenantOpsPage() {
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="text-sm font-semibold text-yellow-900 mb-1">Usage Reset</h4>
+                        <h4 className="text-sm font-semibold text-yellow-900 mb-1">
+                          Usage Reset
+                        </h4>
                         <p className="text-xs text-yellow-700 mb-3">
-                          Reset usage counters for the current billing period. This action cannot be undone.
+                          Reset usage counters for the current billing period.
+                          This action cannot be undone.
                         </p>
                         <button
                           type="button"
                           className="px-3 py-1.5 bg-yellow-600 text-white rounded-lg text-xs font-medium hover:bg-yellow-700 transition-colors"
                           onClick={() => {
                             toast.warning('Usage Reset', {
-                              description: 'This feature will be implemented soon.',
+                              description:
+                                'This feature will be implemented soon.',
                             });
                           }}
                         >
@@ -1671,7 +1946,9 @@ export default function TenantOpsPage() {
                     <div className="flex items-start gap-3">
                       <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="text-sm font-semibold text-blue-900 mb-1">Plan History</h4>
+                        <h4 className="text-sm font-semibold text-blue-900 mb-1">
+                          Plan History
+                        </h4>
                         <p className="text-xs text-blue-700 mb-3">
                           View plan changes and upgrade/downgrade history.
                         </p>
@@ -1680,7 +1957,8 @@ export default function TenantOpsPage() {
                           className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
                           onClick={() => {
                             toast.info('Plan History', {
-                              description: 'This feature will be implemented soon.',
+                              description:
+                                'This feature will be implemented soon.',
                             });
                           }}
                         >
@@ -1694,9 +1972,12 @@ export default function TenantOpsPage() {
                     <div className="flex items-start gap-3">
                       <Lock className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <h4 className="text-sm font-semibold text-red-900 mb-1">Suspend Tenant</h4>
+                        <h4 className="text-sm font-semibold text-red-900 mb-1">
+                          Suspend Tenant
+                        </h4>
                         <p className="text-xs text-red-700 mb-3">
-                          Temporarily suspend tenant access. All operations will be blocked until reactivation.
+                          Temporarily suspend tenant access. All operations will
+                          be blocked until reactivation.
                         </p>
                         <div className="flex items-center gap-2">
                           <button
@@ -1704,7 +1985,8 @@ export default function TenantOpsPage() {
                             className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 transition-colors"
                             onClick={() => {
                               toast.error('Suspend Tenant', {
-                                description: 'This feature requires confirmation.',
+                                description:
+                                  'This feature requires confirmation.',
                               });
                             }}
                           >
@@ -1715,9 +1997,13 @@ export default function TenantOpsPage() {
                               type="button"
                               className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700 transition-colors"
                               onClick={() => {
-                                setPlanDraft((prev) => ({ ...prev, status: 'active' }));
+                                setPlanDraft((prev) => ({
+                                  ...prev,
+                                  status: 'active',
+                                }));
                                 toast.success('Account Reactivated', {
-                                  description: 'Tenant account has been reactivated.',
+                                  description:
+                                    'Tenant account has been reactivated.',
                                 });
                               }}
                             >

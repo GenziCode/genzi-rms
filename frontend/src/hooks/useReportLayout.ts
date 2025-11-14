@@ -106,7 +106,11 @@ export function useReportLayout(reportType: string) {
     setLoading(true);
     try {
       const newLayouts = layouts.filter((l) => l.id !== layoutId);
-      saveLayouts(newLayouts, currentLayout?.id === layoutId ? null : currentLayout);
+      const nextCurrent: ReportLayout | undefined =
+        currentLayout?.id === layoutId
+          ? undefined
+          : (currentLayout ?? undefined);
+      saveLayouts(newLayouts, nextCurrent);
     } finally {
       setLoading(false);
     }
@@ -147,4 +151,3 @@ export function useReportLayout(reportType: string) {
     setCurrentLayout,
   };
 }
-

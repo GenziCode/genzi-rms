@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Shield, Plus, Edit, Trash2, Search, Users, CheckCircle2, XCircle } from 'lucide-react';
+import {
+  Shield,
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { rolesService, type Role } from '@/services/roles.service';
-import { permissionsService } from '@/services/permissions.service';
 import RoleFormModal from '@/components/roles/RoleFormModal';
 import { Spinner } from '@/components/ui/spinner';
 import { useHasPermission } from '@/hooks/usePermissions';
@@ -15,7 +22,11 @@ export default function RolesPage() {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const { user } = useAuthStore();
-  const canManageRoles = user?.role === 'owner' || user?.role === 'admin' || useHasPermission('*') || useHasPermission('role:*');
+  const canManageRoles =
+    user?.role === 'owner' ||
+    user?.role === 'admin' ||
+    useHasPermission('*') ||
+    useHasPermission('role:*');
 
   const { data, isLoading } = useQuery({
     queryKey: ['roles', searchTerm],
@@ -41,7 +52,9 @@ export default function RolesPage() {
       queryClient.invalidateQueries({ queryKey: ['roles'] });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error?.message || 'Failed to delete role');
+      toast.error(
+        error.response?.data?.error?.message || 'Failed to delete role'
+      );
     },
   });
 
@@ -72,7 +85,9 @@ export default function RolesPage() {
       toast.warning('System roles cannot be deleted');
       return;
     }
-    if (window.confirm(`Are you sure you want to delete role "${role.name}"?`)) {
+    if (
+      window.confirm(`Are you sure you want to delete role "${role.name}"?`)
+    ) {
       deleteMutation.mutate(role.id);
     }
   };
@@ -82,8 +97,12 @@ export default function RolesPage() {
       <div className="p-6">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
           <Shield className="w-12 h-12 text-yellow-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-yellow-900 mb-2">Access Denied</h3>
-          <p className="text-yellow-700">You don't have permission to manage roles.</p>
+          <h3 className="text-lg font-semibold text-yellow-900 mb-2">
+            Access Denied
+          </h3>
+          <p className="text-yellow-700">
+            You don't have permission to manage roles.
+          </p>
         </div>
       </div>
     );
@@ -99,7 +118,9 @@ export default function RolesPage() {
             </div>
             Roles & Permissions
           </h1>
-          <p className="text-gray-600 mt-1">Manage roles and their permissions</p>
+          <p className="text-gray-600 mt-1">
+            Manage roles and their permissions
+          </p>
         </div>
         <button
           onClick={() => {
@@ -135,8 +156,12 @@ export default function RolesPage() {
         ) : roles.length === 0 ? (
           <div className="p-12 text-center">
             <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No roles found</h3>
-            <p className="text-gray-600 mb-4">Create your first role to get started</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              No roles found
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Create your first role to get started
+            </p>
             <button
               onClick={() => {
                 setSelectedRole(null);
@@ -182,9 +207,13 @@ export default function RolesPage() {
                           <Shield className="w-5 h-5 text-white" />
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{role.name}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {role.name}
+                          </div>
                           {role.description && (
-                            <div className="text-sm text-gray-500">{role.description}</div>
+                            <div className="text-sm text-gray-500">
+                              {role.description}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -205,10 +234,13 @@ export default function RolesPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">
-                        {role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
+                        {role.permissions.length} permission
+                        {role.permissions.length !== 1 ? 's' : ''}
                       </div>
                       {role.permissions.includes('*') && (
-                        <div className="text-xs text-blue-600 mt-1">All permissions</div>
+                        <div className="text-xs text-blue-600 mt-1">
+                          All permissions
+                        </div>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -271,4 +303,3 @@ export default function RolesPage() {
     </div>
   );
 }
-

@@ -1,7 +1,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { FileText, Search, Filter, CheckCircle2, XCircle, Eye, Lock, Unlock } from 'lucide-react';
-import { permissionsService, type FormPermission } from '@/services/permissions.service';
+import {
+  FileText,
+  Search,
+  Filter,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  Lock,
+  Unlock,
+} from 'lucide-react';
+import {
+  permissionsService,
+  type FormPermission,
+} from '@/services/permissions.service';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 
@@ -27,13 +39,25 @@ export default function FormPermissionsPage() {
     const matchesSearch =
       form.formName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       form.formCaption.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (form.module && form.module.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory = selectedCategory === 'all' || form.formCategory === selectedCategory;
-    const matchesModule = selectedModule === 'all' || form.module === selectedModule;
+      (form.module &&
+        form.module.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesCategory =
+      selectedCategory === 'all' || form.formCategory === selectedCategory;
+    const matchesModule =
+      selectedModule === 'all' || form.module === selectedModule;
     return matchesSearch && matchesCategory && matchesModule;
   });
 
-  const modules = Array.from(new Set(forms.map((f) => f.module).filter(Boolean)));
+  const modules: string[] = Array.from(
+    new Set(
+      forms
+        .map((f) => f.module)
+        .filter(
+          (module): module is string =>
+            typeof module === 'string' && module.length > 0
+        )
+    )
+  );
 
   return (
     <div className="space-y-6">
@@ -41,7 +65,9 @@ export default function FormPermissionsPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Form Permissions</h1>
-          <p className="text-gray-600 mt-1">Manage form-level access controls and permissions</p>
+          <p className="text-gray-600 mt-1">
+            Manage form-level access controls and permissions
+          </p>
         </div>
       </div>
 
@@ -114,8 +140,12 @@ export default function FormPermissionsPage() {
                       <FileText className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">{form.formCaption}</h3>
-                      <code className="text-xs text-gray-500">{form.formName}</code>
+                      <h3 className="font-semibold text-gray-900">
+                        {form.formCaption}
+                      </h3>
+                      <code className="text-xs text-gray-500">
+                        {form.formName}
+                      </code>
                     </div>
                   </div>
                 </div>
@@ -180,7 +210,9 @@ export default function FormPermissionsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Categories</p>
-              <p className="text-2xl font-bold text-gray-900">{categories.length}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {categories.length}
+              </p>
             </div>
             <Filter className="w-8 h-8 text-green-600 opacity-50" />
           </div>
@@ -189,7 +221,9 @@ export default function FormPermissionsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Modules</p>
-              <p className="text-2xl font-bold text-gray-900">{modules.length}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {modules.length}
+              </p>
             </div>
             <Eye className="w-8 h-8 text-purple-600 opacity-50" />
           </div>
@@ -198,7 +232,9 @@ export default function FormPermissionsPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Filtered</p>
-              <p className="text-2xl font-bold text-gray-900">{filteredForms.length}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {filteredForms.length}
+              </p>
             </div>
             <Search className="w-8 h-8 text-orange-600 opacity-50" />
           </div>
@@ -207,4 +243,3 @@ export default function FormPermissionsPage() {
     </div>
   );
 }
-

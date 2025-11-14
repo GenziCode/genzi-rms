@@ -8,6 +8,8 @@ export interface User {
   lastName: string;
   role: 'owner' | 'admin' | 'manager' | 'cashier' | 'kitchen' | 'waiter';
   isActive: boolean;
+  permissions?: string[];
+  tenantId?: string;
 }
 
 interface TenantContext {
@@ -75,4 +77,3 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
-

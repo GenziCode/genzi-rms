@@ -28,7 +28,13 @@ import {
 import { salesReportsService } from '@/services/salesReports.service';
 import { inventoryReportsService } from '@/services/inventoryReports.service';
 import { formatCurrency } from '@/lib/utils';
-import { DollarSign, TrendingUp, Package, Users, ShoppingCart } from 'lucide-react';
+import {
+  DollarSign,
+  TrendingUp,
+  Package,
+  Users,
+  ShoppingCart,
+} from 'lucide-react';
 
 // Report type mapping
 const REPORT_CONFIGS: Record<
@@ -102,9 +108,7 @@ const REPORT_CONFIGS: Record<
         data: data?.dailyData || [],
         config: {
           dataKey: 'date',
-          lines: [
-            { dataKey: 'totalSales', name: 'Sales', color: '#3b82f6' },
-          ],
+          lines: [{ dataKey: 'totalSales', name: 'Sales', color: '#3b82f6' }],
         },
       },
       {
@@ -114,14 +118,24 @@ const REPORT_CONFIGS: Record<
         config: {
           dataKey: 'date',
           bars: [
-            { dataKey: 'totalTransactions', name: 'Transactions', color: '#10b981' },
+            {
+              dataKey: 'totalTransactions',
+              name: 'Transactions',
+              color: '#10b981',
+            },
           ],
         },
       },
     ],
     getTableData: (data) => data?.dailyData || [],
     getTableColumns: () => [
-      { id: 'date', label: 'Date', accessor: 'date', visible: true, sortable: true },
+      {
+        id: 'date',
+        label: 'Date',
+        accessor: 'date',
+        visible: true,
+        sortable: true,
+      },
       {
         id: 'totalSales',
         label: 'Total Sales',
@@ -181,7 +195,13 @@ const REPORT_CONFIGS: Record<
         type: 'pie',
         title: 'Stock Status Distribution',
         data: [
-          { name: 'In Stock', value: (data?.summary?.totalProducts || 0) - (data?.summary?.lowStockCount || 0) - (data?.summary?.outOfStockCount || 0) },
+          {
+            name: 'In Stock',
+            value:
+              (data?.summary?.totalProducts || 0) -
+              (data?.summary?.lowStockCount || 0) -
+              (data?.summary?.outOfStockCount || 0),
+          },
           { name: 'Low Stock', value: data?.summary?.lowStockCount || 0 },
           { name: 'Out of Stock', value: data?.summary?.outOfStockCount || 0 },
         ],
@@ -190,9 +210,27 @@ const REPORT_CONFIGS: Record<
     ],
     getTableData: (data) => data?.products || [],
     getTableColumns: () => [
-      { id: 'productName', label: 'Product', accessor: 'productName', visible: true, sortable: true },
-      { id: 'currentStock', label: 'Current Stock', accessor: 'currentStock', visible: true, sortable: true },
-      { id: 'status', label: 'Status', accessor: 'status', visible: true, sortable: true },
+      {
+        id: 'productName',
+        label: 'Product',
+        accessor: 'productName',
+        visible: true,
+        sortable: true,
+      },
+      {
+        id: 'currentStock',
+        label: 'Current Stock',
+        accessor: 'currentStock',
+        visible: true,
+        sortable: true,
+      },
+      {
+        id: 'status',
+        label: 'Status',
+        accessor: 'status',
+        visible: true,
+        sortable: true,
+      },
     ],
   },
 };
@@ -200,18 +238,16 @@ const REPORT_CONFIGS: Record<
 function ReportDashboardPage() {
   const { reportType } = useParams<{ reportType: string }>();
   const [dateRange, setDateRange] = useState({
-    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
   });
   const [storeId, setStoreId] = useState<string>('');
 
   const config = reportType ? REPORT_CONFIGS[reportType] : null;
-  const {
-    currentLayout,
-    saveLayout,
-    loadLayout,
-    createNewLayout,
-  } = useReportLayout(reportType || 'default');
+  const { currentLayout, saveLayout, loadLayout, createNewLayout } =
+    useReportLayout(reportType || 'default');
 
   // Fetch report data
   const {
@@ -223,8 +259,12 @@ function ReportDashboardPage() {
     queryFn: () => {
       if (!config) return Promise.resolve(null);
       return config.service({
-        startDate: dateRange.startDate ? new Date(dateRange.startDate).toISOString() : undefined,
-        endDate: dateRange.endDate ? new Date(dateRange.endDate).toISOString() : undefined,
+        startDate: dateRange.startDate
+          ? new Date(dateRange.startDate).toISOString()
+          : undefined,
+        endDate: dateRange.endDate
+          ? new Date(dateRange.endDate).toISOString()
+          : undefined,
         storeId: storeId || undefined,
       });
     },
@@ -251,18 +291,20 @@ function ReportDashboardPage() {
     const baseColumns = config.getTableColumns();
     // Apply saved layout if available
     if (currentLayout) {
-      return baseColumns.map((col) => {
-        const saved = currentLayout.columns.find((c) => c.id === col.id);
-        return {
-          ...col,
-          visible: saved?.visible ?? col.visible,
-          width: saved?.width,
-        };
-      }).sort((a, b) => {
-        const aOrder = currentLayout.columns.findIndex((c) => c.id === a.id);
-        const bOrder = currentLayout.columns.findIndex((c) => c.id === b.id);
-        return aOrder - bOrder;
-      });
+      return baseColumns
+        .map((col) => {
+          const saved = currentLayout.columns.find((c) => c.id === col.id);
+          return {
+            ...col,
+            visible: saved?.visible ?? col.visible,
+            width: saved?.width,
+          };
+        })
+        .sort((a, b) => {
+          const aOrder = currentLayout.columns.findIndex((c) => c.id === a.id);
+          const bOrder = currentLayout.columns.findIndex((c) => c.id === b.id);
+          return aOrder - bOrder;
+        });
     }
     return baseColumns;
   }, [config, currentLayout]);
@@ -308,7 +350,6 @@ function ReportDashboardPage() {
         id: col.id,
         visible: col.visible,
         order: index,
-        width: col.width,
       }))
     );
 
@@ -320,8 +361,12 @@ function ReportDashboardPage() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Report Not Found</h2>
-          <p className="text-gray-600 mb-4">The requested report dashboard is not available.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Report Not Found
+          </h2>
+          <p className="text-gray-600 mb-4">
+            The requested report dashboard is not available.
+          </p>
           <Link
             to="/reports"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -471,4 +516,3 @@ function ReportDashboardPage() {
 }
 
 export default ReportDashboardPage;
-

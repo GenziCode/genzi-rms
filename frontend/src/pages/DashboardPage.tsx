@@ -40,15 +40,33 @@ import { formatCurrency } from '@/lib/utils';
 import { Spinner } from '@/components/ui/spinner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import LineChart from '@/components/charts/LineChart';
 import BarChart from '@/components/charts/BarChart';
 import PieChart from '@/components/charts/PieChart';
 import AreaChart from '@/components/charts/AreaChart';
 
-import type { DashboardReport, SalesTrendsReport, PaymentMethodsReport, CustomerInsightsReport, VendorPerformanceReport, InventoryValuationReport } from '@/types/reports.types';
-import type { InventoryStatus, StockAlert, LowStockProduct, StockMovement } from '@/types/inventory.types';
+import type {
+  DashboardReport,
+  SalesTrendsReport,
+  PaymentMethodsReport,
+  CustomerInsightsReport,
+  VendorPerformanceReport,
+  InventoryValuationReport,
+} from '@/types/reports.types';
+import type {
+  InventoryStatus,
+  StockAlert,
+  LowStockProduct,
+  StockMovement,
+} from '@/types/inventory.types';
 import type { CustomerStats } from '@/types/customer.types';
 import type { StoreSettings } from '@/types/settings.types';
 
@@ -67,7 +85,8 @@ type MetricCardProps = {
 
 const toneClasses: Record<NonNullable<MetricCardProps['tone']>, string> = {
   primary: 'from-blue-500/10 via-blue-500/5 to-transparent border-blue-200',
-  success: 'from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200',
+  success:
+    'from-emerald-500/10 via-emerald-500/5 to-transparent border-emerald-200',
   warning: 'from-amber-500/10 via-amber-500/5 to-transparent border-amber-200',
   danger: 'from-rose-500/10 via-rose-500/5 to-transparent border-rose-200',
   neutral: 'from-slate-500/10 via-slate-500/5 to-transparent border-slate-200',
@@ -75,7 +94,10 @@ const toneClasses: Record<NonNullable<MetricCardProps['tone']>, string> = {
 
 const formatNumber = (value: number | undefined, minimumFractionDigits = 0) => {
   if (!Number.isFinite(value)) return '0';
-  return value!.toLocaleString(undefined, { minimumFractionDigits, maximumFractionDigits: minimumFractionDigits });
+  return value!.toLocaleString(undefined, {
+    minimumFractionDigits,
+    maximumFractionDigits: minimumFractionDigits,
+  });
 };
 
 const formatShortDate = (value: string) => {
@@ -109,39 +131,70 @@ const getDateRange = (range: TimeRange) => {
   };
 };
 
-const MetricCard = ({ icon: Icon, title, value, change, trend = 'steady', caption, badge, tone = 'primary' }: MetricCardProps) => {
-  const trendIcon = trend === 'down' ? TrendingDown : trend === 'up' ? TrendingUp : undefined;
+const MetricCard = ({
+  icon: Icon,
+  title,
+  value,
+  change,
+  trend = 'steady',
+  caption,
+  badge,
+  tone = 'primary',
+}: MetricCardProps) => {
+  const TrendIcon =
+    trend === 'down' ? TrendingDown : trend === 'up' ? TrendingUp : null;
   const trendColor =
-    trend === 'down' ? 'text-rose-600' : trend === 'up' ? 'text-emerald-600' : 'text-slate-500';
+    trend === 'down'
+      ? 'text-rose-600'
+      : trend === 'up'
+        ? 'text-emerald-600'
+        : 'text-slate-500';
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border bg-white/80 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md ${toneClasses[tone]}`}>
+    <div
+      className={`relative overflow-hidden rounded-2xl border bg-white/80 p-5 shadow-sm backdrop-blur-sm transition hover:shadow-md ${toneClasses[tone]}`}
+    >
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
             <Icon className="h-5 w-5 text-slate-500" />
             {badge && (
-              <Badge variant="outline" className="border-transparent bg-slate-900/5 text-xs text-slate-600">
+              <Badge
+                variant="outline"
+                className="border-transparent bg-slate-900/5 text-xs text-slate-600"
+              >
                 {badge}
               </Badge>
             )}
           </div>
           <h3 className="mt-3 text-sm font-medium text-slate-500">{title}</h3>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+            {value}
+          </p>
         </div>
-        {trendIcon && (
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-white/80 shadow-inner ${trendColor}`}>
-            {trendIcon && <trendIcon className="h-5 w-5" />}
+        {TrendIcon && (
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-xl bg-white/80 shadow-inner ${trendColor}`}
+          >
+            <TrendIcon className="h-5 w-5" />
           </div>
         )}
       </div>
       {(change || caption) && (
         <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
           {change ? (
-            <span className={`inline-flex items-center gap-1 font-medium ${trendColor}`}>
-              {trend === 'down' ? <ArrowDownRight className="h-3.5 w-3.5" /> : <ArrowUpRight className="h-3.5 w-3.5" />}
+            <span
+              className={`inline-flex items-center gap-1 font-medium ${trendColor}`}
+            >
+              {trend === 'down' ? (
+                <ArrowDownRight className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              )}
               {formatNumber(Math.abs(change.value), 1)}%
-              {change.label && <span className="text-slate-400">· {change.label}</span>}
+              {change.label && (
+                <span className="text-slate-400">· {change.label}</span>
+              )}
             </span>
           ) : (
             <span />
@@ -350,7 +403,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!errors.length) return;
-    toast.warning('Some dashboard data could not be loaded. Displaying the latest available information.');
+    toast.warning(
+      'Some dashboard data could not be loaded. Displaying the latest available information.'
+    );
   }, [errors.length]);
 
   const isLoading =
@@ -428,7 +483,8 @@ export default function DashboardPage() {
       cost: category.costValue ?? category.cost ?? 0,
       profit:
         category.profit ??
-        (category.retailValue ?? category.value ?? 0) - (category.costValue ?? category.cost ?? 0),
+        (category.retailValue ?? category.value ?? 0) -
+          (category.costValue ?? category.cost ?? 0),
     }));
   }, [inventoryValuationReport]);
 
@@ -457,9 +513,7 @@ export default function DashboardPage() {
     const insights =
       customerInsightsData?.topCustomers ??
       customerStatsData?.topCustomers?.map((entry) => ({
-        customerName: entry.customer.firstName
-          ? `${entry.customer.firstName} ${entry.customer.lastName ?? ''}`.trim()
-          : entry.customer.company ?? 'Customer',
+        customerName: entry.customer.name ?? entry.customer.email ?? 'Customer',
         totalSpent: entry.totalSpent,
         totalOrders: entry.totalOrders,
         email: entry.customer.email,
@@ -532,14 +586,51 @@ export default function DashboardPage() {
 
   const storeWidgets = useMemo(() => {
     const stores = storesData ?? [];
+    const normalizeStore = (store: any, index: number) => ({
+      _id: store._id ?? `store-${index}`,
+      name: store.name ?? 'Store',
+      code: store.code ?? `STORE-${index + 1}`,
+      isActive: store.isActive ?? true,
+      timezone: store.settings?.timezone ?? store.timezone ?? 'UTC',
+      currency: store.settings?.currency ?? store.currency ?? 'USD',
+    });
+
     if (stores.length === 0) {
       return [
-        { name: 'Flagship', code: 'MAIN', isActive: true, timezone: 'America/New_York', currency: 'USD' },
-        { name: 'Airport', code: 'AIR', isActive: true, timezone: 'America/New_York', currency: 'USD' },
-        { name: 'Warehouse', code: 'WH', isActive: false, timezone: 'America/New_York', currency: 'USD' },
+        normalizeStore(
+          {
+            name: 'Flagship',
+            code: 'MAIN',
+            isActive: true,
+            timezone: 'America/New_York',
+            currency: 'USD',
+          },
+          0
+        ),
+        normalizeStore(
+          {
+            name: 'Airport',
+            code: 'AIR',
+            isActive: true,
+            timezone: 'America/New_York',
+            currency: 'USD',
+          },
+          1
+        ),
+        normalizeStore(
+          {
+            name: 'Warehouse',
+            code: 'WH',
+            isActive: false,
+            timezone: 'America/New_York',
+            currency: 'USD',
+          },
+          2
+        ),
       ];
     }
-    return stores.slice(0, 6);
+
+    return stores.slice(0, 6).map(normalizeStore);
   }, [storesData]);
 
   const operationsTimeline = useMemo(() => {
@@ -573,7 +664,8 @@ export default function DashboardPage() {
   };
 
   const aiInsights = useMemo(() => {
-    const insights: Array<{ title: string; message: string; action?: string }> = [];
+    const insights: Array<{ title: string; message: string; action?: string }> =
+      [];
 
     const salesGrowth = salesTrendsData?.summary?.growth ?? sales.growth ?? 0;
     if (salesGrowth < 0) {
@@ -610,7 +702,8 @@ export default function DashboardPage() {
       return [
         {
           title: 'Great job!',
-          message: 'All systems are operating within optimal ranges. Continue monitoring real-time alerts for any spikes.',
+          message:
+            'All systems are operating within optimal ranges. Continue monitoring real-time alerts for any spikes.',
         },
       ];
     }
@@ -628,12 +721,14 @@ export default function DashboardPage() {
     () => [
       {
         title: 'Auto-reorder low inventory',
-        description: 'Trigger purchase orders when SKUs drop below safety stock thresholds.',
+        description:
+          'Trigger purchase orders when SKUs drop below safety stock thresholds.',
         impact: 'Reduces stockouts by 27%',
       },
       {
         title: 'AI-driven upsell prompts',
-        description: 'Suggest complementary products in POS based on cart composition.',
+        description:
+          'Suggest complementary products in POS based on cart composition.',
         impact: 'Adds $3.1K monthly revenue on average',
       },
       {
@@ -643,7 +738,8 @@ export default function DashboardPage() {
       },
       {
         title: 'Smart staffing alerts',
-        description: 'Align shift rosters with predicted traffic using sales velocity trends.',
+        description:
+          'Align shift rosters with predicted traffic using sales velocity trends.',
         impact: 'Cuts labor cost per sale by 9%',
       },
     ],
@@ -673,7 +769,8 @@ export default function DashboardPage() {
       change: salesTrendsData?.summary?.totalTransactions
         ? {
             value:
-              ((salesTrendsData.summary.totalTransactions - (sales.transactions || 1)) /
+              ((salesTrendsData.summary.totalTransactions -
+                (sales.transactions || 1)) /
                 (sales.transactions || 1)) *
               100,
             label: 'vs target',
@@ -686,9 +783,17 @@ export default function DashboardPage() {
     {
       icon: Users,
       title: 'Active Customers',
-      value: formatNumber(customerStats.activeCustomers ?? dashboardData?.customers.total ?? 0),
+      value: formatNumber(
+        customerStats.activeCustomers ?? dashboardData?.customers.total ?? 0
+      ),
       change: dashboardData?.customers.new
-        ? { value: (dashboardData.customers.new / Math.max(dashboardData.customers.total, 1)) * 100, label: 'new this period' }
+        ? {
+            value:
+              (dashboardData.customers.new /
+                Math.max(dashboardData.customers.total, 1)) *
+              100,
+            label: 'new this period',
+          }
         : undefined,
       trend: 'up',
       caption: `${formatNumber(customerStats.totalCustomers)} total`,
@@ -701,7 +806,8 @@ export default function DashboardPage() {
         100,
         Math.max(
           0,
-          ((customerStats.totalCustomers - dashboardData?.customers.new ?? 0) /
+          ((customerStats.totalCustomers -
+            (dashboardData?.customers.new ?? 0)) /
             Math.max(customerStats.totalCustomers || 1, 1)) *
             100
         )
@@ -715,14 +821,24 @@ export default function DashboardPage() {
     {
       icon: Package,
       title: 'Inventory Value',
-      value: formatCurrency(inventoryValuationReport?.categories?.reduce((sum, category) => sum + (category.retailValue ?? category.value ?? 0), 0) ?? inventoryStatus.totalValue ?? 0),
+      value: formatCurrency(
+        inventoryValuationReport?.categories?.reduce(
+          (sum, category) =>
+            sum + (category.retailValue ?? category.value ?? 0),
+          0
+        ) ??
+          inventoryStatus.totalValue ??
+          0
+      ),
       caption: `${formatNumber(inventoryStatus.totalProducts)} SKUs`,
       tone: 'neutral',
     },
     {
       icon: AlertTriangle,
       title: 'Critical Alerts',
-      value: formatNumber(inventoryStatus.lowStockItems + inventoryStatus.outOfStockItems),
+      value: formatNumber(
+        inventoryStatus.lowStockItems + inventoryStatus.outOfStockItems
+      ),
       caption: `${inventoryStatus.lowStockItems} low · ${inventoryStatus.outOfStockItems} OOS`,
       tone: 'warning',
     },
@@ -766,32 +882,40 @@ export default function DashboardPage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-blue-200 bg-blue-50 text-xs text-blue-700">
+              <Badge
+                variant="outline"
+                className="border-blue-200 bg-blue-50 text-xs text-blue-700"
+              >
                 Unified Command Center
               </Badge>
             </div>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
-              Good {new Date().getHours() < 12 ? 'morning' : 'evening'}, {user?.firstName ?? 'operator'}
+              Good {new Date().getHours() < 12 ? 'morning' : 'evening'},{' '}
+              {user?.firstName ?? 'operator'}
             </h1>
             <p className="mt-2 max-w-xl text-sm text-slate-500">
-              Monitor real-time sales, inventory, customers, and operational health across every store. Insights are refreshed continuously and AI copilots surface what matters most.
+              Monitor real-time sales, inventory, customers, and operational
+              health across every store. Insights are refreshed continuously and
+              AI copilots surface what matters most.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
-              {(['today', 'week', 'month', 'year'] as TimeRange[]).map((range) => (
-                <button
-                  key={range}
-                  onClick={() => setTimeRange(range)}
-                  className={`rounded-full px-3 py-1 text-sm font-medium capitalize transition hover:text-slate-900 ${
-                    timeRange === range
-                      ? 'bg-slate-900 text-white shadow'
-                      : 'text-slate-500'
-                  }`}
-                >
-                  {range}
-                </button>
-              ))}
+              {(['today', 'week', 'month', 'year'] as TimeRange[]).map(
+                (range) => (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={`rounded-full px-3 py-1 text-sm font-medium capitalize transition hover:text-slate-900 ${
+                      timeRange === range
+                        ? 'bg-slate-900 text-white shadow'
+                        : 'text-slate-500'
+                    }`}
+                  >
+                    {range}
+                  </button>
+                )
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -822,7 +946,9 @@ export default function DashboardPage() {
           <div className="flex items-center justify-center rounded-2xl border border-slate-200 bg-white/80 p-8 shadow-inner">
             <div className="flex flex-col items-center gap-4">
               <Spinner size="lg" />
-              <p className="text-sm font-medium text-slate-500">Assembling live metrics…</p>
+              <p className="text-sm font-medium text-slate-500">
+                Assembling live metrics…
+              </p>
             </div>
           </div>
         )}
@@ -832,9 +958,12 @@ export default function DashboardPage() {
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
               <div>
-                <p className="text-sm font-semibold text-amber-700">Some data points are temporarily unavailable.</p>
+                <p className="text-sm font-semibold text-amber-700">
+                  Some data points are temporarily unavailable.
+                </p>
                 <p className="mt-1 text-xs text-amber-700/90">
-                  The dashboard is displaying the most recent cached results. Try refreshing or checking the data services section.
+                  The dashboard is displaying the most recent cached results.
+                  Try refreshing or checking the data services section.
                 </p>
               </div>
             </div>
@@ -861,9 +990,14 @@ export default function DashboardPage() {
                   <BarChart3 className="h-5 w-5 text-blue-500" />
                   Revenue & Transactions
                 </CardTitle>
-                <CardDescription>Daily revenue velocity and ticket volume</CardDescription>
+                <CardDescription>
+                  Daily revenue velocity and ticket volume
+                </CardDescription>
               </div>
-              <Badge variant="outline" className="border-transparent bg-blue-50 text-blue-600">
+              <Badge
+                variant="outline"
+                className="border-transparent bg-blue-50 text-blue-600"
+              >
                 Rolling {salesTrendChartData.length} days
               </Badge>
             </CardHeader>
@@ -872,8 +1006,18 @@ export default function DashboardPage() {
                 data={salesTrendChartData}
                 dataKey="label"
                 lines={[
-                  { dataKey: 'sales', name: 'Revenue', color: '#2563eb', strokeWidth: 3 },
-                  { dataKey: 'transactions', name: 'Transactions', color: '#22c55e', strokeWidth: 2 },
+                  {
+                    dataKey: 'sales',
+                    name: 'Revenue',
+                    color: '#2563eb',
+                    strokeWidth: 3,
+                  },
+                  {
+                    dataKey: 'transactions',
+                    name: 'Transactions',
+                    color: '#22c55e',
+                    strokeWidth: 2,
+                  },
                 ]}
                 height={320}
               />
@@ -886,15 +1030,24 @@ export default function DashboardPage() {
                 <PieChartIcon className="h-5 w-5 text-emerald-500" />
                 Payment Mix
               </CardTitle>
-              <CardDescription>Share of revenue by payment channel</CardDescription>
+              <CardDescription>
+                Share of revenue by payment channel
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <PieChart data={paymentBreakdown} height={240} innerRadius={50} />
               <div className="space-y-2">
                 {paymentBreakdown.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-slate-600">{item.name}</span>
-                    <span className="text-slate-500">{formatCurrency(item.value)}</span>
+                  <div
+                    key={item.name}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <span className="font-medium text-slate-600">
+                      {item.name}
+                    </span>
+                    <span className="text-slate-500">
+                      {formatCurrency(item.value)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -906,7 +1059,9 @@ export default function DashboardPage() {
           <Card className="col-span-12 lg:col-span-7">
             <CardHeader>
               <CardTitle>Top Performing Products</CardTitle>
-              <CardDescription>Revenue, units, and profitability</CardDescription>
+              <CardDescription>
+                Revenue, units, and profitability
+              </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
@@ -922,11 +1077,21 @@ export default function DashboardPage() {
                 <tbody className="divide-y divide-slate-100">
                   {topProducts.map((product) => (
                     <tr key={`${product.name}-${product.sku}`}>
-                      <td className="py-3 pr-4 font-medium text-slate-700">{product.name}</td>
-                      <td className="py-3 pr-4 text-slate-500">{product.sku}</td>
-                      <td className="py-3 pr-4 text-slate-600">{formatCurrency(product.revenue)}</td>
-                      <td className="py-3 pr-4 text-slate-600">{formatNumber(product.units)}</td>
-                      <td className="py-3 text-slate-600">{product.margin ? `${product.margin}%` : '—'}</td>
+                      <td className="py-3 pr-4 font-medium text-slate-700">
+                        {product.name}
+                      </td>
+                      <td className="py-3 pr-4 text-slate-500">
+                        {product.sku}
+                      </td>
+                      <td className="py-3 pr-4 text-slate-600">
+                        {formatCurrency(product.revenue)}
+                      </td>
+                      <td className="py-3 pr-4 text-slate-600">
+                        {formatNumber(product.units)}
+                      </td>
+                      <td className="py-3 text-slate-600">
+                        {product.margin ? `${product.margin}%` : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -944,8 +1109,18 @@ export default function DashboardPage() {
                 data={inventoryByCategory}
                 dataKey="name"
                 areas={[
-                  { dataKey: 'value', name: 'Retail value', color: '#3b82f6', fillOpacity: 0.35 },
-                  { dataKey: 'cost', name: 'Cost basis', color: '#6366f1', fillOpacity: 0.2 },
+                  {
+                    dataKey: 'value',
+                    name: 'Retail value',
+                    color: '#3b82f6',
+                    fillOpacity: 0.35,
+                  },
+                  {
+                    dataKey: 'cost',
+                    name: 'Cost basis',
+                    color: '#6366f1',
+                    fillOpacity: 0.2,
+                  },
                 ]}
                 height={320}
                 stacked={false}
@@ -961,18 +1136,31 @@ export default function DashboardPage() {
                 <Users className="h-5 w-5 text-purple-500" />
                 High-Value Customers
               </CardTitle>
-              <CardDescription>Clients driving the most lifetime value</CardDescription>
+              <CardDescription>
+                Clients driving the most lifetime value
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {topCustomers.map((customer) => (
-                <div key={`${customer.customerName}-${customer.email}`} className="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3">
+                <div
+                  key={`${customer.customerName}-${customer.email}`}
+                  className="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3"
+                >
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">{customer.customerName}</p>
-                    <p className="text-xs text-slate-500">{customer.email ?? '—'}</p>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {customer.customerName}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {customer.email ?? '—'}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-slate-700">{formatCurrency(customer.totalSpent)}</p>
-                    <p className="text-xs text-slate-400">{formatNumber(customer.totalOrders)} orders</p>
+                    <p className="text-sm font-medium text-slate-700">
+                      {formatCurrency(customer.totalSpent)}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {formatNumber(customer.totalOrders)} orders
+                    </p>
                   </div>
                 </div>
               ))}
@@ -985,18 +1173,31 @@ export default function DashboardPage() {
                 <Award className="h-5 w-5 text-amber-500" />
                 Vendor Performance
               </CardTitle>
-              <CardDescription>Top suppliers by purchase volume</CardDescription>
+              <CardDescription>
+                Top suppliers by purchase volume
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {vendorLeaders.map((vendor) => (
-                <div key={vendor.name} className="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3">
+                <div
+                  key={vendor.name}
+                  className="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3"
+                >
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">{vendor.name}</p>
-                    <p className="text-xs text-slate-500">{formatNumber(vendor.totalOrders)} purchase orders</p>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {vendor.name}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {formatNumber(vendor.totalOrders)} purchase orders
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-slate-700">{formatCurrency(vendor.totalPurchased)}</p>
-                    <p className="text-xs text-slate-400">Avg {formatCurrency(vendor.avgOrderValue)}</p>
+                    <p className="text-sm font-medium text-slate-700">
+                      {formatCurrency(vendor.totalPurchased)}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Avg {formatCurrency(vendor.avgOrderValue)}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -1011,25 +1212,45 @@ export default function DashboardPage() {
                 <AlertTriangle className="h-5 w-5 text-rose-500" />
                 Live Inventory Alerts
               </CardTitle>
-              <CardDescription>Items requiring immediate action</CardDescription>
+              <CardDescription>
+                Items requiring immediate action
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {inventoryAlerts.map((alert) => (
-                <div key={`${alert.productId}-${alert.storeId}`} className="rounded-xl border border-rose-100 bg-rose-50/80 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-rose-700">{alert.productName}</p>
-                      <p className="text-xs text-rose-600">{alert.storeName}</p>
+              {inventoryAlerts.map((alert, index) => {
+                const alertKey = `${alert.productName ?? 'alert'}-${index}`;
+                return (
+                  <div
+                    key={alertKey}
+                    className="rounded-xl border border-rose-100 bg-rose-50/80 p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-rose-700">
+                          {alert.productName}
+                        </p>
+                        <p className="text-xs text-rose-600">
+                          {alert.storeName}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className="border-rose-200 bg-white text-rose-600"
+                      >
+                        {alert.type === 'low_stock'
+                          ? 'Low stock'
+                          : alert.type === 'out_of_stock'
+                            ? 'Out of stock'
+                            : 'Overstock'}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" className="border-rose-200 bg-white text-rose-600">
-                      {alert.type === 'low_stock' ? 'Low stock' : alert.type === 'out_of_stock' ? 'Out of stock' : 'Overstock'}
-                    </Badge>
+                    <p className="mt-2 text-xs text-rose-600">
+                      {alert.currentStock} units available · Safety stock{' '}
+                      {alert.minStock ?? 'n/a'}
+                    </p>
                   </div>
-                  <p className="mt-2 text-xs text-rose-600">
-                    {alert.currentStock} units available · Safety stock {alert.minStock ?? 'n/a'}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </CardContent>
           </Card>
 
@@ -1039,13 +1260,22 @@ export default function DashboardPage() {
                 <Sparkles className="h-5 w-5 text-indigo-500" />
                 AI Control Tower
               </CardTitle>
-              <CardDescription>Actionable recommendations generated in real time</CardDescription>
+              <CardDescription>
+                Actionable recommendations generated in real time
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {aiInsights.map((insight) => (
-                <div key={insight.title} className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3">
-                  <p className="text-sm font-semibold text-indigo-800">{insight.title}</p>
-                  <p className="mt-1 text-xs text-indigo-700/90">{insight.message}</p>
+                <div
+                  key={insight.title}
+                  className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3"
+                >
+                  <p className="text-sm font-semibold text-indigo-800">
+                    {insight.title}
+                  </p>
+                  <p className="mt-1 text-xs text-indigo-700/90">
+                    {insight.message}
+                  </p>
                   {insight.action && (
                     <button
                       onClick={() => toast.info(insight.action!)}
@@ -1065,14 +1295,25 @@ export default function DashboardPage() {
                 <BellRing className="h-5 w-5 text-slate-500" />
                 Quick Automations
               </CardTitle>
-              <CardDescription>Enable autopilot workflows in minutes</CardDescription>
+              <CardDescription>
+                Enable autopilot workflows in minutes
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {automationIdeas.map((idea) => (
-                <div key={idea.title} className="rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3">
-                  <p className="text-sm font-semibold text-slate-800">{idea.title}</p>
-                  <p className="mt-1 text-xs text-slate-500">{idea.description}</p>
-                  <p className="mt-2 text-xs font-medium text-emerald-600">{idea.impact}</p>
+                <div
+                  key={idea.title}
+                  className="rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3"
+                >
+                  <p className="text-sm font-semibold text-slate-800">
+                    {idea.title}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {idea.description}
+                  </p>
+                  <p className="mt-2 text-xs font-medium text-emerald-600">
+                    {idea.impact}
+                  </p>
                 </div>
               ))}
             </CardContent>
@@ -1086,17 +1327,26 @@ export default function DashboardPage() {
                 <Store className="h-5 w-5 text-blue-500" />
                 Store Pulse
               </CardTitle>
-              <CardDescription>Live health indicators for each location</CardDescription>
+              <CardDescription>
+                Live health indicators for each location
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {storeWidgets.map((store) => (
-                <div key={store._id ?? store.code} className="rounded-xl border border-slate-200/70 bg-white/70 p-4">
+              {storeWidgets.map((store, index) => (
+                <div
+                  key={store._id ?? store.code ?? `store-${index}`}
+                  className="rounded-xl border border-slate-200/70 bg-white/70 p-4"
+                >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-800">{store.name}</p>
+                    <p className="text-sm font-semibold text-slate-800">
+                      {store.name}
+                    </p>
                     <Badge
                       variant="outline"
                       className={`border-transparent text-xs ${
-                        store.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                        store.isActive
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : 'bg-slate-100 text-slate-500'
                       }`}
                     >
                       {store.isActive ? 'Online' : 'Paused'}
@@ -1104,8 +1354,8 @@ export default function DashboardPage() {
                   </div>
                   <p className="mt-1 text-xs text-slate-500">{store.code}</p>
                   <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
-                    <span>{store.settings?.timezone ?? store.timezone ?? 'Timezone not set'}</span>
-                    <span>{store.settings?.currency ?? store.currency ?? 'USD'}</span>
+                    <span>{store.timezone ?? 'Timezone not set'}</span>
+                    <span>{store.currency ?? 'USD'}</span>
                   </div>
                 </div>
               ))}
@@ -1118,17 +1368,28 @@ export default function DashboardPage() {
                 <Clock3 className="h-5 w-5 text-slate-500" />
                 Operations Timeline
               </CardTitle>
-              <CardDescription>Recent stock movements and adjustments</CardDescription>
+              <CardDescription>
+                Recent stock movements and adjustments
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {operationsTimeline.map((event, index) => (
-                <div key={`${event.productName}-${index}`} className="flex items-start gap-3 rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3">
+                <div
+                  key={`${event.productName}-${index}`}
+                  className="flex items-start gap-3 rounded-xl border border-slate-200/70 bg-white/70 px-4 py-3"
+                >
                   <div className="mt-1 h-2 w-2 rounded-full bg-slate-400" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-700">{event.productName}</p>
+                    <p className="text-sm font-medium text-slate-700">
+                      {event.productName}
+                    </p>
                     <p className="text-xs text-slate-500">
-                      {event.type === 'sale' ? 'Sold' : event.type === 'restock' ? 'Restocked' : 'Movement'} ·{' '}
-                      {event.quantity > 0 ? '+' : ''}
+                      {event.type === 'sale'
+                        ? 'Sold'
+                        : event.type === 'restock'
+                          ? 'Restocked'
+                          : 'Movement'}{' '}
+                      · {event.quantity > 0 ? '+' : ''}
                       {event.quantity} units · {event.storeName}
                     </p>
                     <p className="mt-1 text-xs text-slate-400">

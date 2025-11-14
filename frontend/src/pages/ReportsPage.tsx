@@ -7,9 +7,7 @@ import {
   Package,
   Users,
   Calendar,
-  Download,
   BarChart3,
-  FileText,
   AlertTriangle,
   ShoppingCart,
   TrendingDown,
@@ -35,8 +33,6 @@ import { formatCurrency } from '@/lib/utils';
 import BarChart from '@/components/charts/BarChart';
 import LineChartComponent from '@/components/charts/LineChart';
 import PieChartComponent from '@/components/charts/PieChart';
-import { toast } from 'sonner';
-import api from '@/lib/api';
 
 interface Report {
   id: string;
@@ -55,7 +51,8 @@ const reports: Report[] = [
   {
     id: 'daily-sales',
     name: 'Daily Sales Summary',
-    description: 'View daily sales performance and transactions with detailed analytics',
+    description:
+      'View daily sales performance and transactions with detailed analytics',
     icon: Calendar,
     href: '/reports/daily-sales',
     category: 'sales',
@@ -76,7 +73,8 @@ const reports: Report[] = [
   {
     id: 'weekly-sales',
     name: 'Weekly Sales Report',
-    description: 'Weekly sales analysis with week-over-week comparison and trends',
+    description:
+      'Weekly sales analysis with week-over-week comparison and trends',
     icon: Calendar,
     href: '/reports/weekly-sales',
     category: 'sales',
@@ -98,7 +96,8 @@ const reports: Report[] = [
   {
     id: 'sales-by-product',
     name: 'Sales by Product',
-    description: 'Analyze sales performance by individual products with rankings',
+    description:
+      'Analyze sales performance by individual products with rankings',
     icon: Package,
     href: '/reports/sales-by-product',
     category: 'sales',
@@ -117,7 +116,8 @@ const reports: Report[] = [
   {
     id: 'sales-by-category',
     name: 'Sales by Category',
-    description: 'Sales breakdown by product categories with visual distribution',
+    description:
+      'Sales breakdown by product categories with visual distribution',
     icon: FolderOpen,
     href: '/reports/sales-by-category',
     category: 'sales',
@@ -178,7 +178,8 @@ const reports: Report[] = [
   {
     id: 'top-selling-products',
     name: 'Top Selling Products',
-    description: 'Best performing products by revenue, quantity, or transactions',
+    description:
+      'Best performing products by revenue, quantity, or transactions',
     icon: TrendingUp,
     href: '/reports/top-selling-products',
     category: 'sales',
@@ -230,7 +231,8 @@ const reports: Report[] = [
   {
     id: 'sales-forecast',
     name: 'Sales Forecast',
-    description: 'Predict future sales based on historical data and AI insights',
+    description:
+      'Predict future sales based on historical data and AI insights',
     icon: Target,
     href: '/reports/sales-forecast',
     category: 'sales',
@@ -351,7 +353,9 @@ type SortBy = 'popularity' | 'name' | 'recent';
 
 export default function ReportsPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | 'all'>(
+    'all'
+  );
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortBy>('popularity');
   const [hoveredReport, setHoveredReport] = useState<string | null>(null);
@@ -362,7 +366,9 @@ export default function ReportsPage() {
     queryFn: async () => {
       try {
         const data = await salesReportsService.getDailySalesSummary({
-          startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          startDate: new Date(
+            Date.now() - 7 * 24 * 60 * 60 * 1000
+          ).toISOString(),
           endDate: new Date().toISOString(),
         });
         return data;
@@ -465,14 +471,18 @@ export default function ReportsPage() {
         <div className="p-5 md:p-6">
           {/* Header */}
           <div className="flex items-start justify-between mb-4">
-            <div className={`p-2.5 md:p-3 rounded-xl bg-gradient-to-br ${config.color} shadow-lg`}>
+            <div
+              className={`p-2.5 md:p-3 rounded-xl bg-gradient-to-br ${config.color} shadow-lg`}
+            >
               <Icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div className="flex items-center gap-2 flex-wrap justify-end">
               {report.popularity && report.popularity > 80 && (
                 <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 rounded-lg">
                   <Star className="w-3 h-3 text-yellow-600 fill-yellow-600" />
-                  <span className="text-xs font-medium text-yellow-700 hidden sm:inline">Popular</span>
+                  <span className="text-xs font-medium text-yellow-700 hidden sm:inline">
+                    Popular
+                  </span>
                 </div>
               )}
               {hasDashboard && (
@@ -492,7 +502,9 @@ export default function ReportsPage() {
           <h3 className="text-base md:text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors line-clamp-1">
             {report.name}
           </h3>
-          <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[2.5rem]">{report.description}</p>
+          <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[2.5rem]">
+            {report.description}
+          </p>
 
           {/* Chart Preview */}
           {renderChartPreview(report)}
@@ -509,7 +521,9 @@ export default function ReportsPage() {
               {report.popularity && (
                 <div className="flex items-center gap-1">
                   <Activity className="w-3 h-3" />
-                  <span className="whitespace-nowrap">{report.popularity}% usage</span>
+                  <span className="whitespace-nowrap">
+                    {report.popularity}% usage
+                  </span>
                 </div>
               )}
             </div>
@@ -518,14 +532,17 @@ export default function ReportsPage() {
               className={`
                 w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
                 transition-all duration-200 whitespace-nowrap
-                ${isHovered
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ${
+                  isHovered
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }
               `}
             >
               <span>View Report</span>
-              <ArrowRight className={`w-4 h-4 transition-transform ${isHovered ? 'translate-x-1' : ''}`} />
+              <ArrowRight
+                className={`w-4 h-4 transition-transform ${isHovered ? 'translate-x-1' : ''}`}
+              />
             </Link>
           </div>
         </div>
@@ -557,7 +574,9 @@ export default function ReportsPage() {
             `}
           >
             <div className="flex items-center gap-4">
-              <div className={`p-2.5 md:p-3 rounded-lg bg-gradient-to-br ${config.color} flex-shrink-0`}>
+              <div
+                className={`p-2.5 md:p-3 rounded-lg bg-gradient-to-br ${config.color} flex-shrink-0`}
+              >
                 <Icon className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
               <div className="flex-1 min-w-0">
@@ -580,7 +599,9 @@ export default function ReportsPage() {
                     </Link>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mb-2 line-clamp-1">{report.description}</p>
+                <p className="text-sm text-gray-600 mb-2 line-clamp-1">
+                  {report.description}
+                </p>
                 <div className="flex items-center gap-3 md:gap-4 text-xs text-gray-500 flex-wrap">
                   {report.lastUsed && (
                     <span className="flex items-center gap-1">
@@ -588,7 +609,9 @@ export default function ReportsPage() {
                       {report.lastUsed}
                     </span>
                   )}
-                  <span className={`px-2 py-0.5 rounded ${config.bgColor} ${config.textColor} font-medium whitespace-nowrap`}>
+                  <span
+                    className={`px-2 py-0.5 rounded ${config.bgColor} ${config.textColor} font-medium whitespace-nowrap`}
+                  >
                     {config.name}
                   </span>
                 </div>
@@ -630,7 +653,9 @@ export default function ReportsPage() {
                 </div>
                 <p className="text-xs text-blue-200 mb-1">Total Revenue</p>
                 <p className="text-xl md:text-2xl font-bold">
-                  {statsLoading ? '...' : formatCurrency(quickStats?.summary?.totalSales || 0)}
+                  {statsLoading
+                    ? '...'
+                    : formatCurrency(quickStats?.summary?.totalSales || 0)}
                 </p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
@@ -640,7 +665,11 @@ export default function ReportsPage() {
                 </div>
                 <p className="text-xs text-blue-200 mb-1">Transactions</p>
                 <p className="text-xl md:text-2xl font-bold">
-                  {statsLoading ? '...' : (quickStats?.summary?.totalTransactions || 0).toLocaleString()}
+                  {statsLoading
+                    ? '...'
+                    : (
+                        quickStats?.summary?.totalTransactions || 0
+                      ).toLocaleString()}
                 </p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
@@ -650,7 +679,9 @@ export default function ReportsPage() {
                 </div>
                 <p className="text-xs text-blue-200 mb-1">Items Sold</p>
                 <p className="text-xl md:text-2xl font-bold">
-                  {statsLoading ? '...' : (quickStats?.summary?.totalItems || 0).toLocaleString()}
+                  {statsLoading
+                    ? '...'
+                    : (quickStats?.summary?.totalItems || 0).toLocaleString()}
                 </p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-3 md:p-4 border border-white/20">
@@ -659,7 +690,9 @@ export default function ReportsPage() {
                   <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-yellow-400" />
                 </div>
                 <p className="text-xs text-blue-200 mb-1">Available Reports</p>
-                <p className="text-xl md:text-2xl font-bold">{reports.length}</p>
+                <p className="text-xl md:text-2xl font-bold">
+                  {reports.length}
+                </p>
               </div>
             </div>
           </div>
@@ -749,7 +782,8 @@ export default function ReportsPage() {
               All Reports ({reports.length})
             </button>
             {Object.entries(categoryConfig).map(([key, config]) => {
-              if (config.count === 0 && key !== 'sales' && key !== 'inventory') return null;
+              if (config.count === 0 && key !== 'sales' && key !== 'inventory')
+                return null;
               const Icon = config.icon;
               return (
                 <button
@@ -778,8 +812,12 @@ export default function ReportsPage() {
         {filteredReports.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12 text-center">
             <Search className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-2">No reports found</h3>
-            <p className="text-gray-600">Try adjusting your search or filter criteria</p>
+            <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-2">
+              No reports found
+            </h3>
+            <p className="text-gray-600">
+              Try adjusting your search or filter criteria
+            </p>
           </div>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
@@ -793,9 +831,12 @@ export default function ReportsPage() {
         <div className="mt-8 md:mt-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-2xl p-6 md:p-8 text-white">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl md:text-2xl font-bold mb-2">Need More Power?</h2>
+              <h2 className="text-xl md:text-2xl font-bold mb-2">
+                Need More Power?
+              </h2>
               <p className="text-blue-100 text-sm md:text-base">
-                Access advanced analytics, custom report builder, and template management
+                Access advanced analytics, custom report builder, and template
+                management
               </p>
             </div>
             <Link

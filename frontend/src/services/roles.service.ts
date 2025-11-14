@@ -42,6 +42,7 @@ export interface Permission {
   action: string;
   description?: string;
   category: 'crud' | 'action' | 'report' | 'admin';
+  isSystem?: boolean;
 }
 
 class RolesService {
@@ -95,7 +96,9 @@ class RolesService {
   /**
    * Get permissions by module
    */
-  async getPermissionsByModule(module: string): Promise<{ permissions: Permission[] }> {
+  async getPermissionsByModule(
+    module: string
+  ): Promise<{ permissions: Permission[] }> {
     const response = await api.get(`/permissions/module/${module}`);
     return response.data.data;
   }
@@ -133,4 +136,3 @@ class RolesService {
 }
 
 export const rolesService = new RolesService();
-
