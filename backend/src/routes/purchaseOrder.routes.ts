@@ -21,8 +21,14 @@ const createPOValidation = [
   body('items').isArray({ min: 1 }).withMessage('At least one item required'),
   body('items.*.productId').notEmpty().isMongoId().withMessage('Invalid product ID'),
   body('items.*.quantity').notEmpty().isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
-  body('items.*.unitPrice').optional().isFloat({ min: 0 }).withMessage('Unit price must be a positive number'),
-  body('items.*.unitCost').optional().isFloat({ min: 0 }).withMessage('Unit cost must be a positive number'),
+  body('items.*.unitPrice')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Unit price must be a positive number'),
+  body('items.*.unitCost')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Unit cost must be a positive number'),
   body('items.*.unitPrice').custom((value, { req, path }) => {
     const index = parseInt(path.split('.')[1]);
     const item = req.body.items[index];
@@ -32,13 +38,32 @@ const createPOValidation = [
     }
     return true;
   }),
-  body('items.*.discount').optional().isFloat({ min: 0, max: 100 }).withMessage('Discount must be between 0 and 100'),
-  body('items.*.tax').optional().isFloat({ min: 0, max: 100 }).withMessage('Tax must be between 0 and 100'),
+  body('items.*.discount')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Discount must be between 0 and 100'),
+  body('items.*.tax')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Tax must be between 0 and 100'),
   body('expectedDeliveryDate').optional().isISO8601().withMessage('Invalid expected delivery date'),
   body('expectedDate').optional().isISO8601().withMessage('Invalid expected date'),
-  body('shippingCost').optional().isFloat({ min: 0 }).withMessage('Shipping cost must be a positive number'),
-  body('paymentTerms').optional().isString().trim().isLength({ max: 100 }).withMessage('Payment terms must be less than 100 characters'),
-  body('notes').optional().isString().trim().isLength({ max: 1000 }).withMessage('Notes must be less than 1000 characters'),
+  body('shippingCost')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Shipping cost must be a positive number'),
+  body('paymentTerms')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Payment terms must be less than 100 characters'),
+  body('notes')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Notes must be less than 1000 characters'),
 ];
 
 const receiveGoodsValidation = [
@@ -63,4 +88,3 @@ router.post('/:id/receive', receiveGoodsValidation, validate, poController.recei
 router.post('/:id/cancel', cancelPOValidation, validate, poController.cancelPO);
 
 export default router;
-

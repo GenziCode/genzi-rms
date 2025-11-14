@@ -120,7 +120,10 @@ function AppRoutes() {
                   element={<PurchaseOrdersPage />}
                 />
                 <Route path="/users" element={<UsersPage />} />
-                <Route path="/roles-permissions" element={<RolesPermissionsPage />} />
+                <Route
+                  path="/roles-permissions"
+                  element={<RolesPermissionsPage />}
+                />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/invoices" element={<InvoicesPage />} />
                 <Route path="/payments" element={<PaymentsPage />} />
@@ -133,29 +136,98 @@ function AppRoutes() {
                 <Route path="/sales-history" element={<SalesHistoryPage />} />
                 <Route path="/export" element={<ExportPage />} />
                 <Route path="/reports" element={<ReportsPage />} />
-                <Route path="/reports-analytics" element={<ReportsAnalyticsPage />} />
-                <Route path="/reports/dashboard/:reportType" element={<ReportDashboardPage />} />
-                <Route path="/reports/daily-sales" element={<DailySalesReport />} />
-                <Route path="/reports/weekly-sales" element={<WeeklySalesReport />} />
-                <Route path="/reports/monthly-sales" element={<MonthlySalesReport />} />
-                <Route path="/reports/sales-by-product" element={<SalesByProductReport />} />
-                <Route path="/reports/sales-by-category" element={<SalesByCategoryReport />} />
-                <Route path="/reports/sales-by-store" element={<SalesByStoreReport />} />
-                <Route path="/reports/sales-by-employee" element={<SalesByEmployeeReport />} />
-                <Route path="/reports/sales-by-customer" element={<SalesByCustomerReport />} />
-                <Route path="/reports/sales-comparison" element={<SalesComparisonReport />} />
-                <Route path="/reports/top-selling-products" element={<TopSellingProductsReport />} />
-                <Route path="/reports/bottom-selling-products" element={<BottomSellingProductsReport />} />
-                <Route path="/reports/sales-trend-analysis" element={<SalesTrendAnalysisReport />} />
-                <Route path="/reports/discount-analysis" element={<DiscountAnalysisReport />} />
-                <Route path="/reports/return-refund" element={<ReturnRefundReport />} />
-                <Route path="/reports/sales-forecast" element={<SalesForecastReport />} />
-                <Route path="/reports/current-stock" element={<CurrentStockReport />} />
-                <Route path="/reports/low-stock" element={<LowStockAlertReport />} />
-                <Route path="/reports/overstock" element={<OverstockReport />} />
-                <Route path="/reports/stock-movement" element={<StockMovementReport />} />
-                <Route path="/reports/stock-valuation" element={<StockValuationReport />} />
-                <Route path="/report-templates" element={<ReportTemplatesPage />} />
+                <Route
+                  path="/reports-analytics"
+                  element={<ReportsAnalyticsPage />}
+                />
+                <Route
+                  path="/reports/dashboard/:reportType"
+                  element={<ReportDashboardPage />}
+                />
+                <Route
+                  path="/reports/daily-sales"
+                  element={<DailySalesReport />}
+                />
+                <Route
+                  path="/reports/weekly-sales"
+                  element={<WeeklySalesReport />}
+                />
+                <Route
+                  path="/reports/monthly-sales"
+                  element={<MonthlySalesReport />}
+                />
+                <Route
+                  path="/reports/sales-by-product"
+                  element={<SalesByProductReport />}
+                />
+                <Route
+                  path="/reports/sales-by-category"
+                  element={<SalesByCategoryReport />}
+                />
+                <Route
+                  path="/reports/sales-by-store"
+                  element={<SalesByStoreReport />}
+                />
+                <Route
+                  path="/reports/sales-by-employee"
+                  element={<SalesByEmployeeReport />}
+                />
+                <Route
+                  path="/reports/sales-by-customer"
+                  element={<SalesByCustomerReport />}
+                />
+                <Route
+                  path="/reports/sales-comparison"
+                  element={<SalesComparisonReport />}
+                />
+                <Route
+                  path="/reports/top-selling-products"
+                  element={<TopSellingProductsReport />}
+                />
+                <Route
+                  path="/reports/bottom-selling-products"
+                  element={<BottomSellingProductsReport />}
+                />
+                <Route
+                  path="/reports/sales-trend-analysis"
+                  element={<SalesTrendAnalysisReport />}
+                />
+                <Route
+                  path="/reports/discount-analysis"
+                  element={<DiscountAnalysisReport />}
+                />
+                <Route
+                  path="/reports/return-refund"
+                  element={<ReturnRefundReport />}
+                />
+                <Route
+                  path="/reports/sales-forecast"
+                  element={<SalesForecastReport />}
+                />
+                <Route
+                  path="/reports/current-stock"
+                  element={<CurrentStockReport />}
+                />
+                <Route
+                  path="/reports/low-stock"
+                  element={<LowStockAlertReport />}
+                />
+                <Route
+                  path="/reports/overstock"
+                  element={<OverstockReport />}
+                />
+                <Route
+                  path="/reports/stock-movement"
+                  element={<StockMovementReport />}
+                />
+                <Route
+                  path="/reports/stock-valuation"
+                  element={<StockValuationReport />}
+                />
+                <Route
+                  path="/report-templates"
+                  element={<ReportTemplatesPage />}
+                />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/categories" element={<CategoriesPage />} />
                 <Route

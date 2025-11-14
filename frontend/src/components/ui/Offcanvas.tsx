@@ -87,7 +87,9 @@ export function OffCanvas({
   }, [isOpen, allowEscapeKey, onClose]);
 
   const isVertical = position === 'top' || position === 'bottom';
-  const sizeClass = isVertical ? 'h-auto max-h-[80vh]' : `${sizeClasses[size]} h-full`;
+  const sizeClass = isVertical
+    ? 'h-auto max-h-[80vh]'
+    : `${sizeClasses[size]} h-full`;
 
   const content = (
     <div
@@ -117,7 +119,7 @@ export function OffCanvas({
       >
         {/* Decorative gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-transparent to-indigo-50/30 pointer-events-none" />
-        
+
         {/* Content wrapper with relative positioning */}
         <div className="relative flex flex-col h-full z-10">
           {/* Header */}
@@ -126,7 +128,9 @@ export function OffCanvas({
               {title && (
                 <div className="flex-1">
                   {typeof title === 'string' ? (
-                    <h2 className="text-lg md:text-xl font-semibold text-gray-900">{title}</h2>
+                    <h2 className="text-lg md:text-xl font-semibold text-gray-900">
+                      {title}
+                    </h2>
                   ) : (
                     title
                   )}
@@ -146,9 +150,7 @@ export function OffCanvas({
 
           {/* Content - Scrollable */}
           <div className="flex-1 overflow-y-auto min-h-0">
-            <div className="p-4 md:p-6">
-              {children}
-            </div>
+            <div className="p-4 md:p-6">{children}</div>
           </div>
 
           {/* Footer - Fixed at bottom */}

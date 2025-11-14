@@ -155,7 +155,10 @@ router.put(
     body('requireSignature').optional().isBoolean(),
     body('autoCapture').optional().isBoolean(),
     body('stripe.enabled').optional().isBoolean(),
-    body('stripe.publishableKey').optional({ nullable: true }).isString().withMessage('Publishable key must be a string'),
+    body('stripe.publishableKey')
+      .optional({ nullable: true })
+      .isString()
+      .withMessage('Publishable key must be a string'),
     body('stripe.secretKey')
       .optional({ nullable: true })
       .isString()

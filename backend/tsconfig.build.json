@@ -3,12 +3,7 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": [
-    "src/server.ts",
-    "src/app.ts",
-    "src/config/**/*",
-    "src/types/**/*"
-  ],
+  "include": ["src/**/*"],
   "exclude": [
     "node_modules",
     "dist",
@@ -21,4 +16,3 @@
     "src/seeds/**/*"
   ]
 }
-

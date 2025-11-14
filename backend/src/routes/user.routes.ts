@@ -56,11 +56,7 @@ router.post(
 router.get('/:id/roles', [...userIdParamValidation, validate], userController.getUserRoles);
 
 // POST /api/users/:id/roles - Assign role to user
-router.post(
-  '/:id/roles',
-  [...userIdParamValidation, validate],
-  userController.assignRoleToUser
-);
+router.post('/:id/roles', [...userIdParamValidation, validate], userController.assignRoleToUser);
 
 // DELETE /api/users/:id/roles/:roleId - Remove role from user
 router.delete(

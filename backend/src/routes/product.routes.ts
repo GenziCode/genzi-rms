@@ -34,21 +34,13 @@ router.use(requireFormAccess('frmProductFields'));
 router.get('/low-stock', productController.getLowStockProducts);
 
 // GET /api/products/sku/:sku - Get product by SKU (must be before /:id)
-router.get(
-  '/sku/:sku',
-  [...skuParamValidation, validate],
-  productController.getProductBySKU
-);
+router.get('/sku/:sku', [...skuParamValidation, validate], productController.getProductBySKU);
 
 // POST /api/products/scan-qr - Scan QR code
 router.post('/scan-qr', [...scanQRValidation, validate], productController.scanQRCode);
 
 // POST /api/products/bulk-import - Bulk import products
-router.post(
-  '/bulk-import',
-  [...bulkImportValidation, validate],
-  productController.bulkImport
-);
+router.post('/bulk-import', [...bulkImportValidation, validate], productController.bulkImport);
 
 // POST /api/products - Create product
 router.post(
