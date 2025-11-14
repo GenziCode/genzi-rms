@@ -23,7 +23,10 @@ import { useOfflineQueueStore } from '@/store/offlineQueueStore';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useAuthStore } from '@/store/authStore';
 import { useStore } from '@/contexts/StoreContext';
-import { settingsService, receiptSettingsDefaults } from '@/services/settings.service';
+import {
+  settingsService,
+  receiptSettingsDefaults,
+} from '@/services/settings.service';
 import ReceiptPreview from '@/components/pos/ReceiptPreview';
 import { useReactToPrint } from 'react-to-print';
 import html2canvas from 'html2canvas';
@@ -197,11 +200,11 @@ export default function PaymentModal({
   };
 
   const printReceipt = useReactToPrint({
-    content: () => receiptRef.current,
+    contentRef: receiptRef,
     documentTitle: completedSale
       ? `receipt-${completedSale.saleNumber}`
       : 'receipt',
-    removeAfterPrint: true,
+    preserveAfterPrint: false,
   });
 
   const handlePrintReceipt = () => {
@@ -221,8 +224,8 @@ export default function PaymentModal({
         resolvedReceiptSettings.paperSize === 'A4'
           ? 210
           : resolvedReceiptSettings.paperSize === '80mm'
-          ? 80
-          : 58;
+            ? 80
+            : 58;
       const paperHeight = (canvas.height * paperWidth) / canvas.width;
       const pdf = new jsPDF({
         orientation: 'portrait',

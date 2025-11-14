@@ -1,5 +1,12 @@
 import { useMemo, useRef } from 'react';
-import { Palette, LayoutTemplate, Save, Printer, Download, RotateCcw } from 'lucide-react';
+import {
+  Palette,
+  LayoutTemplate,
+  Save,
+  Printer,
+  Download,
+  RotateCcw,
+} from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -27,8 +34,9 @@ export default function ReceiptDesigner({
   const previewStore = useMemo(() => sampleStore, []);
 
   const printPreview = useReactToPrint({
-    content: () => receiptRef.current,
+    contentRef: receiptRef,
     documentTitle: 'receipt-preview',
+    preserveAfterPrint: false,
   });
 
   const handleDownload = async () => {
@@ -103,7 +111,9 @@ export default function ReceiptDesigner({
             <input
               type="text"
               value={value.headerText}
-              onChange={(event) => handleInput('headerText')(event.target.value)}
+              onChange={(event) =>
+                handleInput('headerText')(event.target.value)
+              }
               className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Thank you for your purchase!"
             />
@@ -115,7 +125,9 @@ export default function ReceiptDesigner({
             <input
               type="text"
               value={value.footerText}
-              onChange={(event) => handleInput('footerText')(event.target.value)}
+              onChange={(event) =>
+                handleInput('footerText')(event.target.value)
+              }
               className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Come again soon!"
             />
@@ -129,13 +141,17 @@ export default function ReceiptDesigner({
               <input
                 type="color"
                 value={value.accentColor}
-                onChange={(event) => handleInput('accentColor')(event.target.value)}
+                onChange={(event) =>
+                  handleInput('accentColor')(event.target.value)
+                }
                 className="h-10 w-16 rounded border border-gray-200"
               />
               <input
                 type="text"
                 value={value.accentColor}
-                onChange={(event) => handleInput('accentColor')(event.target.value)}
+                onChange={(event) =>
+                  handleInput('accentColor')(event.target.value)
+                }
                 className="flex-1 rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <span
@@ -153,7 +169,9 @@ export default function ReceiptDesigner({
             <select
               value={value.paperSize}
               onChange={(event) =>
-                handleInput('paperSize')(event.target.value as ReceiptSettings['paperSize'])
+                handleInput('paperSize')(
+                  event.target.value as ReceiptSettings['paperSize']
+                )
               }
               className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -186,7 +204,7 @@ export default function ReceiptDesigner({
             >
               <input
                 type="checkbox"
-                checked={value[field.key]}
+                checked={Boolean(value[field.key])}
                 onChange={() => handleToggle(field.key)}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500"
               />
@@ -198,12 +216,14 @@ export default function ReceiptDesigner({
         {(value.showBarcode || value.showQRCode) && (
           <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-700">
             <p>
-              Barcode and QR code previews use the receipt number for demonstration. Ensure your
-              live receipts include sale identifiers so scanners can resolve them.
+              Barcode and QR code previews use the receipt number for
+              demonstration. Ensure your live receipts include sale identifiers
+              so scanners can resolve them.
             </p>
             {!value.showStoreDetails && (
               <p className="mt-2 font-semibold text-amber-600">
-                Tip: enable “Store Details” to help customers verify the origin of scanned receipts.
+                Tip: enable “Store Details” to help customers verify the origin
+                of scanned receipts.
               </p>
             )}
           </div>
@@ -298,13 +318,29 @@ export default function ReceiptDesigner({
   );
 }
 
-const templateOptions: Array<{ value: ReceiptSettings['template']; label: string }> = [
+const templateOptions: Array<{
+  value: ReceiptSettings['template'];
+  label: string;
+}> = [
   { value: 'classic', label: 'Classic' },
   { value: 'modern', label: 'Modern' },
   { value: 'compact', label: 'Compact' },
 ];
 
-const toggleFields: Array<{ key: keyof ReceiptSettings; label: string }> = [
+type ReceiptToggleKey =
+  | 'showLogo'
+  | 'showStoreDetails'
+  | 'showCustomerDetails'
+  | 'showCashier'
+  | 'showDiscounts'
+  | 'showTaxBreakdown'
+  | 'showItemNotes'
+  | 'showPaymentSummary'
+  | 'showBarcode'
+  | 'showQRCode'
+  | 'showNotes';
+
+const toggleFields: Array<{ key: ReceiptToggleKey; label: string }> = [
   { key: 'showLogo', label: 'Show Logo' },
   { key: 'showStoreDetails', label: 'Store Details' },
   { key: 'showCustomerDetails', label: 'Customer Details' },
@@ -390,4 +426,3 @@ const sampleSale: Sale = {
   createdAt: new Date('2025-03-18T14:36:00Z').toISOString(),
   updatedAt: new Date('2025-03-18T14:36:00Z').toISOString(),
 };
-

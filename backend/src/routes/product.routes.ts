@@ -3,6 +3,7 @@ import { ProductController } from '../controllers/product.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 import {
   createProductValidation,
   updateProductValidation,
@@ -22,6 +23,9 @@ const productController = new ProductController();
 // So we only need authenticate here
 router.use(authenticate);
 
+// All product routes require form access
+router.use(requireFormAccess('frmProductFields'));
+
 /**
  * Routes
  */
@@ -30,21 +34,13 @@ router.use(authenticate);
 router.get('/low-stock', productController.getLowStockProducts);
 
 // GET /api/products/sku/:sku - Get product by SKU (must be before /:id)
-router.get(
-  '/sku/:sku',
-  [...skuParamValidation, validate],
-  productController.getProductBySKU
-);
+router.get('/sku/:sku', [...skuParamValidation, validate], productController.getProductBySKU);
 
 // POST /api/products/scan-qr - Scan QR code
 router.post('/scan-qr', [...scanQRValidation, validate], productController.scanQRCode);
 
 // POST /api/products/bulk-import - Bulk import products
-router.post(
-  '/bulk-import',
-  [...bulkImportValidation, validate],
-  productController.bulkImport
-);
+router.post('/bulk-import', [...bulkImportValidation, validate], productController.bulkImport);
 
 // POST /api/products - Create product
 router.post(

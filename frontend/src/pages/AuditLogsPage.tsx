@@ -31,6 +31,15 @@ export default function AuditLogsPage() {
   const logs = data?.logs || [];
   const pagination = data?.pagination;
 
+  const { data: statistics } = useQuery({
+    queryKey: ['audit-logs-stats', filters.startDate, filters.endDate],
+    queryFn: () =>
+      auditService.getStatistics({
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+      }),
+  });
+
   // Export mutation
   const exportMutation = useMutation({
     mutationFn: () => {
@@ -291,8 +300,8 @@ export default function AuditLogsPage() {
                         log.user.email ||
                         (log.user.id ? log.user.id.slice(-6) : 'System')
                       : log.userId
-                      ? log.userId.slice(-6)
-                      : 'System'}
+                        ? log.userId.slice(-6)
+                        : 'System'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">
                     {log.ipAddress ?? '—'}

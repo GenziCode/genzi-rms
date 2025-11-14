@@ -8,8 +8,16 @@ export interface IUser extends Document {
   password: string;
   firstName: string;
   lastName: string;
-  role: UserRole;
-  permissions: string[];
+  role: UserRole; // Keep for backward compatibility
+  permissions: string[]; // Keep for backward compatibility
+  roles?: mongoose.Types.ObjectId[]; // New: Multiple roles support
+  scope?: {
+    type: 'all' | 'store' | 'department' | 'custom';
+    storeIds?: mongoose.Types.ObjectId[];
+    departmentIds?: mongoose.Types.ObjectId[];
+    customFilters?: any;
+  };
+  delegatedFrom?: mongoose.Types.ObjectId;
   avatar?: string;
   phone?: string;
   emailVerified: boolean;
@@ -79,6 +87,26 @@ const UserSchema = new Schema<IUser>(
       type: [String],
       default: [],
     },
+    roles: {
+      type: [Schema.Types.ObjectId],
+      ref: 'Role',
+      default: [],
+    },
+    scope: {
+      type: {
+        type: String,
+        enum: ['all', 'store', 'department', 'custom'],
+        default: 'all',
+      },
+      storeIds: [Schema.Types.ObjectId],
+      departmentIds: [Schema.Types.ObjectId],
+      customFilters: Schema.Types.Mixed,
+    },
+    delegatedFrom: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     avatar: String,
     phone: String,
     emailVerified: {
@@ -144,6 +172,7 @@ const UserSchema = new Schema<IUser>(
 // Indexes
 UserSchema.index({ tenantId: 1, email: 1 }, { unique: true });
 UserSchema.index({ tenantId: 1, role: 1 });
+UserSchema.index({ tenantId: 1, roles: 1 }); // New index for roles lookup
 UserSchema.index({ status: 1 });
 
 // Hash password before saving

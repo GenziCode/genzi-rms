@@ -62,12 +62,14 @@ const normalizeSale = (sale: any): Sale => {
     throw new Error('Invalid sale payload');
   }
 
-  const items =
+  const items: Sale['items'] =
     Array.isArray(sale.items) && sale.items.length > 0
       ? sale.items.map((item: any) => {
           const quantity = safeNumber(item.quantity);
           const unitPrice = safeNumber(item.unitPrice ?? item.price);
-          const total = safeNumber(item.total ?? item.subtotal ?? quantity * unitPrice);
+          const total = safeNumber(
+            item.total ?? item.subtotal ?? quantity * unitPrice
+          );
 
           return {
             productId:
@@ -76,7 +78,8 @@ const normalizeSale = (sale: any): Sale => {
               item.product ??
               item.product?._id?.toString() ??
               '',
-            productName: item.productName ?? item.name ?? item.product?.name ?? 'Product',
+            productName:
+              item.productName ?? item.name ?? item.product?.name ?? 'Product',
             quantity,
             unitPrice,
             discount: safeNumber(item.discount ?? item.discountAmount),
@@ -90,11 +93,13 @@ const normalizeSale = (sale: any): Sale => {
     sale.subtotal ??
       sale.amountBeforeTax ??
       (items.length > 0
-        ? items.reduce((sum, item) => sum + item.total, 0)
+        ? items.reduce((sum: number, item) => sum + item.total, 0)
         : sale.total)
   );
 
-  const totalDiscount = safeNumber(sale.totalDiscount ?? sale.discount ?? sale.discountAmount);
+  const totalDiscount = safeNumber(
+    sale.totalDiscount ?? sale.discount ?? sale.discountAmount
+  );
   const totalTax = safeNumber(sale.totalTax ?? sale.tax);
   const grandTotal = safeNumber(
     sale.grandTotal ?? sale.total ?? subtotal + totalTax - totalDiscount
@@ -103,7 +108,7 @@ const normalizeSale = (sale: any): Sale => {
   const payments = normalizePayments(sale.payments);
   const amountPaid =
     (sale.amountPaid !== undefined ? safeNumber(sale.amountPaid) : 0) ||
-    payments.reduce((sum, payment) => sum + payment.amount, 0) ||
+    payments.reduce((sum: number, payment) => sum + payment.amount, 0) ||
     grandTotal;
 
   const changeGiven =
@@ -170,6 +175,12 @@ const normalizeSaleList = (payload: {
   total: payload.total ?? 0,
   page: payload.page ?? 1,
   totalPages: payload.totalPages ?? 1,
+  pagination: {
+    page: payload.page ?? 1,
+    limit: payload.sales?.length ?? 0,
+    total: payload.total ?? 0,
+    totalPages: payload.totalPages ?? 1,
+  },
 });
 
 export const posService = {
@@ -227,7 +238,10 @@ export const posService = {
    * POST /api/sales/resume/:id
    */
   async resumeTransaction(id: string, data: ResumeTransactionRequest) {
-    const response = await api.post<{ data: Sale }>(`/sales/resume/${id}`, data);
+    const response = await api.post<{ data: Sale }>(
+      `/sales/resume/${id}`,
+      data
+    );
     return normalizeSale(response.data.data);
   },
 
@@ -245,7 +259,10 @@ export const posService = {
    * POST /api/sales/:id/refund
    */
   async refundSale(id: string, data: RefundSaleRequest) {
-    const response = await api.post<{ data: Sale }>(`/sales/${id}/refund`, data);
+    const response = await api.post<{ data: Sale }>(
+      `/sales/${id}/refund`,
+      data
+    );
     return normalizeSale(response.data.data);
   },
 
@@ -254,10 +271,12 @@ export const posService = {
    * GET /api/sales/daily-summary
    */
   async getDailySummary(params?: { storeId?: string; date?: string }) {
-    const response = await api.get<{ data: DailySummary }>('/sales/daily-summary', {
-      params,
-    });
+    const response = await api.get<{ data: DailySummary }>(
+      '/sales/daily-summary',
+      {
+        params,
+      }
+    );
     return response.data.data;
   },
 };
-

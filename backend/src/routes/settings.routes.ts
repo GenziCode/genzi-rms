@@ -4,6 +4,7 @@ import { SettingsController } from '../controllers/settings.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
 import { validate } from '../middleware/validation.middleware';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 
 const router = Router();
 const settingsController = new SettingsController();
@@ -11,6 +12,9 @@ const settingsController = new SettingsController();
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
 router.use(authenticate);
+
+// All settings routes require form access
+router.use(requireFormAccess('frmSystemConfig'));
 
 /**
  * Routes
@@ -151,7 +155,10 @@ router.put(
     body('requireSignature').optional().isBoolean(),
     body('autoCapture').optional().isBoolean(),
     body('stripe.enabled').optional().isBoolean(),
-    body('stripe.publishableKey').optional({ nullable: true }).isString().withMessage('Publishable key must be a string'),
+    body('stripe.publishableKey')
+      .optional({ nullable: true })
+      .isString()
+      .withMessage('Publishable key must be a string'),
     body('stripe.secretKey')
       .optional({ nullable: true })
       .isString()

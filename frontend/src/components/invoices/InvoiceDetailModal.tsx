@@ -332,18 +332,23 @@ export default function InvoiceDetailModal({
                 <span>Subtotal:</span>
                 <span>{formatCurrency(invoice.subtotal)}</span>
               </div>
-              {invoice.discountAmount > 0 && (
+              {(invoice.discountAmount ?? invoice.totalDiscount ?? 0) > 0 && (
                 <div className="flex justify-between text-gray-900">
                   <span>Discount:</span>
                   <span className="text-red-600">
-                    -{formatCurrency(invoice.discountAmount)}
+                    -
+                    {formatCurrency(
+                      invoice.discountAmount ?? invoice.totalDiscount ?? 0
+                    )}
                   </span>
                 </div>
               )}
-              {invoice.taxAmount > 0 && (
+              {(invoice.taxAmount ?? invoice.totalTax ?? 0) > 0 && (
                 <div className="flex justify-between text-gray-900">
                   <span>Tax:</span>
-                  <span>{formatCurrency(invoice.taxAmount)}</span>
+                  <span>
+                    {formatCurrency(invoice.taxAmount ?? invoice.totalTax ?? 0)}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t-2 border-gray-300">

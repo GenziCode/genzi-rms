@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { body, param, query } from 'express-validator';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 
 const router = Router();
 const posController = new POSController();
@@ -11,6 +12,9 @@ const posController = new POSController();
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
 router.use(authenticate);
+
+// All POS routes require form access
+router.use(requireFormAccess('frmSalesAndReturns'));
 
 /**
  * Validation rules

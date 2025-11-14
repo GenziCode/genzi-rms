@@ -21,6 +21,7 @@ import LiveSalesCounter from '@/components/dashboard/LiveSalesCounter';
 import LowStockAlert from '@/components/dashboard/LowStockAlert';
 import TopCustomersWidget from '@/components/dashboard/TopCustomersWidget';
 import { formatCurrency } from '@/lib/utils';
+import type { DashboardReport } from '@/types/reports.types';
 
 const DashboardPageEnhanced = () => {
   const navigate = useNavigate();
@@ -35,19 +36,20 @@ const DashboardPageEnhanced = () => {
     data: dashboardData,
     isLoading,
     isFetching,
-  } = useQuery({
+  } = useQuery<DashboardReport>({
     queryKey: ['dashboard', period],
     queryFn: () => reportsService.getDashboard({ period }),
     refetchInterval: 60000,
     refetchOnWindowFocus: false,
     staleTime: 30000,
-    keepPreviousData: true,
     placeholderData: (previousData) => previousData,
   });
 
-  const sales = dashboardData?.sales ?? {};
-  const products = dashboardData?.products ?? {};
-  const customers = dashboardData?.customers ?? {};
+  const sales = dashboardData?.sales ?? ({} as DashboardReport['sales']);
+  const products =
+    dashboardData?.products ?? ({} as DashboardReport['products']);
+  const customers =
+    dashboardData?.customers ?? ({} as DashboardReport['customers']);
 
   const stats = {
     totalSales: sales.total ?? 0,

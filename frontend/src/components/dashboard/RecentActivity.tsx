@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Clock, ShoppingCart } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { posService } from '@/services/pos.service';
+import type { SaleListResponse, Sale } from '@/types/pos.types';
 
 export default function RecentActivity() {
   const {
@@ -11,17 +12,16 @@ export default function RecentActivity() {
     isError,
     refetch,
     isFetching,
-  } = useQuery({
+  } = useQuery<SaleListResponse>({
     queryKey: ['recent-sales'],
     queryFn: () => posService.getSales({ limit: 5, page: 1 }),
     refetchInterval: 60000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: false,
     staleTime: 30000,
-    keepPreviousData: true,
   });
 
-  const sales = recentSales?.sales ?? [];
+  const sales: Sale[] = recentSales?.sales ?? [];
 
   let content: ReactNode = sales.map((sale) => {
     const itemsCount =

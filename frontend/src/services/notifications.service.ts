@@ -1,5 +1,9 @@
 import api from '@/lib/api';
-import type { Notification, NotificationType, NotificationPreferences } from '@/types/notification.types';
+import type {
+  Notification,
+  NotificationType,
+  NotificationPreferences,
+} from '@/types/notification.types';
 
 export const notificationsService = {
   /**
@@ -13,7 +17,12 @@ export const notificationsService = {
   }) {
     const params = filters
       ? Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value !== undefined && value !== null && value !== '')
+          Object.entries(filters).filter(([_, value]) => {
+            if (value === undefined || value === null) {
+              return false;
+            }
+            return typeof value === 'string' ? value.trim().length > 0 : true;
+          })
         )
       : undefined;
 
@@ -31,7 +40,9 @@ export const notificationsService = {
    * Get notification by ID
    */
   async getById(id: string) {
-    const response = await api.get<{ data: { notification: Notification } }>(`/notifications/${id}`);
+    const response = await api.get<{ data: { notification: Notification } }>(
+      `/notifications/${id}`
+    );
     return response.data.data.notification;
   },
 
@@ -39,7 +50,9 @@ export const notificationsService = {
    * Mark notification as read
    */
   async markAsRead(id: string) {
-    const response = await api.patch<{ data: { notification: Notification } }>(`/notifications/${id}/read`);
+    const response = await api.patch<{ data: { notification: Notification } }>(
+      `/notifications/${id}/read`
+    );
     return response.data.data.notification;
   },
 
@@ -47,7 +60,9 @@ export const notificationsService = {
    * Mark all notifications as read
    */
   async markAllAsRead() {
-    const response = await api.patch<{ data: { count: number } }>('/notifications/read-all');
+    const response = await api.patch<{ data: { count: number } }>(
+      '/notifications/read-all'
+    );
     return response.data.data.count;
   },
 
@@ -62,7 +77,9 @@ export const notificationsService = {
    * Get preferences
    */
   async getPreferences() {
-    const response = await api.get<{ data: { preferences: NotificationPreferences } }>('/notifications/preferences');
+    const response = await api.get<{
+      data: { preferences: NotificationPreferences };
+    }>('/notifications/preferences');
     return response.data.data.preferences;
   },
 
@@ -70,7 +87,9 @@ export const notificationsService = {
    * Update preferences
    */
   async updatePreferences(preferences: NotificationPreferences) {
-    const response = await api.put<{ data: { preferences: NotificationPreferences } }>('/notifications/preferences', preferences);
+    const response = await api.put<{
+      data: { preferences: NotificationPreferences };
+    }>('/notifications/preferences', preferences);
     return response.data.data.preferences;
   },
 
@@ -84,10 +103,9 @@ export const notificationsService = {
     channels: Array<'in_app' | 'email' | 'sms' | 'push'>;
     actionUrl?: string;
   }) {
-    const response = await api.post<{ data: { queued: number; targetCount: number } }>(
-      '/notifications/broadcast',
-      payload
-    );
+    const response = await api.post<{
+      data: { queued: number; targetCount: number };
+    }>('/notifications/broadcast', payload);
     return response.data.data;
   },
 
@@ -95,7 +113,10 @@ export const notificationsService = {
    * Send test email
    */
   async testEmail(email: string) {
-    const response = await api.post<{ data: { success: boolean } }>('/notifications/test-email', { email });
+    const response = await api.post<{ data: { success: boolean } }>(
+      '/notifications/test-email',
+      { email }
+    );
     return response.data.data.success;
   },
 
@@ -103,8 +124,10 @@ export const notificationsService = {
    * Send test SMS
    */
   async testSMS(phone: string) {
-    const response = await api.post<{ data: { success: boolean } }>('/notifications/test-sms', { phone });
+    const response = await api.post<{ data: { success: boolean } }>(
+      '/notifications/test-sms',
+      { phone }
+    );
     return response.data.data.success;
   },
 };
-

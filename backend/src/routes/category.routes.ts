@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 import { body, param, query } from 'express-validator';
 
 const router = Router();
@@ -12,6 +13,9 @@ const categoryController = new CategoryController();
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
 router.use(authenticate);
+
+// All category routes require form access
+router.use(requireFormAccess('frmDefCategory'));
 
 /**
  * Validation rules
@@ -34,7 +38,10 @@ const createCategoryValidation = [
     .matches(/^#[0-9A-F]{6}$/i)
     .withMessage('Color must be a valid hex color code (e.g., #FF5733)'),
   body('icon').optional().trim(),
-  body('sortOrder').optional().isInt({ min: 0 }).withMessage('Sort order must be a positive integer'),
+  body('sortOrder')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Sort order must be a positive integer'),
 ];
 
 const updateCategoryValidation = [
@@ -57,25 +64,22 @@ const updateCategoryValidation = [
     .matches(/^#[0-9A-F]{6}$/i)
     .withMessage('Color must be a valid hex color code (e.g., #FF5733)'),
   body('icon').optional().trim(),
-  body('sortOrder').optional().isInt({ min: 0 }).withMessage('Sort order must be a positive integer'),
+  body('sortOrder')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Sort order must be a positive integer'),
   body('isActive').optional().isBoolean().withMessage('isActive must be a boolean'),
 ];
 
 const sortOrderValidation = [
-  body('updates')
-    .isArray({ min: 1 })
-    .withMessage('Updates must be a non-empty array'),
-  body('updates.*.id')
-    .isMongoId()
-    .withMessage('Each update must have a valid category ID'),
+  body('updates').isArray({ min: 1 }).withMessage('Updates must be a non-empty array'),
+  body('updates.*.id').isMongoId().withMessage('Each update must have a valid category ID'),
   body('updates.*.sortOrder')
     .isInt({ min: 0 })
     .withMessage('Sort order must be a positive integer'),
 ];
 
-const categoryIdValidation = [
-  param('id').isMongoId().withMessage('Invalid category ID'),
-];
+const categoryIdValidation = [param('id').isMongoId().withMessage('Invalid category ID')];
 
 const getCategoriesValidation = [
   query('includeInactive')
@@ -87,14 +91,8 @@ const getCategoriesValidation = [
     .optional()
     .isIn(['name', 'sortOrder', 'createdAt', 'updatedAt'])
     .withMessage('Invalid sort field'),
-  query('sortOrder')
-    .optional()
-    .isIn(['asc', 'desc'])
-    .withMessage('Sort order must be asc or desc'),
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
+  query('sortOrder').optional().isIn(['asc', 'desc']).withMessage('Sort order must be asc or desc'),
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
   query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
@@ -106,10 +104,7 @@ const getCategoriesValidation = [
  */
 
 // GET /api/categories/stats - Get category statistics (must be before /:id)
-router.get(
-  '/stats',
-  categoryController.getCategoryStats
-);
+router.get('/stats', categoryController.getCategoryStats);
 
 // PUT /api/categories/sort-order - Update sort order (must be before /:id)
 router.put(
@@ -130,20 +125,10 @@ router.post(
 );
 
 // GET /api/categories - Get all categories
-router.get(
-  '/',
-  getCategoriesValidation,
-  validate,
-  categoryController.getCategories
-);
+router.get('/', getCategoriesValidation, validate, categoryController.getCategories);
 
 // GET /api/categories/:id - Get category by ID
-router.get(
-  '/:id',
-  categoryIdValidation,
-  validate,
-  categoryController.getCategoryById
-);
+router.get('/:id', categoryIdValidation, validate, categoryController.getCategoryById);
 
 // PUT /api/categories/:id - Update category
 router.put(
@@ -164,4 +149,3 @@ router.delete(
 );
 
 export default router;
-

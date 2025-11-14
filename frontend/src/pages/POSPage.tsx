@@ -663,7 +663,18 @@ export default function POSPage() {
         <CustomerQuickAdd
           onClose={() => setShowCustomerModal(false)}
           onSelect={(c) => {
-            setCustomer(c);
+            setCustomer({
+              _id: c._id,
+              name: c.name,
+              email: c.email,
+              phone: c.phone ?? '',
+              address: c.address?.street ?? c.address?.city ?? '',
+              loyaltyPoints: c.loyaltyPoints ?? 0,
+              creditLimit: c.creditLimit,
+              creditBalance: c.creditBalance ?? 0,
+              totalSpent: c.totalSpent ?? 0,
+              totalPurchases: c.totalPurchases ?? 0,
+            });
             setShowCustomerModal(false);
           }}
         />

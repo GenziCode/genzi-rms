@@ -8,8 +8,8 @@ export default tseslint.config(
     files: ['src/**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/explicit-module-boundary-types': 'warn',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'no-console': 'off',
     },
   },
@@ -17,4 +17,3 @@ export default tseslint.config(
     ignores: ['dist', 'node_modules', 'coverage', '*.config.js'],
   }
 );
-

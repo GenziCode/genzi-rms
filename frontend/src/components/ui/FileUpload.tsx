@@ -1,5 +1,13 @@
 import { useState, useRef, ChangeEvent } from 'react';
-import { Upload, X, File, Image as ImageIcon, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  Upload,
+  X,
+  File,
+  Image as ImageIcon,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
 export interface FileUploadProps {
@@ -7,48 +15,48 @@ export interface FileUploadProps {
    * Callback when file is selected and validated
    */
   onFileSelect: (file: File) => void | Promise<void>;
-  
+
   /**
    * Accepted file types (MIME types or extensions)
    * Examples: ['image/*', 'image/jpeg', 'image/png', '.pdf', '.csv']
    */
   accept?: string[];
-  
+
   /**
    * Maximum file size in bytes (default: 10MB)
    */
   maxSize?: number;
-  
+
   /**
    * Whether to allow multiple files
    */
   multiple?: boolean;
-  
+
   /**
    * Button label
    */
   label?: string;
-  
+
   /**
    * Helper text
    */
   helperText?: string;
-  
+
   /**
    * Whether the upload is disabled
    */
   disabled?: boolean;
-  
+
   /**
    * Current file name (for display)
    */
   currentFile?: string | null;
-  
+
   /**
    * Whether to show preview for images
    */
   showPreview?: boolean;
-  
+
   /**
    * Custom className
    */
@@ -57,7 +65,7 @@ export interface FileUploadProps {
 
 /**
  * Standardized File Upload Component
- * 
+ *
  * Features:
  * - File type validation (images, documents, custom types)
  * - File size validation
@@ -79,6 +87,7 @@ export default function FileUpload({
 }: FileUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isPreviewImage, setIsPreviewImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isImageType = (file: File): boolean => {
@@ -99,7 +108,7 @@ export default function FileUpload({
     if (accept.length > 0 && !accept.includes('*/*')) {
       const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
       const fileType = file.type.toLowerCase();
-      
+
       const isAccepted = accept.some((pattern) => {
         // Check MIME type patterns
         if (pattern.includes('*')) {
@@ -149,8 +158,10 @@ export default function FileUpload({
     if (showPreview && isImageType(file)) {
       const blobUrl = URL.createObjectURL(file);
       setPreview(blobUrl);
+      setIsPreviewImage(true);
     } else {
       setPreview(null);
+      setIsPreviewImage(false);
     }
 
     // Call onFileSelect callback
@@ -162,6 +173,7 @@ export default function FileUpload({
       console.error('File upload error:', error);
       toast.error(error?.message || 'Failed to process file');
       setPreview(null);
+      setIsPreviewImage(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -209,9 +221,10 @@ export default function FileUpload({
           w-full px-4 py-2 border-2 border-dashed rounded-lg
           flex items-center justify-center gap-2
           transition-colors
-          ${disabled || isUploading
-            ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
-            : 'bg-white border-gray-300 text-gray-700 hover:border-blue-500 hover:bg-blue-50'
+          ${
+            disabled || isUploading
+              ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-white border-gray-300 text-gray-700 hover:border-blue-500 hover:bg-blue-50'
           }
         `}
       >
@@ -229,16 +242,14 @@ export default function FileUpload({
       </button>
 
       {/* Helper Text */}
-      {helperText && (
-        <p className="text-xs text-gray-500">{helperText}</p>
-      )}
+      {helperText && <p className="text-xs text-gray-500">{helperText}</p>}
 
       {/* File Info / Preview */}
       {(preview || currentFile) && (
         <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
           <div className="flex items-start gap-3">
             {/* Image Preview */}
-            {preview && isImageType && (
+            {preview && isPreviewImage && (
               <div className="flex-shrink-0">
                 <img
                   src={preview}
@@ -251,7 +262,7 @@ export default function FileUpload({
             {/* File Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                {isImageType && preview ? (
+                {isPreviewImage && preview ? (
                   <ImageIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
                 ) : (
                   <FileText className="w-4 h-4 text-gray-600 flex-shrink-0" />
@@ -276,4 +287,3 @@ export default function FileUpload({
     </div>
   );
 }
-

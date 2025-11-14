@@ -38,13 +38,16 @@ export interface Customer {
   _id: string;
   name: string;
   email?: string;
-  phone: string;
+  phone?: string;
   address?: string;
   loyaltyPoints?: number;
   creditLimit?: number;
   creditBalance?: number;
   totalSpent?: number;
   totalPurchases?: number;
+  firstName?: string;
+  lastName?: string;
+  company?: string;
 }
 
 export interface Sale {
@@ -136,6 +139,12 @@ export interface SaleListResponse {
   total: number;
   page: number;
   totalPages: number;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export interface DailySummary {
