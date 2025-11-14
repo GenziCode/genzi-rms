@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import ErrorBoundary from './components/ErrorBoundary';
 import AppRoutes from './routes';
 import { StoreProvider } from './contexts/StoreContext';
@@ -22,7 +22,7 @@ function App() {
         <StoreProvider>
           <BrowserRouter>
             <AppRoutes />
-            <Toaster position="top-right" />
+            <SonnerToaster position="top-right" richColors />
           </BrowserRouter>
         </StoreProvider>
       </QueryClientProvider>

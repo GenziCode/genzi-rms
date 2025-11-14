@@ -17,6 +17,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "type-check": "tsc --noEmit",
     "init-db": "npx tsx src/scripts/init-database.ts",
+    "migrate:rbac": "npx tsx src/migrations/001-rbac-initial.ts",
     "test:connection": "node test-mongodb.js"
   },
   "keywords": [

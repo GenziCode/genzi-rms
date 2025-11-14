@@ -31,8 +31,8 @@ import { settingsService } from '@/services/settings.service';
 import { BarcodeScannerModal } from '@/components/pos/BarcodeScannerModal';
 import { downloadCSVTemplate, parseCSV, csvTemplates } from '@/utils/csvTemplates';
 import { formatCurrency } from '@/lib/utils';
-import { useAlert } from '@/hooks/useSweetAlert';
-import { SweetAlert } from '@/components/ui/SweetAlert';
+import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
 import api from '@/lib/api';
 
 interface POItem {
@@ -64,7 +64,6 @@ interface CreatePOModalProps {
 type TabType = 'details' | 'items' | 'summary' | 'notes';
 
 export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps) {
-  const alert = useAlert();
   const queryClient = useQueryClient();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<TabType>('details');
@@ -87,11 +86,11 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
 
-  // Debounce search input
+  // Debounce search input - No minimum character limit
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
     
-    if (productSearchInput.trim().length >= 2) {
+    if (productSearchInput.trim().length > 0) {
       timeoutId = setTimeout(() => {
         setProductSearch(productSearchInput.trim());
       }, 300);
@@ -114,11 +113,37 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
     queryFn: () => vendorsService.getAll({ limit: 1000 }),
   });
 
-  // Fetch selected vendor details
+  // Fetch selected vendor details with populated products
   const { data: selectedVendor } = useQuery({
     queryKey: ['vendor-details', vendorId],
-    queryFn: () => vendorsService.getById(vendorId),
+    queryFn: async () => {
+      const vendor = await vendorsService.getById(vendorId);
+      return vendor;
+    },
     enabled: !!vendorId,
+  });
+
+  // Fetch all products count (for "All Products" filter)
+  const { data: allProductsCount } = useQuery({
+    queryKey: ['all-products-count'],
+    queryFn: async () => {
+      const result = await productsService.getAll({ limit: 1, isActive: 'true' });
+      return result.total || 0;
+    },
+  });
+
+  // Fetch vendor products count
+  const { data: vendorProductsCount } = useQuery({
+    queryKey: ['vendor-products-count', vendorId, selectedVendor?.products],
+    queryFn: async () => {
+      if (!vendorId || !selectedVendor?.products) return 0;
+      const products = selectedVendor.products;
+      if (Array.isArray(products)) {
+        return products.length;
+      }
+      return 0;
+    },
+    enabled: !!vendorId && !!selectedVendor,
   });
 
   // Fetch stores - Fixed endpoint
@@ -139,21 +164,47 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
     refetchOnWindowFocus: true,
   });
 
-  // Fetch products based on search
+  // Fetch products based on search - No minimum character limit
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ['products-for-po', productSearch, productFilter, vendorId],
     queryFn: async () => {
-      if (!productSearch || productSearch.trim().length < 2) {
+      if (!productSearch || productSearch.trim().length === 0) {
+        // If vendor filter is active and no search, fetch vendor products
+        if (productFilter === 'vendor' && vendorId && selectedVendor?.products) {
+          const vendorProductIds = selectedVendor.products.map((p: any) => 
+            typeof p === 'string' ? p : (p._id || p.id || p.toString())
+          );
+          
+          if (vendorProductIds.length === 0) {
+            return { products: [] };
+          }
+          
+          // Fetch products by IDs
+          const allProducts = await productsService.getAll({ 
+            limit: 1000, 
+            isActive: 'true' 
+          });
+          
+          const vendorProducts = allProducts.products?.filter((p: any) => 
+            vendorProductIds.includes((p._id || p.id)?.toString())
+          ) || [];
+          
+          return { products: vendorProducts, total: vendorProducts.length };
+        }
         return { products: [] };
       }
       
       try {
         const params: any = { 
-          limit: 50,
+          limit: 100,
           page: 1,
-          search: productSearch.trim(),
           isActive: 'true',
         };
+        
+        // Add search if provided
+        if (productSearch.trim().length > 0) {
+          params.search = productSearch.trim();
+        }
         
         const result = await productsService.getAll(params);
         return result;
@@ -162,7 +213,7 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
         throw error;
       }
     },
-    enabled: !!(productSearch && productSearch.trim().length >= 2),
+    enabled: !!productSearch || (productFilter === 'vendor' && !!vendorId && !!selectedVendor),
   });
 
   // Update search results when products data changes
@@ -182,7 +233,7 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
       }
       
       setSearchResults(filtered);
-      setShowSearchResults(filtered.length > 0 && productSearch.length >= 2);
+      setShowSearchResults(filtered.length > 0);
     } else {
       setSearchResults([]);
       setShowSearchResults(false);
@@ -193,39 +244,72 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
   const stores = Array.isArray(storesData) ? storesData : [];
 
   const addProductToItems = (product: any) => {
-    const newItem: POItem = {
-      productId: product._id || product.id || '',
-      productName: product.name,
-      sku: product.sku,
-      barcode: product.barcode,
-      category: typeof product.category === 'object' && product.category?.name 
-        ? product.category.name 
-        : (typeof product.category === 'string' ? product.category : ''),
-      quantity: 1,
-      unitPrice: product.cost || product.price || 0,
-      discount: 0,
-      tax: product.taxRate || 0,
-      unit: product.unit,
-      total: product.cost || product.price || 0,
-    };
+    const productId = product._id || product.id || '';
+    
+    // Check if product already exists in items
+    const existingItemIndex = items.findIndex(item => item.productId === productId);
+    
+    if (existingItemIndex >= 0) {
+      // Product exists - increase quantity
+      const updatedItems = [...items];
+      const existingItem = updatedItems[existingItemIndex];
+      const newQuantity = existingItem.quantity + 1;
+      
+      // Recalculate total
+      const subtotal = newQuantity * existingItem.unitPrice;
+      const discountAmount = subtotal * (existingItem.discount / 100);
+      const afterDiscount = subtotal - discountAmount;
+      const taxAmount = afterDiscount * (existingItem.tax / 100);
+      
+      updatedItems[existingItemIndex] = {
+        ...existingItem,
+        quantity: newQuantity,
+        total: afterDiscount + taxAmount,
+      };
+      
+      setItems(updatedItems);
+      toast.success('Quantity Updated', {
+        description: `Increased quantity for "${product.name}" to ${newQuantity}.`,
+      });
+    } else {
+      // New product - add to items
+      const newItem: POItem = {
+        productId: productId,
+        productName: product.name,
+        sku: product.sku,
+        barcode: product.barcode,
+        category: typeof product.category === 'object' && product.category?.name 
+          ? product.category.name 
+          : (typeof product.category === 'string' ? product.category : ''),
+        quantity: 1,
+        unitPrice: product.cost || product.price || 0,
+        discount: 0,
+        tax: product.taxRate || 0,
+        unit: product.unit,
+        total: product.cost || product.price || 0,
+      };
 
-    setItems([...items, newItem]);
-    
-    // Clear search and results
-    setProductSearchInput('');
-    setProductSearch('');
-    setSearchResults([]);
-    setShowSearchResults(false);
-    
-    // Focus back on search input if not holding screen
-    if (!holdScreen && searchInputRef.current) {
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 100);
+      setItems([...items, newItem]);
+      toast.success('Product Added', {
+        description: `Product "${product.name}" has been added to the order.`,
+      });
     }
     
-    // Switch to items tab if not holding screen
+    // Clear search and results if not holding screen
     if (!holdScreen) {
+      setProductSearchInput('');
+      setProductSearch('');
+      setSearchResults([]);
+      setShowSearchResults(false);
+      
+      // Focus back on search input
+      if (searchInputRef.current) {
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+        }, 100);
+      }
+      
+      // Switch to items tab
       setActiveTab('items');
     }
   };
@@ -239,14 +323,17 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['po-stats'] });
-      alert.success('Purchase Order Created!', 'Your purchase order has been created successfully.', () => {
-        onSuccess();
-        onClose();
+      toast.success('Purchase Order Created!', {
+        description: 'Your purchase order has been created successfully.',
       });
+      onSuccess();
+      onClose();
     },
     onError: (error: any) => {
       const message = error.response?.data?.error?.message || 'Failed to create Purchase Order';
-      alert.error('Error Creating Purchase Order', message);
+      toast.error('Error Creating Purchase Order', {
+        description: message,
+      });
       
       if (error.response?.data?.error?.details) {
         const fieldErrors: FormErrors = {};
@@ -319,12 +406,18 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
       const product = await productsService.getByBarcode(code);
       if (product) {
         addProductToItems(product);
-        alert.success('Product Added', `Product "${product.name}" has been added to the order.`);
+        toast.success('Product Added', {
+          description: `Product "${product.name}" has been added to the order.`,
+        });
       } else {
-        alert.error('Product Not Found', 'Product not found for this barcode.');
+        toast.error('Product Not Found', {
+          description: 'Product not found for this barcode.',
+        });
       }
     } catch (error: any) {
-      alert.error('Product Not Found', error.response?.data?.error?.message || 'Product not found');
+      toast.error('Product Not Found', {
+        description: error.response?.data?.error?.message || 'Product not found',
+      });
     }
   };
 
@@ -338,13 +431,17 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
       } else if (bulkProducts.trim()) {
         csvContent = bulkProducts.trim();
       } else {
-        alert.warning('No Data', 'Please upload a CSV file or paste CSV content.');
+        toast.warning('No Data', {
+          description: 'Please upload a CSV file or paste CSV content.',
+        });
         return;
       }
 
       const parsed = parseCSV(csvContent);
       if (parsed.length === 0) {
-        alert.warning('Invalid CSV', 'No valid products found in CSV.');
+        toast.warning('Invalid CSV', {
+          description: 'No valid products found in CSV.',
+        });
         return;
       }
 
@@ -397,12 +494,18 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
         setBulkProducts('');
         setBulkProductsFile(null);
         setShowBulkAdd(false);
-        alert.success('Products Added', `${newItems.length} product(s) added successfully.`);
+        toast.success('Products Added', {
+          description: `${newItems.length} product(s) added successfully.`,
+        });
       } else {
-        alert.warning('No Products Added', 'Could not find any products matching the CSV data.');
+        toast.warning('No Products Added', {
+          description: 'Could not find any products matching the CSV data.',
+        });
       }
     } catch (error: any) {
-      alert.error('Bulk Add Failed', error.message || 'Failed to process bulk add.');
+      toast.error('Bulk Add Failed', {
+        description: error.message || 'Failed to process bulk add.',
+      });
     }
   };
 
@@ -538,14 +641,14 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <ShoppingCart className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-white/20 rounded-lg">
+                <ShoppingCart className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-white">Create Purchase Order</h2>
-                <p className="text-sm text-blue-100">Add products and details for your purchase order</p>
+                <h2 className="text-xl font-bold text-white">Create Purchase Order</h2>
+                <p className="text-xs text-blue-100">Add products and details for your purchase order</p>
               </div>
             </div>
             <button
@@ -558,7 +661,7 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
           </div>
 
           {/* Tabs */}
-          <div className="border-b border-gray-200 bg-gray-50 px-6">
+          <div className="border-b border-gray-200 bg-gray-50 px-4">
             <div className="flex overflow-x-auto scrollbar-hide -mb-px">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
@@ -568,7 +671,7 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
                     className={`
-                      flex items-center gap-2 px-6 py-4 border-b-2 font-medium text-sm whitespace-nowrap
+                      flex items-center gap-1.5 px-4 py-2.5 border-b-2 font-medium text-xs whitespace-nowrap
                       transition-all duration-200
                       ${activeTab === tab.id
                         ? 'border-blue-600 text-blue-600 bg-white'
@@ -576,7 +679,7 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                       }
                     `}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className="w-3.5 h-3.5" />
                     <span>{tab.label}</span>
                   </button>
                 );
@@ -586,23 +689,23 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
 
           {/* Content */}
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-            <div className="p-6">
+            <div className="p-4">
               {/* Details Tab */}
               {activeTab === 'details' && (
-                <div className="space-y-6">
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
-                    <div className="flex items-start gap-3">
-                      <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <h3 className="text-base font-semibold text-blue-900 mb-1">Purchase Order Information</h3>
-                        <p className="text-sm text-blue-700">
+                        <h3 className="text-sm font-semibold text-blue-900 mb-0.5">Purchase Order Information</h3>
+                        <p className="text-xs text-blue-700">
                           Fill in the vendor and store details. These fields are required to create a purchase order.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Vendor Selection */}
                     <div>
                       <FieldLabel 
@@ -632,7 +735,16 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                         `}
                         disabled={vendorsLoading}
                       >
-                        <option value="">{vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}</option>
+                        <option value="">
+                          {vendorsLoading ? (
+                            <span className="flex items-center gap-2">
+                              <Spinner size="sm" />
+                              Loading vendors...
+                            </span>
+                          ) : (
+                            'Select vendor...'
+                          )}
+                        </option>
                         {vendors.map(v => (
                           <option key={v._id} value={v._id}>
                             {v.name} - {v.company}
@@ -687,7 +799,16 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                           `}
                           disabled={storesLoading}
                         >
-                          <option value="">{storesLoading ? 'Loading stores...' : 'Select store...'}</option>
+                          <option value="">
+                            {storesLoading ? (
+                              <span className="flex items-center gap-2">
+                                <Spinner size="sm" />
+                                Loading stores...
+                              </span>
+                            ) : (
+                              'Select store...'
+                            )}
+                          </option>
                           {stores.map((store: any) => (
                             <option key={store._id || store.id} value={store._id || store.id}>
                               {store.name} {store.code ? `(${store.code})` : ''}
@@ -697,10 +818,15 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                         <button
                           type="button"
                           onClick={() => refetchStores()}
-                          className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                          disabled={storesLoading}
+                          className="px-4 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50"
                           title="Refresh stores"
                         >
-                          <RefreshCw className={`w-5 h-5 text-gray-600 ${storesLoading ? 'animate-spin' : ''}`} />
+                          {storesLoading ? (
+                            <Spinner size="sm" className="text-gray-600" />
+                          ) : (
+                            <RefreshCw className="w-5 h-5 text-gray-600" />
+                          )}
                         </button>
                       </div>
                       {errors.storeId && (
@@ -789,21 +915,21 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
 
               {/* Items Tab */}
               {activeTab === 'items' && (
-                <div className="space-y-6">
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-5">
-                    <div className="flex items-start gap-3">
-                      <ShoppingCart className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <ShoppingCart className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                       <div className="flex-1">
-                        <h3 className="text-base font-semibold text-green-900 mb-1">Add Products</h3>
-                        <p className="text-sm text-green-700">
-                          Search and add products to this purchase order. You can add products individually, scan barcodes, or bulk import via CSV.
+                        <h3 className="text-sm font-semibold text-green-900 mb-0.5">Add Products</h3>
+                        <p className="text-xs text-green-700">
+                          Search and add products. You can add individually, scan barcodes, or bulk import via CSV.
                         </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Hold Screen Toggle */}
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <div className="flex items-center gap-3">
                       {holdScreen ? (
                         <Lock className="w-5 h-5 text-blue-600" />
@@ -811,11 +937,11 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                         <Unlock className="w-5 h-5 text-gray-400" />
                       )}
                       <div>
-                        <label className="text-sm font-semibold text-gray-900 cursor-pointer">
+                        <label className="text-xs font-semibold text-gray-900 cursor-pointer">
                           Hold Screen Mode
                         </label>
                         <p className="text-xs text-gray-600">
-                          Keep search results open after adding products for faster bulk addition
+                          Keep search open for faster bulk addition
                         </p>
                       </div>
                     </div>
@@ -843,7 +969,7 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                       hint="Type to search products by name, SKU, or barcode. Click a product to add it to the order."
                     />
                     <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         ref={searchInputRef}
                         type="text"
@@ -851,10 +977,16 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                         onChange={(e) => {
                           setProductSearchInput(e.target.value);
                         }}
-                        placeholder="Type to search products (min 2 characters)..."
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="Type to search products by name, SKU, or barcode..."
+                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
+                        disabled={productsLoading}
                       />
-                      {productSearchInput && (
+                      {productsLoading && (
+                        <div className="absolute right-10 top-1/2 -translate-y-1/2">
+                          <Spinner size="sm" className="text-gray-400" />
+                        </div>
+                      )}
+                      {productSearchInput && !productsLoading && (
                         <button
                           type="button"
                           onClick={() => {
@@ -872,11 +1004,11 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
 
                     {/* Search Results Dropdown */}
                     {showSearchResults && searchResults.length > 0 && (
-                      <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-96 overflow-y-auto">
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto">
                         {productsLoading && (
-                          <div className="p-4 text-center">
-                            <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto" />
-                            <p className="text-sm text-gray-600 mt-2">Searching...</p>
+                          <div className="p-3 text-center">
+                            <Spinner size="sm" className="text-blue-600 mx-auto" />
+                            <p className="text-xs text-gray-600 mt-1">Searching...</p>
                           </div>
                         )}
                         {!productsLoading && searchResults.map((product: any) => (
@@ -884,7 +1016,7 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                             key={product._id || product.id}
                             type="button"
                             onClick={() => handleProductClick(product)}
-                            className="w-full p-4 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors text-left"
+                            className="w-full p-2.5 hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors text-left"
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
@@ -916,8 +1048,8 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                         ))}
                       </div>
                     )}
-                    {productSearchInput.length >= 2 && !productsLoading && searchResults.length === 0 && (
-                      <div className="mt-2 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                    {productSearchInput.length > 0 && !productsLoading && searchResults.length === 0 && (
+                      <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                         <p className="text-sm text-gray-600 text-center">
                           No products found for "{productSearchInput}"
                         </p>
@@ -927,31 +1059,31 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
 
                   {/* Product Filter Toggle */}
                   {vendorId && (
-                    <div className="flex items-center gap-3 flex-wrap p-4 bg-gray-50 rounded-xl border border-gray-200">
+                    <div className="flex items-center gap-3 flex-wrap p-3 bg-gray-50 rounded-lg border border-gray-200">
                       <label className="text-sm font-semibold text-gray-700">Product Filter:</label>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => setProductFilter('all')}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                             productFilter === 'all'
                               ? 'bg-blue-600 text-white shadow-md'
                               : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                           }`}
                         >
-                          All Products
+                          All Products ({allProductsCount || 0})
                         </button>
                         <button
                           type="button"
                           onClick={() => setProductFilter('vendor')}
                           disabled={!selectedVendor || !selectedVendor.products || selectedVendor.products.length === 0}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                             productFilter === 'vendor'
                               ? 'bg-blue-600 text-white shadow-md'
                               : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
                           } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
-                          Vendor Products ({selectedVendor?.products?.length || 0})
+                          Vendor Products ({vendorProductsCount || 0})
                         </button>
                       </div>
                       {productFilter === 'vendor' && (!selectedVendor?.products || selectedVendor.products.length === 0) && (
@@ -964,34 +1096,34 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                   )}
 
                   {/* Quick Actions */}
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => setShowBarcodeScanner(true)}
-                      className="px-5 py-2.5 border-2 border-gray-300 rounded-xl hover:bg-gray-50 flex items-center gap-2 text-sm font-medium transition-all hover:border-gray-400"
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-1.5 text-xs font-medium transition-all"
                     >
-                      <ScanLine className="w-4 h-4" />
+                      <ScanLine className="w-3.5 h-3.5" />
                       Scan Barcode
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowBulkAdd(!showBulkAdd)}
-                      className={`px-5 py-2.5 border-2 rounded-xl flex items-center gap-2 text-sm font-medium transition-all ${
+                      className={`px-3 py-1.5 border rounded-lg flex items-center gap-1.5 text-xs font-medium transition-all ${
                         showBulkAdd 
                           ? 'bg-blue-50 border-blue-300 text-blue-700' 
-                          : 'border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                          : 'border-gray-300 hover:bg-gray-50'
                       }`}
                     >
-                      <Package className="w-4 h-4" />
+                      <Package className="w-3.5 h-3.5" />
                       Bulk Add
                     </button>
                     <button
                       type="button"
                       onClick={addItem}
-                      className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center gap-2 text-sm font-medium transition-all shadow-md hover:shadow-lg"
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-1.5 text-xs font-medium transition-all"
                     >
-                      <Plus className="w-4 h-4" />
-                      Add Item Manually
+                      <Plus className="w-3.5 h-3.5" />
+                      Add Manually
                     </button>
                   </div>
 
@@ -1304,16 +1436,16 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
           </form>
 
           {/* Footer */}
-          <div className="border-t border-gray-200 p-6 bg-gray-50">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="text-sm text-gray-600">
+          <div className="border-t border-gray-200 p-4 bg-gray-50">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="text-xs text-gray-600">
                 <span className="font-medium">{items.length}</span> item(s) • Total: <span className="font-bold text-blue-600">{formatCurrency(grandTotal)}</span>
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-6 py-3 border-2 border-gray-300 rounded-xl hover:bg-gray-50 font-medium transition-all"
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-all"
                 >
                   Cancel
                 </button>
@@ -1321,11 +1453,11 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
                   type="submit"
                   onClick={handleSubmit}
                   disabled={createMutation.isPending || items.length === 0}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {createMutation.isPending ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Spinner size="sm" className="text-white" />
                       Creating...
                     </>
                   ) : (
@@ -1340,23 +1472,6 @@ export default function CreatePOModal({ onClose, onSuccess }: CreatePOModalProps
           </div>
         </div>
       </div>
-
-      {/* Alert Component */}
-      {alert.alert && (
-        <SweetAlert
-          type={alert.alert.type}
-          title={alert.alert.title}
-          message={alert.alert.message}
-          show={alert.alert.show}
-          onClose={alert.hideAlert}
-          confirmText={alert.alert.confirmText}
-          cancelText={alert.alert.cancelText}
-          onConfirm={alert.alert.onConfirm}
-          onCancel={alert.alert.onCancel}
-          showCancel={alert.alert.showCancel}
-          timer={alert.alert.timer}
-        />
-      )}
 
       {/* Barcode Scanner Modal */}
       {showBarcodeScanner && (

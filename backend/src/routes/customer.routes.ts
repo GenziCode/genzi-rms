@@ -3,6 +3,7 @@ import { CustomerController } from '../controllers/customer.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 import {
   createCustomerValidation,
   updateCustomerValidation,
@@ -18,6 +19,9 @@ const customerController = new CustomerController();
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
 router.use(authenticate);
+
+// All customer routes require form access
+router.use(requireFormAccess('frmMembershipInfo'));
 
 /**
  * Routes

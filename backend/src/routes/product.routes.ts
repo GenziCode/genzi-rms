@@ -3,6 +3,7 @@ import { ProductController } from '../controllers/product.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 import {
   createProductValidation,
   updateProductValidation,
@@ -21,6 +22,9 @@ const productController = new ProductController();
 // Note: resolveTenant is already applied in routes/index.ts
 // So we only need authenticate here
 router.use(authenticate);
+
+// All product routes require form access
+router.use(requireFormAccess('frmProductFields'));
 
 /**
  * Routes

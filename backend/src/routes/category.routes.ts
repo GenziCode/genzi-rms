@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 import { body, param, query } from 'express-validator';
 
 const router = Router();
@@ -12,6 +13,9 @@ const categoryController = new CategoryController();
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
 router.use(authenticate);
+
+// All category routes require form access
+router.use(requireFormAccess('frmDefCategory'));
 
 /**
  * Validation rules

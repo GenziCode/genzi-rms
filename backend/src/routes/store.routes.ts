@@ -4,10 +4,14 @@ import { storeController } from '../controllers/store.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 
 const router = Router();
 
 router.use(authenticate);
+
+// All store routes require form access
+router.use(requireFormAccess('frmDefShops'));
 
 router.get('/', storeController.list);
 router.get(

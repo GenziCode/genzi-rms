@@ -21,6 +21,11 @@ import userRoutes from './user.routes';
 import storeRoutes from './store.routes';
 import settingsRoutes from './settings.routes';
 import reportsRoutes from './reports.routes';
+import reportTemplateRoutes from './reportTemplate.routes';
+import formPermissionRoutes from './formPermission.routes';
+import fieldPermissionRoutes from './fieldPermission.routes';
+import roleRoutes from './role.routes';
+import permissionRoutes from './permission.routes';
 import { resolveTenant } from '../middleware/tenant.middleware';
 
 const router = Router();
@@ -60,8 +65,13 @@ router.use('/webhooks-config', resolveTenant, systemWebhookRoutes);
 router.use('/users', resolveTenant, userRoutes);
 router.use('/settings', resolveTenant, settingsRoutes);
 router.use('/reports', resolveTenant, reportsRoutes);
+router.use('/report-templates', resolveTenant, reportTemplateRoutes);
 router.use('/export', resolveTenant, exportRoutes);
 router.use('/sync', resolveTenant, syncRoutes);
+router.use('/form-permissions', resolveTenant, formPermissionRoutes);
+router.use('/field-permissions', resolveTenant, fieldPermissionRoutes);
+router.use('/roles', resolveTenant, roleRoutes);
+router.use('/permissions', resolveTenant, permissionRoutes);
 
 /**
  * Health check endpoint

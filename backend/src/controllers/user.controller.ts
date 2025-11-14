@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user.service';
+import { roleService } from '../services/role.service';
 import { successResponse } from '../utils/response';
 import { AppError } from '../utils/appError';
 
@@ -173,6 +174,78 @@ export class UserController {
       await this.userService.resetPassword(id, newPassword);
 
       res.json(successResponse(null, 'Password reset successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get user roles
+   * GET /api/users/:id/roles
+   */
+  getUserRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { tenantId } = req.user!;
+      const { id } = req.params;
+
+      // Only owner, admin, or the user themselves can view roles
+      if (!['owner', 'admin'].includes(req.user!.role) && req.user!.id !== id) {
+        throw new AppError('Insufficient permissions to view user roles', 403);
+      }
+
+      const roles = await roleService.getUserRoles(tenantId, id);
+      res.json(successResponse({ roles }, 'User roles retrieved successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Assign role to user
+   * POST /api/users/:id/roles
+   */
+  assignRoleToUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { tenantId, id: assignedBy } = req.user!;
+      const { id: userId } = req.params;
+      const { roleId, expiresAt, scopeOverride } = req.body;
+
+      // Only owner and admin can assign roles
+      if (!['owner', 'admin'].includes(req.user!.role)) {
+        throw new AppError('Insufficient permissions to assign roles', 403);
+      }
+
+      const assignment = await roleService.assignRoleToUser(
+        tenantId,
+        userId,
+        roleId,
+        assignedBy,
+        expiresAt ? new Date(expiresAt) : undefined,
+        scopeOverride
+      );
+
+      res.json(successResponse({ assignment }, 'Role assigned successfully', 201));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Remove role from user
+   * DELETE /api/users/:id/roles/:roleId
+   */
+  removeRoleFromUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { tenantId } = req.user!;
+      const { id: userId, roleId } = req.params;
+
+      // Only owner and admin can remove roles
+      if (!['owner', 'admin'].includes(req.user!.role)) {
+        throw new AppError('Insufficient permissions to remove roles', 403);
+      }
+
+      await roleService.removeRoleFromUser(tenantId, userId, roleId);
+      res.json(successResponse(null, 'Role removed successfully'));
     } catch (error) {
       next(error);
     }

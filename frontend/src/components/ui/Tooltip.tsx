@@ -49,18 +49,27 @@ export default function Tooltip({
 
   return (
     <div 
-      className={`relative group ${className}`}
+      className={`relative inline-block ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {children}
       {isVisible && (
-        <div className={`
-          absolute ${positionClasses[position]} z-50
-          px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg
-          whitespace-nowrap pointer-events-none
-          animate-in fade-in-0 zoom-in-95 duration-200
-        `}>
+        <div 
+          className={`
+            absolute ${positionClasses[position]} z-[9999]
+            px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-xl
+            max-w-xs pointer-events-none
+            animate-in fade-in-0 zoom-in-95 duration-200
+            whitespace-normal break-words
+          `}
+          style={{
+            ...(position === 'top' && { marginBottom: '8px' }),
+            ...(position === 'bottom' && { marginTop: '8px' }),
+            ...(position === 'left' && { marginRight: '8px' }),
+            ...(position === 'right' && { marginLeft: '8px' }),
+          }}
+        >
           {text}
           <div className={`absolute ${arrowClasses[position]}`}></div>
         </div>

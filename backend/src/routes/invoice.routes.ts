@@ -6,11 +6,15 @@ import { validate } from '../middleware/validation.middleware';
 import { authenticate } from '../middleware/auth.middleware';
 import { resolveTenant } from '../middleware/tenant.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 
 const router = Router();
 
 // Apply authentication and tenant resolution to all routes
 router.use(authenticate, resolveTenant);
+
+// All invoice routes require form access
+router.use(requireFormAccess('frmInvoiceReports'));
 
 /**
  * GET /api/invoices

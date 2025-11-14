@@ -3,6 +3,7 @@ import { UserController } from '../controllers/user.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
+import { requireFormAccess } from '../middleware/formPermission.middleware';
 import {
   createUserValidation,
   updateUserValidation,
@@ -18,6 +19,9 @@ const userController = new UserController();
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
 router.use(authenticate);
+
+// All user routes require form access
+router.use(requireFormAccess('frmDefShopEmployees'));
 
 /**
  * Routes
@@ -46,6 +50,23 @@ router.post(
   '/:id/reset-password',
   [...resetUserPasswordValidation, validate],
   userController.resetPassword
+);
+
+// GET /api/users/:id/roles - Get user roles
+router.get('/:id/roles', [...userIdParamValidation, validate], userController.getUserRoles);
+
+// POST /api/users/:id/roles - Assign role to user
+router.post(
+  '/:id/roles',
+  [...userIdParamValidation, validate],
+  userController.assignRoleToUser
+);
+
+// DELETE /api/users/:id/roles/:roleId - Remove role from user
+router.delete(
+  '/:id/roles/:roleId',
+  [...userIdParamValidation, validate],
+  userController.removeRoleFromUser
 );
 
 export default router;

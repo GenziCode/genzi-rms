@@ -439,10 +439,10 @@ useEffect(() => {
     onSuccess: (updated) => {
       setBusinessForm(updated);
       queryClient.invalidateQueries({ queryKey: ['businessSettings'] });
-      alert('Business settings saved successfully!');
+      toast.success('Business settings saved successfully!');
     },
     onError: (error: any) => {
-      alert(error.response?.data?.message || 'Failed to save business settings');
+      toast.error(error.response?.data?.message || 'Failed to save business settings');
     },
   });
 
@@ -467,12 +467,12 @@ useEffect(() => {
         isDefault: updatedStore.isDefault,
       });
       queryClient.invalidateQueries({ queryKey: ['stores'] });
-      alert('Store settings saved successfully!');
+      toast.success('Store settings saved successfully!');
     },
     onError: (error: any) => {
       const message =
         error?.response?.data?.message || error?.message || 'Failed to save store settings';
-      alert(message);
+      toast.error(message);
     },
   });
 
@@ -482,7 +482,7 @@ useEffect(() => {
     onSuccess: (updated) => {
       setTaxForm(updated);
       queryClient.invalidateQueries({ queryKey: ['taxSettings'] });
-      alert('Tax settings saved successfully!');
+      toast.success('Tax settings saved successfully!');
     },
   });
 
@@ -492,7 +492,7 @@ useEffect(() => {
     onSuccess: (updated) => {
       setReceiptForm(updated);
       queryClient.invalidateQueries({ queryKey: ['receiptSettings'] });
-      alert('Receipt settings saved successfully!');
+      toast.success('Receipt settings saved successfully!');
     },
   });
 
@@ -502,7 +502,7 @@ useEffect(() => {
     onSuccess: (updated) => {
       setPosForm(updated);
       queryClient.invalidateQueries({ queryKey: ['posSettings'] });
-      alert('POS settings saved successfully!');
+      toast.success('POS settings saved successfully!');
     },
   });
 
@@ -534,10 +534,10 @@ useEffect(() => {
       });
       setPaymentDirty(false);
       queryClient.invalidateQueries({ queryKey: ['paymentSettings'] });
-      alert('Payment settings saved successfully!');
+      toast.success('Payment settings saved successfully!');
     },
     onError: (error: any) => {
-      alert(error.response?.data?.message || 'Failed to save payment settings');
+      toast.error(error.response?.data?.message || 'Failed to save payment settings');
     },
   });
 
@@ -579,10 +579,10 @@ useEffect(() => {
       });
       setIntegrationDirty(false);
       queryClient.invalidateQueries({ queryKey: ['integrationSettings'] });
-      alert('Integration settings saved successfully!');
+      toast.success('Integration settings saved successfully!');
     },
     onError: (error: any) => {
-      alert(error.response?.data?.message || 'Failed to save integration settings');
+      toast.error(error.response?.data?.message || 'Failed to save integration settings');
     },
   });
 
@@ -596,10 +596,10 @@ useEffect(() => {
       });
       setComplianceDirty(false);
       queryClient.invalidateQueries({ queryKey: ['complianceSettings'] });
-      alert('Compliance settings saved successfully!');
+      toast.success('Compliance settings saved successfully!');
     },
     onError: (error: any) => {
-      alert(error.response?.data?.message || 'Failed to save compliance settings');
+      toast.error(error.response?.data?.message || 'Failed to save compliance settings');
     },
   });
 
@@ -621,12 +621,12 @@ useEffect(() => {
         isDefault: createdStore.isDefault,
       });
       queryClient.invalidateQueries({ queryKey: ['stores'] });
-      alert('Store created successfully!');
+      toast.success('Store created successfully!');
     },
     onError: (error: any) => {
       const message =
         error?.response?.data?.message || error?.message || 'Failed to create store';
-      alert(message);
+      toast.error(message);
     },
   });
 
@@ -806,20 +806,20 @@ useEffect(() => {
 
   const handleStripeTest = async () => {
     if (!isStripeReady) {
-      alert('Complete Stripe credentials before testing the connection.');
+      toast.warning('Complete Stripe credentials before testing the connection.');
       return;
     }
     try {
       setStripeTesting(true);
       const result = await settingsService.testStripeConnection();
-      alert(
+      toast[result.connected ? 'success' : 'error'](
         result.connected
           ? 'Stripe connection successful!'
           : 'Stripe connection failed. Check your credentials.'
       );
       queryClient.invalidateQueries({ queryKey: ['paymentSettings'] });
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Failed to test Stripe connection');
+      toast.error(error.response?.data?.message || 'Failed to test Stripe connection');
     } finally {
       setStripeTesting(false);
     }
@@ -1740,13 +1740,18 @@ useEffect(() => {
               )}
 
               {/* Business Settings */}
-              {activeTab === 'business' && businessForm && (
+              {activeTab === 'business' && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Business Settings</h3>
                   <p className="text-gray-600">
                     Configure default timezone, currency, and reporting preferences.
                   </p>
-
+                  {businessLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    </div>
+                  ) : businessForm ? (
+                    <>
                     <div className="grid md:grid-cols-2 gap-4 mt-6">
                       <div>
                         <label className="block text-sm font-medium mb-2">Timezone</label>
@@ -1850,13 +1855,25 @@ useEffect(() => {
                     )}
                     Save Business Settings
                   </button>
+                    </>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <p>Failed to load business settings. Please try again.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Tax Settings */}
-              {activeTab === 'tax' && taxForm && (
+              {activeTab === 'tax' && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold">Tax Settings</h3>
+                  {taxLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    </div>
+                  ) : taxForm ? (
+                    <>
                   <p className="text-gray-600">
                     Configure tax rates, naming, and invoice presentation.
                   </p>
@@ -1955,22 +1972,46 @@ useEffect(() => {
                     )}
                     Save Tax Settings
                   </button>
+                    </>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <p>Failed to load tax settings. Please try again.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Receipt Settings */}
-              {activeTab === 'receipt' && receiptForm && (
-                <ReceiptDesigner
-                  value={receiptForm}
-                  onChange={handleReceiptChange}
-                  onSave={(settings) => updateReceiptMutation.mutate(settings)}
-                  isSaving={updateReceiptMutation.isPending}
-                />
+              {activeTab === 'receipt' && (
+                <>
+                  {receiptLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    </div>
+                  ) : receiptForm ? (
+                    <ReceiptDesigner
+                      value={receiptForm}
+                      onChange={handleReceiptChange}
+                      onSave={(settings) => updateReceiptMutation.mutate(settings)}
+                      isSaving={updateReceiptMutation.isPending}
+                    />
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <p>Failed to load receipt settings. Please try again.</p>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* POS Settings */}
-              {activeTab === 'pos' && posForm && (
+              {activeTab === 'pos' && (
                 <div className="space-y-6">
+                  {posLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    </div>
+                  ) : posForm ? (
+                    <>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">POS Settings</h3>
                     <p className="text-sm text-gray-600">
@@ -2162,25 +2203,51 @@ useEffect(() => {
                           </button>
                         </span>
                       ))}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = prompt('Add quick payment amount');
-                          if (!next) return;
-                          const value = Number(next);
-                          if (Number.isNaN(value) || value <= 0) {
-                            alert('Enter a positive number');
-                            return;
-                          }
-                          setPosForm({
-                            ...posForm,
-                            quickPaymentButtons: [...posForm.quickPaymentButtons, value],
-                          });
-                        }}
-                        className="inline-flex items-center gap-2 rounded-lg border border-dashed border-gray-400 px-3 py-2 text-sm text-gray-600 hover:bg-gray-200"
-                      >
-                        + Add amount
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          placeholder="Enter amount"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const input = e.currentTarget;
+                              const value = Number(input.value);
+                              if (Number.isNaN(value) || value <= 0) {
+                                toast.error('Enter a positive number');
+                                input.value = '';
+                                return;
+                              }
+                              setPosForm({
+                                ...posForm,
+                                quickPaymentButtons: [...posForm.quickPaymentButtons, value],
+                              });
+                              input.value = '';
+                            }
+                          }}
+                          className="w-32 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                            const value = Number(input.value);
+                            if (Number.isNaN(value) || value <= 0) {
+                              toast.error('Enter a positive number');
+                              input.value = '';
+                              return;
+                            }
+                            setPosForm({
+                              ...posForm,
+                              quickPaymentButtons: [...posForm.quickPaymentButtons, value],
+                            });
+                            input.value = '';
+                          }}
+                          className="inline-flex items-center gap-2 rounded-lg border border-dashed border-gray-400 px-3 py-2 text-sm text-gray-600 hover:bg-gray-200"
+                        >
+                          + Add amount
+                        </button>
+                      </div>
                     </div>
                   </section>
 
@@ -2196,12 +2263,24 @@ useEffect(() => {
                     )}
                     Save POS Settings
                   </button>
+                    </>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <p>Failed to load POS settings. Please try again.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Payment Settings */}
-              {activeTab === 'payments' && paymentForm && (
+              {activeTab === 'payments' && (
                 <div className="space-y-6">
+                  {paymentsLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    </div>
+                  ) : paymentForm ? (
+                    <>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Payment Settings</h3>
                     <p className="text-sm text-gray-600">
@@ -2531,12 +2610,24 @@ useEffect(() => {
                       Save Payment Settings
                     </button>
                   </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <p>Failed to load payment settings. Please try again.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Integration Settings */}
-              {activeTab === 'integrations' && integrationForm && (
+              {activeTab === 'integrations' && (
                 <div className="space-y-6">
+                  {integrationsLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    </div>
+                  ) : integrationForm ? (
+                    <>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Integrations</h3>
                     <p className="text-sm text-gray-600">
@@ -3051,12 +3142,24 @@ useEffect(() => {
                       Save Integration Settings
                     </button>
                   </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <p>Failed to load integration settings. Please try again.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Compliance Settings */}
-              {activeTab === 'compliance' && complianceForm && (
+              {activeTab === 'compliance' && (
                 <div className="space-y-6">
+                  {complianceLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                    </div>
+                  ) : complianceForm ? (
+                    <>
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Compliance & Security</h3>
                     <p className="text-sm text-gray-600">
@@ -3208,6 +3311,12 @@ useEffect(() => {
                       Save Compliance Settings
                     </button>
                   </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500">
+                      <p>Failed to load compliance settings. Please try again.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
