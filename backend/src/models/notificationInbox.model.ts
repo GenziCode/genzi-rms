@@ -54,4 +54,3 @@ export const NotificationInboxSchema = new Schema<INotificationInbox>(
 
 NotificationInboxSchema.index({ tenantId: 1, userId: 1, createdAt: -1 });
 NotificationInboxSchema.index({ tenantId: 1, userId: 1, read: 1, archived: 1 });
-
