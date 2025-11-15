@@ -178,4 +178,7 @@ ProductSchema.index({ isActive: 1 });
 
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 169bd6aa12570863c89b3275d4b0476633f0f7dd
