@@ -12,7 +12,7 @@ export interface IReportExecution extends Document {
   // Execution details
   reportName: string;
   reportType: 'template' | 'custom' | 'scheduled';
-  parameters: Record<string, any>; // Filters and parameters used
+  parameters: Record<string, unknown>; // Filters and parameters used
   
   // Execution status
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';

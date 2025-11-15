@@ -1,179 +1,169 @@
+import mongoose, { FilterQuery } from 'mongoose';
 import { getTenantConnection } from '../config/database';
 import {
-  NotificationSchema,
   INotification,
-  NotificationType,
+  NotificationSchema,
+  NotificationStatus,
   NotificationChannel,
 } from '../models/notification.model';
-import { NotFoundError } from '../utils/appError';
+import {
+  INotificationRoute,
+  NotificationRouteSchema,
+} from '../models/notificationRoute.model';
+import {
+  INotificationPreference,
+  NotificationPreferenceSchema,
+} from '../models/notificationPreference.model';
+import {
+  INotificationInbox,
+  NotificationInboxSchema,
+  NotificationSeverity,
+} from '../models/notificationInbox.model';
+import { BadRequestError, NotFoundError } from '../utils/appError';
+import { channelAdapters } from './notificationProviders';
 import { logger } from '../utils/logger';
-import { monitoringService } from '../utils/monitoring';
-import { emailService } from '../utils/email';
-import { smsService } from '../utils/sms';
-import { SettingsService } from './settings.service';
-import type { ISettings } from '../models/settings.model';
 
-type PreferenceTypeKey =
-  | 'sale'
-  | 'payment'
-  | 'inventory'
-  | 'order'
-  | 'customer'
-  | 'alert'
-  | 'reminder';
+export interface NotificationRecipientInput {
+  userId?: string;
+  email?: string;
+  phone?: string;
+  webhookUrl?: string;
+  name?: string;
+}
 
-export class NotificationService {
-  private settingsService = new SettingsService();
+export interface CreateNotificationPayload {
+  eventKey: string;
+  templateId?: string;
+  channels: NotificationChannel[];
+  recipients: NotificationRecipientInput[];
+  payload?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  inboxOnly?: boolean;
+}
 
-  private getDefaultPreferences() {
-    return {
-      inApp: true,
-      email: false,
-      sms: false,
-      push: false,
-      types: {
-        sale: true,
-        payment: true,
-        inventory: true,
-        order: true,
-        customer: true,
-        alert: true,
-        reminder: true,
-      },
-    };
+export interface ListNotificationFilters {
+  status?: NotificationStatus;
+  eventKey?: string;
+  channel?: NotificationChannel;
+  limit?: number;
+  page?: number;
+}
+
+export interface UpsertRoutePayload {
+  eventKey: string;
+  channels: Array<{
+    channel: NotificationChannel;
+    enabled: boolean;
+    quietHours?: { start: string; end: string };
+    fallback?: NotificationChannel[];
+  }>;
+  filters?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdatePreferencesPayload {
+  channels: Partial<
+    Record<
+      NotificationChannel,
+      {
+        enabled: boolean;
+        quietHours?: { start: string; end: string };
+      }
+    >
+  >;
+}
+
+export interface ListInboxFilters {
+  read?: boolean;
+  channel?: NotificationChannel;
+  search?: string;
+  includeArchived?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+class NotificationService {
+  private readonly INBOX_USER_LIMIT = 200;
+
+  private async notificationModel(tenantId: string) {
+    const connection = await getTenantConnection(tenantId);
+    return connection.model<INotification>('Notification', NotificationSchema);
   }
 
-  /**
-   * Create notification
-   */
-  async create(
-    tenantId: string,
-    data: {
-      userId?: string;
-      type: NotificationType;
-      channel: NotificationChannel;
-      title: string;
-      message: string;
-      data?: Record<string, any>;
-      entityType?: string;
-      entityId?: string;
-      actionUrl?: string;
-      createdBy?: string;
-    }
-  ): Promise<INotification> {
-    const tenantConn = await getTenantConnection(tenantId);
-    const Notification = tenantConn.model<INotification>('Notification', NotificationSchema);
+  private async routeModel(tenantId: string) {
+    const connection = await getTenantConnection(tenantId);
+    return connection.model<INotificationRoute>('NotificationRoute', NotificationRouteSchema);
+  }
 
-    const notification = new Notification({
-      ...data,
-      tenantId,
-      deliveryStatus: 'pending',
+  private async preferenceModel(tenantId: string) {
+    const connection = await getTenantConnection(tenantId);
+    return connection.model<INotificationPreference>(
+      'NotificationPreference',
+      NotificationPreferenceSchema
+    );
+  }
+
+  private async inboxModel(tenantId: string) {
+    const connection = await getTenantConnection(tenantId);
+    return connection.model<INotificationInbox>('NotificationInbox', NotificationInboxSchema);
+  }
+
+  async createNotification(
+    tenantId: string,
+    payload: CreateNotificationPayload,
+    createdBy?: string
+  ) {
+    if (!payload.recipients?.length) {
+      throw new BadRequestError('At least one recipient is required');
+    }
+    const Notification = await this.notificationModel(tenantId);
+    const doc = await Notification.create({
+      tenantId: new mongoose.Types.ObjectId(tenantId),
+      eventKey: payload.eventKey,
+      templateId: payload.templateId ? new mongoose.Types.ObjectId(payload.templateId) : undefined,
+      channels: payload.channels,
+      recipients: payload.recipients.map((recipient) => ({
+        user: recipient.userId ? new mongoose.Types.ObjectId(recipient.userId) : undefined,
+        email: recipient.email,
+        phone: recipient.phone,
+        webhookUrl: recipient.webhookUrl,
+        name: recipient.name,
+      })),
+      payload: payload.payload ?? {},
+      metadata: payload.metadata,
+      inboxOnly: payload.inboxOnly ?? false,
+      createdBy: createdBy ? new mongoose.Types.ObjectId(createdBy) : undefined,
+      status: payload.inboxOnly ? 'delivered' : 'pending',
+      deliveredAt: payload.inboxOnly ? new Date() : undefined,
     });
 
-    await notification.save();
+    await this.createInboxEntries(tenantId, doc);
 
-    const decision = await this.evaluateDelivery(tenantId, data.userId, data.type, data.channel);
-
-    if (!decision.allowed) {
-      notification.deliveryStatus = 'failed';
-      notification.errorMessage = decision.reason;
-      notification.sentAt = new Date();
-      if (data.channel === 'in_app') {
-        notification.read = true;
-        notification.readAt = new Date();
-      }
-      await notification.save();
-
-      monitoringService.trackNotificationFailure({
-        tenantId,
-        notificationId: notification._id.toString(),
-        channel: data.channel,
-        reason: decision.reason ?? 'not_allowed',
-        payload: data,
-      });
-
-      logger.warn(
-        `Notification delivery skipped: ${notification._id} - Reason: ${decision.reason}`
-      );
-      return notification;
+    if (!payload.inboxOnly) {
+      await this.dispatchNotification(tenantId, doc);
     }
 
-    // Send based on channel
-    if (data.channel === 'email' && data.userId) {
-      await this.sendEmailNotification(
-        tenantId,
-        notification._id.toString(),
-        decision.emailConfig!,
-        data
-      );
-    } else if (data.channel === 'sms' && data.userId) {
-      await this.sendSMSNotification(
-        tenantId,
-        notification._id.toString(),
-        decision.smsConfig!,
-        data
-      );
-    } else if (data.channel === 'in_app') {
-      notification.deliveryStatus = 'delivered';
-      notification.sentAt = new Date();
-      await notification.save();
-    } else if (data.channel === 'push') {
-      notification.deliveryStatus = 'pending';
-      notification.sentAt = new Date();
-      await notification.save();
-    }
-
-    logger.info(
-      `Notification created: ${notification._id} - Type: ${data.type}, Channel: ${data.channel}`
-    );
-
-    return notification;
+    return doc;
   }
 
-  /**
-   * Get all notifications for a user
-   */
-  async getAll(
-    tenantId: string,
-    userId: string,
-    filters: {
-      type?: NotificationType;
-      read?: boolean;
-      page?: number;
-      limit?: number;
-    } = {}
-  ) {
-    const tenantConn = await getTenantConnection(tenantId);
-    const Notification = tenantConn.model<INotification>('Notification', NotificationSchema);
+  async listNotifications(tenantId: string, filters: ListNotificationFilters = {}) {
+    const Notification = await this.notificationModel(tenantId);
+    const query: FilterQuery<INotification> = {};
 
-    const query: any = {
-      tenantId,
-      $or: [
-        { userId }, // User-specific
-        { userId: null }, // System-wide
-      ],
-    };
+    if (filters.status) query.status = filters.status;
+    if (filters.eventKey) query.eventKey = filters.eventKey;
+    if (filters.channel) query.channels = filters.channel;
 
-    if (filters.type) query.type = filters.type;
-    if (filters.read !== undefined) query.read = filters.read;
+    const limit = Math.min(filters.limit ?? 25, 100);
+    const page = Math.max(filters.page ?? 1, 1);
 
-    const page = filters.page || 1;
-    const limit = filters.limit || 50;
-    const skip = (page - 1) * limit;
-
-    const [notifications, total, unreadCount] = await Promise.all([
-      Notification.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+    const [records, total] = await Promise.all([
+      Notification.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
       Notification.countDocuments(query),
-      Notification.countDocuments({ ...query, read: false }),
     ]);
 
     return {
-      notifications,
-      unreadCount,
+      records,
       pagination: {
         total,
         page,
@@ -183,590 +173,450 @@ export class NotificationService {
     };
   }
 
-  /**
-   * Get notification by ID
-   */
-  async getById(tenantId: string, notificationId: string): Promise<INotification> {
-    const tenantConn = await getTenantConnection(tenantId);
-    const Notification = tenantConn.model<INotification>('Notification', NotificationSchema);
-
-    const notification = await Notification.findOne({ _id: notificationId, tenantId });
-
+  async getNotificationById(tenantId: string, id: string) {
+    const Notification = await this.notificationModel(tenantId);
+    const notification = await Notification.findById(id);
     if (!notification) {
-      throw new NotFoundError('Notification');
+      throw new NotFoundError('Notification not found');
     }
-
     return notification;
   }
 
-  /**
-   * Mark notification as read
-   */
-  async markAsRead(tenantId: string, notificationId: string): Promise<INotification> {
-    const tenantConn = await getTenantConnection(tenantId);
-    const Notification = tenantConn.model<INotification>('Notification', NotificationSchema);
-
-    const notification = await Notification.findOne({ _id: notificationId, tenantId });
-
-    if (!notification) {
-      throw new NotFoundError('Notification');
-    }
-
-    if (!notification.read) {
-      notification.read = true;
-      notification.readAt = new Date();
-      await notification.save();
-    }
-
-    return notification;
-  }
-
-  /**
-   * Mark all notifications as read for a user
-   */
-  async markAllAsRead(tenantId: string, userId: string): Promise<number> {
-    const tenantConn = await getTenantConnection(tenantId);
-    const Notification = tenantConn.model<INotification>('Notification', NotificationSchema);
-
-    const result = await Notification.updateMany(
-      { tenantId, userId, read: false },
-      { read: true, readAt: new Date() }
-    );
-
-    logger.info(`Marked ${result.modifiedCount} notifications as read for user: ${userId}`);
-
-    return result.modifiedCount;
-  }
-
-  /**
-   * Delete notification
-   */
-  async delete(tenantId: string, notificationId: string): Promise<void> {
-    const tenantConn = await getTenantConnection(tenantId);
-    const Notification = tenantConn.model<INotification>('Notification', NotificationSchema);
-
-    const result = await Notification.deleteOne({ _id: notificationId, tenantId });
-
-    if (result.deletedCount === 0) {
-      throw new NotFoundError('Notification');
-    }
-
-    logger.info(`Notification deleted: ${notificationId}`);
-  }
-
-  /**
-   * Send email notification
-   */
-  private async sendEmailNotification(
+  async updateStatus(
     tenantId: string,
-    notificationId: string,
-    emailConfig: {
-      host: string;
-      port: number;
-      secure: boolean;
-      user: string;
-      password: string;
-      fromEmail?: string;
-      replyTo?: string;
-    },
-    originalPayload: {
-      channel: NotificationChannel;
-      type: NotificationType;
-      title: string;
-      message: string;
-      userId?: string;
-      entityType?: string;
-      entityId?: string;
-      actionUrl?: string;
+    id: string,
+    status: NotificationStatus,
+    metadata?: { deliveredAt?: Date; error?: string }
+  ) {
+    const Notification = await this.notificationModel(tenantId);
+    const notification = await Notification.findById(id);
+    if (!notification) {
+      throw new NotFoundError('Notification not found');
     }
-  ): Promise<void> {
-    const tenantConn = await getTenantConnection(tenantId);
-    const Notification = tenantConn.model<INotification>('Notification', NotificationSchema);
-    const User = tenantConn.model('User');
+    notification.status = status;
+    if (metadata?.deliveredAt) notification.deliveredAt = metadata.deliveredAt;
+    if (metadata?.error) notification.lastError = metadata.error;
+    notification.lastAttemptAt = new Date();
+    notification.attempts += 1;
+    await notification.save();
+    return notification;
+  }
 
-    const notification = await Notification.findById(notificationId);
-    if (!notification || !notification.userId) return;
-
-    const user = await User.findById(notification.userId);
-    if (!user || !user.email) {
-      notification.deliveryStatus = 'failed';
-      notification.errorMessage = 'User email not found';
-      await notification.save();
-      return;
-    }
-
-    const start = Date.now();
-    const success = await emailService.sendEmail({
-      to: user.email,
-      subject: notification.title,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>${notification.title}</h2>
-          <p>${notification.message}</p>
-          ${
-            notification.actionUrl
-              ? `<a href="${notification.actionUrl}" style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px;">View Details</a>`
-              : ''
-          }
-        </div>
-      `,
-      transportOverride: {
-        host: emailConfig.host,
-        port: emailConfig.port,
-        secure: emailConfig.secure,
-        auth: {
-          user: emailConfig.user,
-          pass: emailConfig.password,
+  async upsertRoute(
+    tenantId: string,
+    payload: UpsertRoutePayload,
+    updatedBy?: string
+  ) {
+    const Route = await this.routeModel(tenantId);
+    const route = await Route.findOneAndUpdate(
+      {
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        eventKey: payload.eventKey,
+      },
+      {
+        $set: {
+          channels: payload.channels,
+          filters: payload.filters,
+          metadata: payload.metadata,
+          updatedBy: updatedBy ? new mongoose.Types.ObjectId(updatedBy) : undefined,
         },
-        from: emailConfig.fromEmail || emailConfig.user,
-        replyTo: emailConfig.replyTo,
       },
-    });
-
-    notification.deliveryStatus = success ? 'sent' : 'failed';
-    notification.sentAt = new Date();
-    if (!success) {
-      notification.errorMessage = 'Failed to send email';
-    }
-    await notification.save();
-
-    monitoringService.trackNotificationDelivery({
-      tenantId,
-      notificationId: notification._id.toString(),
-      channel: 'email',
-      durationMs: Date.now() - start,
-      success,
-      metadata: {
-        userId: user._id.toString(),
-        email: user.email,
-        configHost: emailConfig.host,
-      },
-      payload: originalPayload,
-      errorMessage: success ? undefined : notification.errorMessage,
-    });
-  }
-
-  /**
-   * Send SMS notification
-   */
-  private async sendSMSNotification(
-    tenantId: string,
-    notificationId: string,
-    smsConfig: {
-      provider: 'twilio';
-      accountSid: string;
-      authToken: string;
-      fromNumber: string;
-    },
-    originalPayload: {
-      channel: NotificationChannel;
-      type: NotificationType;
-      title: string;
-      message: string;
-      userId?: string;
-      entityType?: string;
-      entityId?: string;
-      actionUrl?: string;
-    }
-  ): Promise<void> {
-    const tenantConn = await getTenantConnection(tenantId);
-    const Notification = tenantConn.model<INotification>('Notification', NotificationSchema);
-    const User = tenantConn.model('User');
-
-    const notification = await Notification.findById(notificationId);
-    if (!notification || !notification.userId) return;
-
-    const user = await User.findById(notification.userId);
-    if (!user || !user.phone) {
-      notification.deliveryStatus = 'failed';
-      notification.errorMessage = 'User phone not found';
-      await notification.save();
-      return;
-    }
-
-    const start = Date.now();
-    const success = await smsService.sendSMS(user.phone, notification.message, {
-      provider: smsConfig.provider,
-      accountSid: smsConfig.accountSid,
-      authToken: smsConfig.authToken,
-      fromNumber: smsConfig.fromNumber,
-    });
-
-    notification.deliveryStatus = success ? 'sent' : 'failed';
-    notification.sentAt = new Date();
-    if (!success) {
-      notification.errorMessage = 'Failed to send SMS';
-    }
-    await notification.save();
-
-    monitoringService.trackNotificationDelivery({
-      tenantId,
-      notificationId: notification._id.toString(),
-      channel: 'sms',
-      durationMs: Date.now() - start,
-      success,
-      metadata: {
-        userId: user._id.toString(),
-        phone: user.phone,
-        provider: smsConfig.provider,
-      },
-      payload: originalPayload,
-      errorMessage: success ? undefined : notification.errorMessage,
-    });
-  }
-
-  /**
-   * Broadcast notification to all users
-   */
-  async broadcast(
-    tenantId: string,
-    data: {
-      type?: NotificationType;
-      channels?: NotificationChannel[];
-      title: string;
-      message: string;
-      actionUrl?: string;
-      createdBy?: string;
-    }
-  ): Promise<{ queued: number; targetCount: number }> {
-    const tenantConn = await getTenantConnection(tenantId);
-    const User = tenantConn.model('User');
-
-    // Get all active users for this tenant
-    const users = await User.find({ tenantId, status: 'active' }).select('_id');
-
-    const channels = Array.isArray(data.channels) && data.channels.length > 0
-      ? Array.from(new Set(data.channels))
-      : ['in_app'];
-
-    let queued = 0;
-
-    for (const channel of channels) {
-      for (const user of users) {
-        await this.create(tenantId, {
-          type: data.type ?? 'system',
-          channel,
-          title: data.title,
-          message: data.message,
-          actionUrl: data.actionUrl,
-          createdBy: data.createdBy,
-          userId: user._id.toString(),
-        });
-        queued += 1;
-      }
-    }
-
-    logger.info(
-      `Broadcast queued: ${queued} notifications across ${users.length} users on channels ${channels.join(
-        ', '
-      )}`
+      { new: true, upsert: true }
     );
+    return route;
+  }
+
+  async listRoutes(tenantId: string) {
+    const Route = await this.routeModel(tenantId);
+    return Route.find().sort({ eventKey: 1 });
+  }
+
+  async listInbox(
+    tenantId: string,
+    userId: string,
+    filters: ListInboxFilters = {}
+  ): Promise<{
+    records: INotificationInbox[];
+    pagination: { total: number; page: number; limit: number; totalPages: number };
+    unreadCount: number;
+  }> {
+    const Inbox = await this.inboxModel(tenantId);
+    const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const query: FilterQuery<INotificationInbox> = {
+      tenantId: tenantObjectId,
+      userId: userObjectId,
+    };
+
+    if (!filters.includeArchived) {
+      query.archived = false;
+    }
+    if (typeof filters.read === 'boolean') {
+      query.read = filters.read;
+    }
+    if (filters.channel) {
+      query.channels = filters.channel;
+    }
+    if (filters.search) {
+      query.$or = [
+        { title: { $regex: filters.search, $options: 'i' } },
+        { message: { $regex: filters.search, $options: 'i' } },
+        { eventKey: { $regex: filters.search, $options: 'i' } },
+      ];
+    }
+
+    const limit = Math.min(filters.limit ?? 25, 100);
+    const page = Math.max(filters.page ?? 1, 1);
+
+    const [records, total, unreadCount] = await Promise.all([
+      Inbox.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      Inbox.countDocuments(query),
+      Inbox.countDocuments({
+        tenantId: tenantObjectId,
+        userId: userObjectId,
+        read: false,
+        archived: false,
+      }),
+    ]);
 
     return {
-      queued,
-      targetCount: users.length,
+      records,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+      unreadCount,
     };
+  }
+
+  async markInboxRead(tenantId: string, userId: string, id: string, read = true) {
+    const Inbox = await this.inboxModel(tenantId);
+    const item = await Inbox.findOneAndUpdate(
+      {
+        _id: id,
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        userId: new mongoose.Types.ObjectId(userId),
+      },
+      {
+        $set: {
+          read,
+          readAt: read ? new Date() : undefined,
+        },
+      },
+      { new: true }
+    );
+
+    if (!item) {
+      throw new NotFoundError('Inbox notification not found');
+    }
+
+    return item;
+  }
+
+  async markAllInboxRead(tenantId: string, userId: string): Promise<number> {
+    const Inbox = await this.inboxModel(tenantId);
+    const result = await Inbox.updateMany(
+      {
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        userId: new mongoose.Types.ObjectId(userId),
+        read: false,
+        archived: false,
+      },
+      {
+        $set: {
+          read: true,
+          readAt: new Date(),
+        },
+      }
+    );
+    return result.modifiedCount ?? 0;
+  }
+
+  async removeInboxItem(tenantId: string, userId: string, id: string): Promise<void> {
+    const Inbox = await this.inboxModel(tenantId);
+    const result = await Inbox.updateOne(
+      {
+        _id: id,
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        userId: new mongoose.Types.ObjectId(userId),
+      },
+      { $set: { archived: true } }
+    );
+
+    if (result.matchedCount === 0) {
+      throw new NotFoundError('Inbox notification not found');
+    }
   }
 
   async getPreferences(tenantId: string, userId: string) {
-    const tenantConn = await getTenantConnection(tenantId);
-    const User = tenantConn.model('User');
-
-    const user = await User.findById(userId).select('notificationPreferences');
-    if (!user) {
-      logger.warn(
-        `Notification preferences requested for missing user ${userId} (tenant ${tenantId}); returning defaults.`
-      );
-      return this.getDefaultPreferences();
-    }
-
-    if (!user.notificationPreferences) {
-      const defaults = this.getDefaultPreferences();
-      user.notificationPreferences = defaults;
-      await user.save();
-      return defaults;
-    }
-
-    const preferences = user.notificationPreferences;
-    const defaults = this.getDefaultPreferences();
-    return {
-      inApp: preferences.inApp ?? defaults.inApp,
-      email: preferences.email ?? defaults.email,
-      sms: preferences.sms ?? defaults.sms,
-      push: preferences.push ?? defaults.push,
-      types: {
-        sale: preferences.types?.sale ?? defaults.types.sale,
-        payment: preferences.types?.payment ?? defaults.types.payment,
-        inventory: preferences.types?.inventory ?? defaults.types.inventory,
-        order: preferences.types?.order ?? defaults.types.order,
-        customer: preferences.types?.customer ?? defaults.types.customer,
-        alert: preferences.types?.alert ?? defaults.types.alert,
-        reminder: preferences.types?.reminder ?? defaults.types.reminder,
-      },
-    };
+    const Preference = await this.preferenceModel(tenantId);
+    const preference =
+      (await Preference.findOne({
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        userId: new mongoose.Types.ObjectId(userId),
+      })) ??
+      (await Preference.create({
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        userId: new mongoose.Types.ObjectId(userId),
+      }));
+    return preference;
   }
 
   async updatePreferences(
     tenantId: string,
     userId: string,
-    preferences: {
-      inApp?: boolean;
-      email?: boolean;
-      sms?: boolean;
-      push?: boolean;
-      types?: Partial<{
-        sale: boolean;
-        payment: boolean;
-        inventory: boolean;
-        order: boolean;
-        customer: boolean;
-        alert: boolean;
-        reminder: boolean;
-      }>;
-    }
+    payload: UpdatePreferencesPayload
   ) {
-    const tenantConn = await getTenantConnection(tenantId);
-    const User = tenantConn.model('User');
-
-    const user = await User.findById(userId).select('notificationPreferences');
-    if (!user) {
-      logger.warn(
-        `Notification preferences update attempted for missing user ${userId} (tenant ${tenantId}); persisting defaults.`
-      );
-      const defaults = this.getDefaultPreferences();
-      return {
-        ...defaults,
-        inApp: preferences.inApp ?? defaults.inApp,
-        email: preferences.email ?? defaults.email,
-        sms: preferences.sms ?? defaults.sms,
-        push: preferences.push ?? defaults.push,
-        types: {
-          ...defaults.types,
-          ...preferences.types,
-        },
-      };
-    }
-
-    const current = await this.getPreferences(tenantId, userId);
-    const updated = {
-      ...current,
-      inApp: preferences.inApp ?? current.inApp,
-      email: preferences.email ?? current.email,
-      sms: preferences.sms ?? current.sms,
-      push: preferences.push ?? current.push,
-      types: {
-        ...current.types,
-        ...preferences.types,
+    const Preference = await this.preferenceModel(tenantId);
+    const preference = await Preference.findOneAndUpdate(
+      {
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        userId: new mongoose.Types.ObjectId(userId),
       },
-    };
-
-    user.notificationPreferences = updated;
-    await user.save();
-
-    logger.info(`Notification preferences updated for user ${userId}`);
-
-    return updated;
+      {
+        $set: {
+          channels: payload.channels,
+        },
+      },
+      { new: true, upsert: true }
+    );
+    return preference;
   }
 
-  private mapTypeToPreferenceKey(type: NotificationType): PreferenceTypeKey | null {
-    switch (type) {
-      case 'sale':
-      case 'payment':
-      case 'inventory':
-      case 'order':
-      case 'customer':
-      case 'alert':
-      case 'reminder':
-        return type;
-      default:
-        return null;
+  private async dispatchNotification(tenantId: string, notification: INotification) {
+    const recipients = notification.recipients ?? [];
+    const preferences = await this.getRecipientPreferencesMap(tenantId, recipients);
+
+    let successCount = 0;
+    let lastError: string | undefined;
+
+    for (const channel of notification.channels) {
+      const adapter = channelAdapters[channel];
+      if (!adapter) {
+        logger.warn(`No adapter registered for channel ${channel}`);
+        continue;
+      }
+
+      for (const recipient of recipients) {
+        if (this.shouldSkipRecipientChannel(channel, recipient, preferences)) {
+          continue;
+        }
+
+        try {
+          const result = await adapter.send({
+            tenantId,
+            notification,
+            recipient,
+          });
+          if (result.success) {
+            successCount += 1;
+          } else {
+            lastError = result.error;
+          }
+        } catch (error) {
+          lastError = error instanceof Error ? error.message : 'Unknown provider error';
+          logger.error(`Failed to dispatch ${channel} notification`, {
+            notificationId: notification._id,
+            error: lastError,
+          });
+        }
+      }
     }
+
+    notification.attempts += 1;
+    notification.lastAttemptAt = new Date();
+    if (successCount > 0) {
+      notification.status = 'delivered';
+      notification.deliveredAt = new Date();
+      notification.lastError = undefined;
+    } else {
+      notification.status = 'failed';
+      notification.lastError = lastError ?? 'No valid recipients';
+    }
+    await notification.save();
   }
 
-  private async evaluateDelivery(
+  private async getRecipientPreferencesMap(
     tenantId: string,
-    userId: string | undefined,
-    type: NotificationType,
-    channel: NotificationChannel
-  ): Promise<{
-    allowed: boolean;
-    reason?: string;
-    emailConfig?: {
-      host: string;
-      port: number;
-      secure: boolean;
-      user: string;
-      password: string;
-      fromEmail?: string;
-      replyTo?: string;
-    };
-    smsConfig?: {
-      provider: 'twilio';
-      accountSid: string;
-      authToken: string;
-      fromNumber: string;
-    };
-  }> {
-    const decision: {
-      allowed: boolean;
-      reason?: string;
-      emailConfig?: {
-        host: string;
-        port: number;
-        secure: boolean;
-        user: string;
-        password: string;
-        fromEmail?: string;
-        replyTo?: string;
-      };
-      smsConfig?: {
-        provider: 'twilio';
-        accountSid: string;
-        authToken: string;
-        fromNumber: string;
-      };
-    } = { allowed: true };
-
-    const typeKey = this.mapTypeToPreferenceKey(type);
-    const preferences = userId ? await this.getPreferences(tenantId, userId) : null;
-
-    if (channel === 'in_app') {
-      const channelEnabled = preferences ? preferences.inApp : true;
-      const typeEnabled =
-        !typeKey || !preferences ? true : preferences.types?.[typeKey] ?? true;
-
-      if (!channelEnabled) {
-        return { allowed: false, reason: 'In-app notifications disabled by user preference' };
-      }
-
-      if (!typeEnabled) {
-        return {
-          allowed: false,
-          reason: `User disabled ${type} notifications in preferences`,
-        };
-      }
-
-      return decision;
+    recipients: INotification['recipients']
+  ) {
+    const userIds = recipients
+      .map((recipient) => recipient.user?.toString())
+      .filter((value): value is string => Boolean(value));
+    if (userIds.length === 0) {
+      return new Map<string, INotificationPreference>();
     }
-
-    if (channel === 'push') {
-      const channelEnabled = preferences ? preferences.push : false;
-      const typeEnabled =
-        !typeKey || !preferences ? true : preferences.types?.[typeKey] ?? true;
-
-      if (!channelEnabled) {
-        return { allowed: false, reason: 'Push notifications disabled by user preference' };
-      }
-
-      if (!typeEnabled) {
-        return {
-          allowed: false,
-          reason: `User disabled ${type} notifications in preferences`,
-        };
-      }
-
-      return decision;
-    }
-
-    if (channel === 'email') {
-      const channelEnabled = preferences ? preferences.email : true;
-      const typeEnabled =
-        !typeKey || !preferences ? true : preferences.types?.[typeKey] ?? true;
-
-      if (!channelEnabled) {
-        return { allowed: false, reason: 'Email notifications disabled by user preference' };
-      }
-
-      if (!typeEnabled) {
-        return {
-          allowed: false,
-          reason: `User disabled ${type} notifications in preferences`,
-        };
-      }
-    }
-
-    if (channel === 'sms') {
-      const channelEnabled = preferences ? preferences.sms : true;
-      const typeEnabled =
-        !typeKey || !preferences ? true : preferences.types?.[typeKey] ?? true;
-
-      if (!channelEnabled) {
-        return { allowed: false, reason: 'SMS notifications disabled by user preference' };
-      }
-
-      if (!typeEnabled) {
-        return {
-          allowed: false,
-          reason: `User disabled ${type} notifications in preferences`,
-        };
-      }
-    }
-
-    const communication = await this.getRawCommunicationConfig(tenantId);
-
-    if (channel === 'email') {
-      if (!communication.emailNotifications || !communication.emailConfig.enabled) {
-        return {
-          allowed: false,
-          reason: 'Email notifications disabled in tenant communication settings',
-        };
-      }
-
-      const emailConfig = communication.emailConfig;
-      if (!emailConfig.host || !emailConfig.user || !emailConfig.password) {
-        return {
-          allowed: false,
-          reason: 'Email configuration incomplete (host/user/password required)',
-        };
-      }
-
-      decision.emailConfig = {
-        host: emailConfig.host,
-        port: emailConfig.port ?? 587,
-        secure: emailConfig.secure ?? false,
-        user: emailConfig.user,
-        password: emailConfig.password,
-        fromEmail: emailConfig.fromEmail,
-        replyTo: emailConfig.replyTo,
-      };
-    }
-
-    if (channel === 'sms') {
-      if (!communication.smsNotifications || !communication.smsConfig.enabled) {
-        return {
-          allowed: false,
-          reason: 'SMS notifications disabled in tenant communication settings',
-        };
-      }
-
-      const smsConfig = communication.smsConfig;
-      if (!smsConfig.accountSid || !smsConfig.authToken || !smsConfig.fromNumber) {
-        return {
-          allowed: false,
-          reason: 'SMS configuration incomplete (account SID/auth token/from number required)',
-        };
-      }
-
-      decision.smsConfig = {
-        provider: smsConfig.provider,
-        accountSid: smsConfig.accountSid,
-        authToken: smsConfig.authToken,
-        fromNumber: smsConfig.fromNumber,
-      };
-    }
-
-    return decision;
+    const Preference = await this.preferenceModel(tenantId);
+    const docs = await Preference.find({
+      userId: { $in: userIds.map((id) => new mongoose.Types.ObjectId(id)) },
+    });
+    const map = new Map<string, INotificationPreference>();
+    docs.forEach((doc) => map.set(doc.userId.toString(), doc));
+    return map;
   }
 
-  private async getRawCommunicationConfig(tenantId: string) {
-    const settings = await this.settingsService.getSettings(tenantId, 'Main Store');
-    const notifications = settings.notifications;
-    return {
-      emailNotifications: notifications.emailNotifications ?? false,
-      smsNotifications: notifications.smsNotifications ?? false,
-      emailConfig: notifications.emailConfig || ({} as ISettings['notifications']['emailConfig']),
-      smsConfig: notifications.smsConfig || ({} as ISettings['notifications']['smsConfig']),
+  private shouldSkipRecipientChannel(
+    channel: NotificationChannel,
+    recipient: INotification['recipients'][number],
+    preferences: Map<string, INotificationPreference>
+  ) {
+    if (!recipient.user) return false;
+    const preference = preferences.get(recipient.user.toString());
+    if (!preference) return false;
+    const channelPref = preference.channels?.[channel];
+    if (channelPref && channelPref.enabled === false) {
+      return true;
+    }
+    if (channelPref?.quietHours && this.isWithinQuietHours(channelPref.quietHours)) {
+      return true;
+    }
+    return false;
+  }
+
+  private isWithinQuietHours(range?: { start?: string; end?: string }) {
+    if (!range?.start || !range?.end) return false;
+    const parseMinutes = (value: string) => {
+      const [hours, minutes] = value.split(':').map((part) => parseInt(part, 10));
+      if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+      return hours * 60 + minutes;
     };
+    const start = parseMinutes(range.start);
+    const end = parseMinutes(range.end);
+    if (start === null || end === null) return false;
+
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    if (start <= end) {
+      return currentMinutes >= start && currentMinutes <= end;
+    }
+    return currentMinutes >= start || currentMinutes <= end;
+  }
+
+  private getInboxTitle(notification: INotification): string {
+    if (typeof notification.metadata?.title === 'string') {
+      return notification.metadata.title;
+    }
+    if (typeof notification.payload?.title === 'string') {
+      return notification.payload.title;
+    }
+    const parts = notification.eventKey.split(/[\._]/).filter(Boolean);
+    return parts.length
+      ? parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+      : 'Notification';
+  }
+
+  private getInboxMessage(notification: INotification): string {
+    if (typeof notification.metadata?.message === 'string') {
+      return notification.metadata.message;
+    }
+    if (typeof notification.payload?.message === 'string') {
+      return notification.payload.message;
+    }
+    try {
+      return JSON.stringify(notification.payload ?? {}, null, 2);
+    } catch (error) {
+      return 'Notification triggered';
+    }
+  }
+
+  private getInboxSeverity(notification: INotification): NotificationSeverity {
+    const severity =
+      (notification.metadata?.severity as NotificationSeverity | undefined) ??
+      (notification.payload?.severity as NotificationSeverity | undefined);
+    if (severity && ['info', 'success', 'warning', 'error'].includes(severity)) {
+      return severity;
+    }
+    return 'info';
+  }
+
+  private async createInboxEntries(tenantId: string, notification: INotification) {
+    if (!notification.recipients?.length) {
+      return;
+    }
+
+    const Inbox = await this.inboxModel(tenantId);
+    const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
+    const title = this.getInboxTitle(notification);
+    const message = this.getInboxMessage(notification);
+    const severity = this.getInboxSeverity(notification);
+
+    const entries = notification.recipients
+      .filter((recipient) => recipient.user)
+      .map((recipient) => ({
+        tenantId: tenantObjectId,
+        userId: recipient.user as mongoose.Types.ObjectId,
+        notificationId: notification._id,
+        eventKey: notification.eventKey,
+        title,
+        message,
+        channels: notification.channels,
+        payload: notification.payload,
+        metadata: notification.metadata,
+        actionUrl:
+          (notification.metadata?.actionUrl as string | undefined) ??
+          (notification.payload?.actionUrl as string | undefined),
+        severity,
+        read: notification.inboxOnly ? true : false,
+        readAt: notification.inboxOnly ? new Date() : undefined,
+        deliveredAt: notification.deliveredAt ?? new Date(),
+        archived: false,
+      }));
+
+    if (!entries.length) {
+      return;
+    }
+
+    await Inbox.insertMany(entries, { ordered: false }).catch((error) => {
+      logger.error('Failed to insert inbox entries', error);
+    });
+
+    const uniqueUserIds = Array.from(new Set(entries.map((entry) => entry.userId.toString())));
+    await Promise.all(
+      uniqueUserIds.map((userId) => this.enforceInboxLimit(tenantId, userId, Inbox))
+    );
+  }
+
+  private async enforceInboxLimit(
+    tenantId: string,
+    userId: string,
+    Inbox?: mongoose.Model<INotificationInbox>
+  ) {
+    const Model = Inbox ?? (await this.inboxModel(tenantId));
+    const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    const count = await Model.countDocuments({
+      tenantId: tenantObjectId,
+      userId: userObjectId,
+      archived: false,
+    });
+
+    if (count <= this.INBOX_USER_LIMIT) {
+      return;
+    }
+
+    const excess = count - this.INBOX_USER_LIMIT;
+    const staleItems = await Model.find({
+      tenantId: tenantObjectId,
+      userId: userObjectId,
+      archived: false,
+    })
+      .sort({ createdAt: 1 })
+      .limit(excess)
+      .select('_id');
+
+    if (!staleItems.length) {
+      return;
+    }
+
+    await Model.updateMany(
+      { _id: { $in: staleItems.map((item) => item._id) } },
+      { $set: { archived: true } }
+    );
   }
 }
 

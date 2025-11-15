@@ -5,6 +5,11 @@ import { StoreSchema } from '../models/store.model';
 import { ProductSchema } from '../models/product.model';
 import { VendorSchema } from '../models/vendor.model';
 import { CustomerSchema } from '../models/customer.model';
+import {
+  NotificationTemplateSchema,
+  INotificationTemplate,
+} from '../models/notificationTemplate.model';
+import { NotificationChannel } from '../models/notification.model';
 
 type CategoryFixture = {
   name: string;
@@ -79,6 +84,19 @@ type CustomerFixture = {
   totalSpent?: number;
   tags?: string[];
   notes?: string;
+};
+
+type NotificationTemplateFixture = {
+  name: string;
+  key: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  channels: NotificationChannel[];
+  subject?: string;
+  content: string;
+  samplePayload?: Record<string, unknown>;
+  changeSummary?: string;
 };
 
 const categoryFixtures: CategoryFixture[] = [
@@ -281,6 +299,104 @@ const customerFixtures: CustomerFixture[] = [
   },
 ];
 
+const notificationTemplateFixtures: NotificationTemplateFixture[] = [
+  {
+    name: 'Stock Transfer Approved',
+    key: 'str_approved',
+    description: 'Notify receiving stores when a stock transfer is approved.',
+    category: 'inventory',
+    tags: ['stock', 'workflow', 'transfer'],
+    channels: ['email', 'in_app'],
+    subject: 'Stock Transfer {{reference}} approved',
+    content: `Hi {{toStore.name}},
+
+The stock transfer **{{reference}}** from **{{fromStore.name}}** has been approved.
+
+**Summary**
+- Priority: {{priority}}
+- Total Items: {{items.length}}
+- Requested By: {{requestedBy.name}}
+- Approved By: {{approvedBy.name}}
+
+Please prepare to receive the shipment.
+
+Thanks,
+Inventory Control`,
+    samplePayload: {
+      reference: 'STR-2025-00045',
+      priority: 'High',
+      fromStore: { name: 'Downtown Flagship' },
+      toStore: { name: 'Warehouse & Fulfillment' },
+      requestedBy: { name: 'Jamie Lee' },
+      approvedBy: { name: 'Morgan Wu' },
+      items: [{ name: 'Wireless Headphones' }, { name: 'Smart LED Desk Lamp' }],
+    },
+    changeSummary: 'Initial STR approval template',
+  },
+  {
+    name: 'Physical Audit Scheduled',
+    key: 'physical_audit_scheduled',
+    description: 'Alerts assigned counters when a physical audit is scheduled.',
+    category: 'inventory',
+    tags: ['audit', 'operations'],
+    channels: ['email', 'sms', 'in_app'],
+    subject: 'Physical audit scheduled for {{store.name}} on {{scheduledFor}}',
+    content: `Hello {{counterName}},
+
+A physical audit has been scheduled.
+
+**Details**
+- Store: {{store.name}}
+- Scheduled For: {{scheduledFor}}
+- Type: {{type}}
+- Instructions: {{instructions}}
+
+Please confirm availability and review assigned areas.
+
+Audit Control`,
+    samplePayload: {
+      counterName: 'Alicia Owens',
+      store: { name: 'Downtown Flagship' },
+      scheduledFor: '2025-02-12 08:00',
+      type: 'cycle_count',
+      instructions: 'Focus on high-value electronics and accessories.',
+    },
+    changeSummary: 'Initial audit scheduling template',
+  },
+  {
+    name: 'Report Schedule Complete',
+    key: 'report_schedule_complete',
+    description: 'Confirms when an automated report run finishes.',
+    category: 'analytics',
+    tags: ['reports', 'schedules'],
+    channels: ['email', 'webhook'],
+    subject: 'Report "{{reportName}}" generated',
+    content: `Hi {{recipientName}},
+
+Your scheduled report "{{reportName}}" has finished running.
+
+**Run Info**
+- Schedule: {{scheduleName}}
+- Format: {{format}}
+- Status: {{status}}
+- Record Count: {{recordCount}}
+
+Download: {{downloadUrl}}
+
+Reporting Engine`,
+    samplePayload: {
+      recipientName: 'Ops Manager',
+      reportName: 'Daily Sales Pulse',
+      scheduleName: 'Morning Snapshot',
+      format: 'PDF',
+      status: 'Success',
+      recordCount: 128,
+      downloadUrl: 'https://demo.genzi.app/reports/download/abc123',
+    },
+    changeSummary: 'Initial report delivery template',
+  },
+];
+
 interface SeedOptions {
   tenantId: string;
   userId: string;
@@ -296,6 +412,10 @@ export const seedTenantSampleData = async (
     const Product = connection.model('Product', ProductSchema);
     const Vendor = connection.model('Vendor', VendorSchema);
     const Customer = connection.model('Customer', CustomerSchema);
+    const NotificationTemplate = connection.model<INotificationTemplate>(
+      'NotificationTemplate',
+      NotificationTemplateSchema
+    );
 
     const tenantObjectId = new Types.ObjectId(options.tenantId);
     const userObjectId = new Types.ObjectId(options.userId);
@@ -432,6 +552,42 @@ export const seedTenantSampleData = async (
         tags: customer.tags,
         isActive: true,
         createdBy: userObjectId,
+      });
+    }
+
+    // Notification Templates
+    for (const template of notificationTemplateFixtures) {
+      const existingTemplate = await NotificationTemplate.findOne({
+        tenantId: tenantObjectId,
+        key: template.key,
+      });
+      if (existingTemplate) continue;
+
+      await NotificationTemplate.create({
+        tenantId: tenantObjectId,
+        name: template.name,
+        key: template.key,
+        description: template.description,
+        category: template.category,
+        tags: template.tags ?? [],
+        channels: template.channels,
+        defaultSubject: template.subject,
+        samplePayload: template.samplePayload ?? {},
+        currentVersion: 1,
+        versions: [
+          {
+            version: 1,
+            channels: template.channels,
+            subject: template.subject,
+            content: template.content,
+            variables: [],
+            changeSummary: template.changeSummary ?? 'Initial seed version',
+            createdBy: userObjectId,
+            createdAt: new Date(),
+          },
+        ],
+        createdBy: userObjectId,
+        updatedBy: userObjectId,
       });
     }
 

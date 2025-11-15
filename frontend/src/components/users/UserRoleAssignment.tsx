@@ -41,6 +41,7 @@ export default function UserRoleAssignment({
       toast.success('Role assigned successfully');
       queryClient.invalidateQueries({ queryKey: ['user-roles', userId] });
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users-for-assignments'] });
       setSelectedRoleId('');
       setExpiresAt('');
     },
@@ -55,6 +56,7 @@ export default function UserRoleAssignment({
       toast.success('Role removed successfully');
       queryClient.invalidateQueries({ queryKey: ['user-roles', userId] });
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users-for-assignments'] });
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.error?.message || 'Failed to remove role');

@@ -1,374 +1,188 @@
-import { Response, NextFunction } from 'express';
-import { TenantRequest } from '../types';
-import { notificationService } from '../services/notification.service';
-import { emailService } from '../utils/email';
-import { smsService } from '../utils/sms';
-import { sendSuccess } from '../utils/response';
+import { Response } from 'express';
+import { body, param, query } from 'express-validator';
 import { asyncHandler } from '../middleware/error.middleware';
-import { SettingsService } from '../services/settings.service';
-import { monitoringService } from '../utils/monitoring';
+import { TenantRequest } from '../types';
+import { validate } from '../middleware/validation.middleware';
+import {
+  notificationService,
+  CreateNotificationPayload,
+  ListNotificationFilters,
+  UpsertRoutePayload,
+  UpdatePreferencesPayload,
+  ListInboxFilters,
+} from '../services/notification.service';
+import { NotificationChannel, NotificationStatus } from '../models/notification.model';
+import { successResponse } from '../utils/response';
+
+export const notificationValidations = {
+  listInbox: [
+    query('read').optional().isBoolean().toBoolean(),
+    query('channel').optional().isIn(['email', 'sms', 'webhook', 'in_app']),
+    query('search').optional().isString().trim(),
+    query('includeArchived').optional().isBoolean().toBoolean(),
+    query('page').optional().isInt({ min: 1 }),
+    query('limit').optional().isInt({ min: 1, max: 100 }),
+    validate,
+  ],
+  list: [
+    query('status')
+      .optional()
+      .isIn(['pending', 'scheduled', 'sending', 'delivered', 'failed', 'cancelled']),
+    query('eventKey').optional().isString(),
+    query('channel').optional().isIn(['email', 'sms', 'webhook', 'in_app']),
+    query('limit').optional().isInt({ min: 1, max: 100 }),
+    query('page').optional().isInt({ min: 1 }),
+    validate,
+  ],
+  markInboxRead: [param('id').isMongoId(), body('read').optional().isBoolean(), validate],
+  deleteInbox: [param('id').isMongoId(), validate],
+  create: [
+    body('eventKey').isString().notEmpty(),
+    body('channels').isArray({ min: 1 }),
+    body('channels.*').isIn(['email', 'sms', 'webhook', 'in_app']),
+    body('recipients').isArray({ min: 1 }),
+    body('recipients.*.email').optional().isEmail(),
+    body('recipients.*.phone').optional().isString(),
+    body('recipients.*.webhookUrl').optional().isString(),
+    validate,
+  ],
+  updateStatus: [
+    param('id').isMongoId(),
+    body('status')
+      .isIn(['pending', 'scheduled', 'sending', 'delivered', 'failed', 'cancelled']),
+    body('error').optional().isString(),
+    body('deliveredAt').optional().isISO8601(),
+    validate,
+  ],
+  upsertRoute: [
+    body('eventKey').isString().notEmpty(),
+    body('channels').isArray({ min: 1 }),
+    body('channels.*.channel').isIn(['email', 'sms', 'webhook', 'in_app']),
+    body('channels.*.enabled').isBoolean(),
+    body('channels.*.quietHours.start').optional().isString(),
+    body('channels.*.quietHours.end').optional().isString(),
+    body('channels.*.fallback').optional().isArray(),
+    body('channels.*.fallback.*').isIn(['email', 'sms', 'webhook', 'in_app']),
+    validate,
+  ],
+  updatePreferences: [
+    body('channels').isObject(),
+    body('channels.email').optional().isObject(),
+    body('channels.email.enabled').optional().isBoolean(),
+    body('channels.email.quietHours.start').optional().isString(),
+    body('channels.email.quietHours.end').optional().isString(),
+    body('channels.sms').optional().isObject(),
+    body('channels.webhook').optional().isObject(),
+    body('channels.in_app').optional().isObject(),
+    validate,
+  ],
+};
 
 export class NotificationController {
-  private settingsService = new SettingsService();
+  listInbox = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const { id: userId } = req.user!;
+    const filters = req.query as Partial<ListInboxFilters>;
+    const data = await notificationService.listInbox(tenantId, userId, filters);
+    res.json(successResponse(data, 'Inbox notifications fetched'));
+  });
 
-  /**
-   * Get all notifications for current user
-   * GET /api/notifications
-   */
-  getAll = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const userId = req.user!.id;
-    const { type, read, page, limit } = req.query;
+  listNotifications = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const filters = req.query as Partial<ListNotificationFilters>;
+    const data = await notificationService.listNotifications(tenantId, {
+      status: filters.status as NotificationStatus | undefined,
+      eventKey: filters.eventKey as string,
+      channel: filters.channel as NotificationChannel | undefined,
+      limit: filters.limit ? Number(filters.limit) : undefined,
+      page: filters.page ? Number(filters.page) : undefined,
+    });
+    res.json(successResponse(data, 'Notifications fetched'));
+  });
 
-    const filters = {
-      type: type as any,
-      read: read === 'true' ? true : read === 'false' ? false : undefined,
-      page: page ? parseInt(page as string) : undefined,
-      limit: limit ? parseInt(limit as string) : undefined,
+  createNotification = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const { id: userId } = req.user!;
+    const payload = req.body as CreateNotificationPayload;
+    const notification = await notificationService.createNotification(tenantId, payload, userId);
+    res.status(201).json(successResponse(notification, 'Notification queued'));
+  });
+
+  updateStatus = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const { id } = req.params;
+    const { status, deliveredAt, error } = req.body as {
+      status: NotificationStatus;
+      deliveredAt?: string;
+      error?: string;
     };
-
-    const result = await notificationService.getAll(tenantId, userId, filters);
-
-    sendSuccess(res, result, 'Notifications retrieved successfully');
-  });
-
-  /**
-   * Get notification by ID
-   * GET /api/notifications/:id
-   */
-  getById = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const { id } = req.params;
-
-    const notification = await notificationService.getById(tenantId, id);
-
-    sendSuccess(res, { notification }, 'Notification retrieved successfully');
-  });
-
-  /**
-   * Create notification
-   * POST /api/notifications
-   */
-  create = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const userId = req.user!.id;
-
-    const notification = await notificationService.create(tenantId, {
-      ...req.body,
-      createdBy: userId,
+    const notification = await notificationService.updateStatus(tenantId, id, status, {
+      deliveredAt: deliveredAt ? new Date(deliveredAt) : undefined,
+      error,
     });
-
-    sendSuccess(res, { notification }, 'Notification created successfully', 201);
+    res.json(successResponse(notification, 'Notification status updated'));
   });
 
-  /**
-   * Mark notification as read
-   * PATCH /api/notifications/:id/read
-   */
-  markAsRead = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const { id } = req.params;
-
-    const notification = await notificationService.markAsRead(tenantId, id);
-
-    sendSuccess(res, { notification }, 'Notification marked as read');
+  listRoutes = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const routes = await notificationService.listRoutes(tenantId);
+    res.json(successResponse(routes, 'Notification routes fetched'));
   });
 
-  /**
-   * Mark all notifications as read
-   * PATCH /api/notifications/read-all
-   */
-  markAllAsRead = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const userId = req.user!.id;
-
-    const count = await notificationService.markAllAsRead(tenantId, userId);
-
-    sendSuccess(res, { count }, `${count} notifications marked as read`);
-  });
-
-  /**
-   * Delete notification
-   * DELETE /api/notifications/:id
-   */
-  delete = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const { id } = req.params;
-
-    await notificationService.delete(tenantId, id);
-
-    sendSuccess(res, null, 'Notification deleted successfully');
-  });
-
-  /**
-   * Send email
-   * POST /api/notifications/email
-   */
-  sendEmail = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const { to, subject, html, text } = req.body;
-
-    const settings = await this.settingsService.getSettings(tenantId, req.tenant?.name || 'Store');
-    const emailConfig = settings.notifications?.emailConfig;
-
-    if (
-      !settings.notifications?.emailNotifications ||
-      !emailConfig?.enabled ||
-      !emailConfig.host ||
-      !emailConfig.user ||
-      !emailConfig.password
-    ) {
-      return sendSuccess(
-        res,
-        { sent: false },
-        'Email configuration is disabled or incomplete. Please update communication settings.'
-      );
-    }
-
-    const success = await emailService.sendEmail({
-      to,
-      subject,
-      html,
-      text,
-      transportOverride: {
-        host: emailConfig.host,
-        port: emailConfig.port ?? 587,
-        secure: emailConfig.secure ?? false,
-        auth: {
-          user: emailConfig.user,
-          pass: emailConfig.password,
-        },
-        from: emailConfig.fromEmail,
-        replyTo: emailConfig.replyTo,
-      },
-    });
-
-    sendSuccess(
-      res,
-      { sent: success },
-      success ? 'Email sent successfully' : 'Failed to send email'
-    );
-  });
-
-  /**
-   * Send SMS
-   * POST /api/notifications/sms
-   */
-  sendSMS = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const { to, message } = req.body;
-
-    const settings = await this.settingsService.getSettings(tenantId, req.tenant?.name || 'Store');
-    const smsConfig = settings.notifications?.smsConfig;
-
-    if (
-      !settings.notifications?.smsNotifications ||
-      !smsConfig?.enabled ||
-      !smsConfig.accountSid ||
-      !smsConfig.authToken ||
-      !smsConfig.fromNumber
-    ) {
-      return sendSuccess(
-        res,
-        { sent: false },
-        'SMS configuration is disabled or incomplete. Please update communication settings.'
-      );
-    }
-
-    const success = await smsService.sendSMS(to, message, {
-      provider: smsConfig.provider || 'twilio',
-      accountSid: smsConfig.accountSid,
-      authToken: smsConfig.authToken,
-      fromNumber: smsConfig.fromNumber,
-    });
-
-    sendSuccess(res, { sent: success }, success ? 'SMS sent successfully' : 'Failed to send SMS');
-  });
-
-  /**
-   * Broadcast notification
-   * POST /api/notifications/broadcast
-   */
-  broadcast = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const userId = req.user!.id;
-
-    const { title, message, type, channels, actionUrl } = req.body;
-
-    const result = await notificationService.broadcast(tenantId, {
-      title,
-      message,
-      type,
-      channels,
-      actionUrl,
-      createdBy: userId,
-    });
-
-    sendSuccess(
-      res,
-      result,
-      `Broadcast queued: ${result.queued} message(s) across ${result.targetCount} users`
-    );
-  });
-
-  /**
-   * Test email configuration
-   * POST /api/notifications/test-email
-   */
-  testEmail = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const userId = req.user!.id;
-    const { email } = req.body;
-
-    const settings = await this.settingsService.getSettings(tenantId, req.tenant?.name || 'Store');
-    const emailConfig = settings.notifications?.emailConfig;
-
-    if (
-      !settings.notifications?.emailNotifications ||
-      !emailConfig?.enabled ||
-      !emailConfig.host ||
-      !emailConfig.user ||
-      !emailConfig.password
-    ) {
-      monitoringService.trackNotificationTest({
-        tenantId,
-        channel: 'email',
-        success: false,
-        target: email,
-        errorMessage: 'config_incomplete',
-      });
-      return sendSuccess(
-        res,
-        { success: false },
-        'Email configuration is disabled or incomplete. Please update communication settings.'
-      );
-    }
-
-    const success = await emailService.sendEmail({
-      to: email,
-      subject: 'Test Email - Genzi RMS',
-      html: '<h1>✅ Email Configuration Test Successful!</h1><p>Your email settings are working correctly.</p>',
-      transportOverride: {
-        host: emailConfig.host,
-        port: emailConfig.port ?? 587,
-        secure: emailConfig.secure ?? false,
-        auth: {
-          user: emailConfig.user,
-          pass: emailConfig.password,
-        },
-        from: emailConfig.fromEmail,
-        replyTo: emailConfig.replyTo,
-      },
-    });
-
-    emailConfig.lastTestedAt = new Date();
-    emailConfig.lastTestResult = success ? 'success' : 'failure';
-    settings.updatedBy = userId as any;
-    settings.markModified?.('notifications');
-    await settings.save();
-
-    monitoringService.trackNotificationTest({
+  upsertRoute = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const { id: userId } = req.user!;
+    const route = await notificationService.upsertRoute(
       tenantId,
-      channel: 'email',
-      success,
-      target: email,
-      errorMessage: success ? undefined : 'delivery_failed',
-    });
-
-    sendSuccess(
-      res,
-      { success },
-      success ? 'Test email sent successfully' : 'Failed to send test email'
+      req.body as UpsertRoutePayload,
+      userId
     );
+    res.json(successResponse(route, 'Notification route saved'));
   });
 
-  /**
-   * Test SMS configuration
-   * POST /api/notifications/test-sms
-   */
-  testSMS = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const userId = req.user!.id;
-    const { phone } = req.body;
+  getPreferences = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const { id: userId } = req.user!;
+    const preference = await notificationService.getPreferences(tenantId, userId);
+    res.json(successResponse(preference, 'Notification preferences loaded'));
+  });
 
-    const settings = await this.settingsService.getSettings(tenantId, req.tenant?.name || 'Store');
-    const smsConfig = settings.notifications?.smsConfig;
-
-    if (
-      !settings.notifications?.smsNotifications ||
-      !smsConfig?.enabled ||
-      !smsConfig.accountSid ||
-      !smsConfig.authToken ||
-      !smsConfig.fromNumber
-    ) {
-      monitoringService.trackNotificationTest({
-        tenantId,
-        channel: 'sms',
-        success: false,
-        target: phone,
-        errorMessage: 'config_incomplete',
-      });
-      return sendSuccess(
-        res,
-        { success: false },
-        'SMS configuration is disabled or incomplete. Please update communication settings.'
-      );
-    }
-
-    const success = await smsService.sendSMS(
-      phone,
-      '✅ SMS Test: Your SMS configuration is working! - Genzi RMS',
-      {
-        provider: smsConfig.provider || 'twilio',
-        accountSid: smsConfig.accountSid,
-        authToken: smsConfig.authToken,
-        fromNumber: smsConfig.fromNumber,
-      }
-    );
-
-    smsConfig.lastTestedAt = new Date();
-    smsConfig.lastTestResult = success ? 'success' : 'failure';
-    settings.updatedBy = userId as any;
-    settings.markModified?.('notifications');
-    await settings.save();
-
-    monitoringService.trackNotificationTest({
+  updatePreferences = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const { id: userId } = req.user!;
+    const preference = await notificationService.updatePreferences(
       tenantId,
-      channel: 'sms',
-      success,
-      target: phone,
-      errorMessage: success ? undefined : 'delivery_failed',
-    });
-
-    sendSuccess(res, { success }, success ? 'Test SMS sent successfully' : 'Failed to send test SMS');
+      userId,
+      req.body as UpdatePreferencesPayload
+    );
+    res.json(successResponse(preference, 'Notification preferences updated'));
   });
 
-  /**
-   * Get notification preferences (placeholder)
-   * GET /api/notifications/preferences
-   */
-  getPreferences = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const userId = req.user!.id;
-
-    const preferences = await notificationService.getPreferences(tenantId, userId);
-
-    sendSuccess(res, { preferences }, 'Preferences retrieved successfully');
+  markInboxRead = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const { id: userId } = req.user!;
+    const { id } = req.params;
+    const read =
+      typeof req.body.read === 'boolean'
+        ? (req.body.read as boolean)
+        : true;
+    const item = await notificationService.markInboxRead(tenantId, userId, id, read);
+    res.json(successResponse(item, 'Notification updated'));
   });
 
-  /**
-   * Update notification preferences (placeholder)
-   * PUT /api/notifications/preferences
-   */
-  updatePreferences = asyncHandler(async (req: TenantRequest, res: Response, _next: NextFunction) => {
-    const tenantId = req.user!.tenantId;
-    const userId = req.user!.id;
+  markAllInboxRead = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const { id: userId } = req.user!;
+    const count = await notificationService.markAllInboxRead(tenantId, userId);
+    res.json(successResponse({ count }, 'All notifications marked as read'));
+  });
 
-    const preferences = await notificationService.updatePreferences(tenantId, userId, req.body);
-
-    sendSuccess(res, { preferences }, 'Preferences updated successfully');
+  deleteInboxItem = asyncHandler(async (req: TenantRequest, res: Response) => {
+    const { tenantId } = req.tenant!;
+    const { id: userId } = req.user!;
+    const { id } = req.params;
+    await notificationService.removeInboxItem(tenantId, userId, id);
+    res.json(successResponse(null, 'Notification removed from inbox'));
   });
 }
-
-export const notificationController = new NotificationController();
 

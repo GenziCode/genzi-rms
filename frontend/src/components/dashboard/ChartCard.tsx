@@ -1,6 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { MoreVertical, Download, Maximize2 } from 'lucide-react';
-import { useState } from 'react';
 
 interface ChartCardProps {
   title: string;
@@ -24,6 +23,20 @@ export default function ChartCard({
   loading = false,
 }: ChartCardProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
 
   return (
     <div className={`bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden ${className}`}>
@@ -48,7 +61,7 @@ export default function ChartCard({
               </button>
             )}
             {(onExport || onFullscreen) && (
-              <div className="relative">
+              <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowMenu(!showMenu)}
                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -56,26 +69,20 @@ export default function ChartCard({
                   <MoreVertical className="w-4 h-4" />
                 </button>
                 {showMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowMenu(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20 py-1">
-                      {onExport && (
-                        <button
-                          onClick={() => {
-                            onExport();
-                            setShowMenu(false);
-                          }}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <Download className="w-4 h-4" />
-                          Export Chart
-                        </button>
-                      )}
-                    </div>
-                  </>
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20 py-1">
+                    {onExport && (
+                      <button
+                        onClick={() => {
+                          onExport();
+                          setShowMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export Chart
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}

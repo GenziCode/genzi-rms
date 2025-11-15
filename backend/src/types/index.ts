@@ -5,6 +5,7 @@ import { Connection } from 'mongoose';
 export interface TenantRequest extends Request {
   tenant?: {
     id: string;
+    tenantId: string;
     name: string;
     subdomain: string;
     dbName: string;

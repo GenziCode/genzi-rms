@@ -77,7 +77,10 @@ describe('auditMiddleware', () => {
       data: { _id: 'prod-123', name: 'Updated product', price: 12 },
     });
 
-    await finishHandler?.();
+    if (!finishHandler) {
+      throw new Error('finish event handler not registered');
+    }
+    await finishHandler();
 
     expect(logMutationMock).toHaveBeenCalledTimes(1);
     expect(findByIdMock).toHaveBeenCalledTimes(2);

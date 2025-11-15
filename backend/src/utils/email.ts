@@ -67,7 +67,7 @@ class EmailService {
   async sendEmail(options: EmailOptions): Promise<boolean> {
     let transporter = this.transporter;
     let fromAddress = process.env.SMTP_FROM || process.env.SMTP_USER;
-    let replyTo = options.transportOverride?.replyTo;
+    const replyTo = options.transportOverride?.replyTo;
 
     if (options.transportOverride) {
       try {

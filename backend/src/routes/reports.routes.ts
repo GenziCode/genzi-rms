@@ -276,7 +276,7 @@ router.get(
     query('categoryId').optional().isMongoId().withMessage('Invalid category ID'),
     validate,
   ],
-  inventoryReportsController.getLowStockAlert
+  inventoryReportsController.getLowStockReport
 );
 
 // GET /api/reports/inventory/overstock - Overstock Report
@@ -312,7 +312,7 @@ router.get(
     query('valuationMethod').optional().isIn(['fifo', 'average', 'lifo']).withMessage('Invalid valuation method'),
     validate,
   ],
-  inventoryReportsController.getStockValuation
+  inventoryReportsController.getInventoryValuation
 );
 
 export default router;

@@ -1,4 +1,6 @@
+import type { Connection } from 'mongoose';
 import { storeService } from '../services/store.service';
+import { getTenantConnection } from '../config/database';
 
 jest.mock('../config/database', () => ({
   getTenantConnection: jest.fn(),
@@ -115,15 +117,17 @@ const buildStoreModel = () => {
   };
 };
 
-const { getTenantConnection } = require('../config/database');
+const mockedGetTenantConnection = getTenantConnection as jest.MockedFunction<
+  typeof getTenantConnection
+>;
 
 describe('StoreService', () => {
   beforeEach(() => {
     mockStores.length = 0;
     const model = buildStoreModel();
-    getTenantConnection.mockResolvedValue({
-      model: () => model,
-    });
+    mockedGetTenantConnection.mockResolvedValue({
+      model: () => model as unknown,
+    } as Connection);
   });
 
   afterEach(() => {

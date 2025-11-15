@@ -28,6 +28,14 @@ import TenantOpsPage from '@/pages/TenantOpsPage';
 import SyncCenterPage from '@/pages/SyncCenterPage';
 import RolesPermissionsPage from '@/pages/RolesPermissionsPage';
 import ReportTemplatesPage from '@/pages/ReportTemplatesPage';
+import ReportSchedulesPage from '@/pages/ReportSchedulesPage';
+import StockTransfersPage from '@/pages/StockTransfersPage';
+import PhysicalAuditsPage from '@/pages/PhysicalAuditsPage';
+import StockForecastPage from '@/pages/StockForecastPage';
+import WarehouseManagementPage from '@/pages/WarehouseManagementPage';
+import StockAnalyticsPage from '@/pages/StockAnalyticsPage';
+import NotificationCenterPage from '@/pages/NotificationCenterPage';
+import NotificationTemplatesPage from '@/pages/NotificationTemplatesPage';
 import DailySalesReport from '@/pages/reports/DailySalesReport';
 import WeeklySalesReport from '@/pages/reports/WeeklySalesReport';
 import MonthlySalesReport from '@/pages/reports/MonthlySalesReport';
@@ -119,6 +127,13 @@ function AppRoutes() {
                   path="/purchase-orders"
                   element={<PurchaseOrdersPage />}
                 />
+                <Route path="/stock-transfers" element={<StockTransfersPage />} />
+                <Route path="/physical-audits" element={<PhysicalAuditsPage />} />
+                <Route path="/stock-forecast" element={<StockForecastPage />} />
+                <Route path="/warehouse-management" element={<WarehouseManagementPage />} />
+                <Route path="/stock-analytics" element={<StockAnalyticsPage />} />
+                <Route path="/notification-center" element={<NotificationCenterPage />} />
+                <Route path="/notification-templates" element={<NotificationTemplatesPage />} />
                 <Route path="/users" element={<UsersPage />} />
                 <Route
                   path="/roles-permissions"
@@ -227,6 +242,10 @@ function AppRoutes() {
                 <Route
                   path="/report-templates"
                   element={<ReportTemplatesPage />}
+                />
+                <Route
+                  path="/report-schedules"
+                  element={<ReportSchedulesPage />}
                 />
                 <Route path="/products" element={<ProductsPage />} />
                 <Route path="/categories" element={<CategoriesPage />} />

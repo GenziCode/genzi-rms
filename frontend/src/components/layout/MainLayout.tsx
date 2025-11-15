@@ -2,6 +2,8 @@ import clsx from 'clsx';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Activity,
+  ArrowLeftRight,
+  ClipboardList,
   BarChart3,
   Box,
   CalendarClock,
@@ -29,6 +31,9 @@ import {
   X,
   FolderOpen,
   FileText,
+  Bell,
+  BellRing,
+  Map as MapIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useEffect, useMemo, useState } from 'react';
@@ -101,6 +106,11 @@ function MainLayout({ children }: MainLayoutProps) {
         { name: 'Categories', href: '/categories', icon: FolderOpen },
         { name: 'Products', href: '/products', icon: Box },
         { name: 'Inventory', href: '/inventory', icon: Package },
+        { name: 'Stock Transfers', href: '/stock-transfers', icon: ArrowLeftRight },
+        { name: 'Physical Audits', href: '/physical-audits', icon: ClipboardList },
+        { name: 'Forecasting', href: '/stock-forecast', icon: Sparkles },
+        { name: 'Warehouse Mgmt', href: '/warehouse-management', icon: MapIcon },
+        { name: 'Stock Analytics', href: '/stock-analytics', icon: BarChart3 },
       ],
     },
     {
@@ -117,6 +127,9 @@ function MainLayout({ children }: MainLayoutProps) {
         { name: 'Settings', href: '/settings', icon: Settings },
         { name: 'Tenant Ops', href: '/tenant-ops', icon: Network },
         { name: 'Sync Center', href: '/sync-center', icon: ServerCog },
+        { name: 'Notifications', href: '/notifications', icon: Bell },
+        { name: 'Notification Center', href: '/notification-center', icon: BellRing },
+        { name: 'Notification Templates', href: '/notification-templates', icon: FileText },
       ],
     },
   ];

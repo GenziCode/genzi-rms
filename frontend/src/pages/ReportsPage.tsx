@@ -27,12 +27,18 @@ import {
   Grid3x3,
   List,
   Star,
+  FileText,
 } from 'lucide-react';
 import { salesReportsService } from '@/services/salesReports.service';
 import { formatCurrency } from '@/lib/utils';
 import BarChart from '@/components/charts/BarChart';
 import LineChartComponent from '@/components/charts/LineChart';
 import PieChartComponent from '@/components/charts/PieChart';
+
+type ChartPreview = {
+  type: 'line' | 'bar' | 'pie';
+  data: Array<Record<string, number | string>>;
+};
 
 interface Report {
   id: string;
@@ -44,7 +50,7 @@ interface Report {
   popularity?: number;
   lastUsed?: string;
   hasChart?: boolean;
-  chartData?: any;
+  chartData?: ChartPreview;
 }
 
 const reports: Report[] = [
@@ -755,14 +761,30 @@ export default function ReportsPage() {
                 <option value="recent">Recently Used</option>
               </select>
 
-              <Link
-                to="/reports-analytics"
-                className="px-3 md:px-4 py-2 md:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center gap-2 font-medium text-sm whitespace-nowrap"
-              >
-                <Zap className="w-4 h-4" />
-                <span className="hidden sm:inline">Advanced Analytics</span>
-                <span className="sm:hidden">Analytics</span>
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/report-templates"
+                  className="px-3 md:px-4 py-2 md:py-2.5 bg-white border-2 border-blue-100 text-blue-700 rounded-xl hover:border-blue-200 transition-all flex items-center gap-2 font-medium text-sm whitespace-nowrap"
+                >
+                  <FileText className="w-4 h-4" />
+                  Templates
+                </Link>
+                <Link
+                  to="/report-schedules"
+                  className="px-3 md:px-4 py-2 md:py-2.5 bg-white border-2 border-emerald-200 text-emerald-700 rounded-xl hover:border-emerald-300 transition-all flex items-center gap-2 font-medium text-sm whitespace-nowrap"
+                >
+                  <Clock className="w-4 h-4" />
+                  Schedules
+                </Link>
+                <Link
+                  to="/reports-analytics"
+                  className="px-3 md:px-4 py-2 md:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all flex items-center gap-2 font-medium text-sm whitespace-nowrap"
+                >
+                  <Zap className="w-4 h-4" />
+                  <span className="hidden sm:inline">Advanced Analytics</span>
+                  <span className="sm:hidden">Analytics</span>
+                </Link>
+              </div>
             </div>
           </div>
 

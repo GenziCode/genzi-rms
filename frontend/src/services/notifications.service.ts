@@ -1,76 +1,191 @@
 import api from '@/lib/api';
 import type {
-  Notification,
-  NotificationType,
+  InboxNotification,
   NotificationPreferences,
+  NotificationType,
 } from '@/types/notification.types';
+
+export type NotificationChannel = 'email' | 'sms' | 'webhook' | 'in_app';
+
+export type NotificationStatus =
+  | 'pending'
+  | 'scheduled'
+  | 'sending'
+  | 'delivered'
+  | 'failed'
+  | 'cancelled';
+
+export interface NotificationRecipient {
+  user?: string;
+  email?: string;
+  phone?: string;
+  webhookUrl?: string;
+  name?: string;
+}
+
+export interface NotificationLog {
+  _id: string;
+  eventKey: string;
+  templateId?: string;
+  channels: NotificationChannel[];
+  recipients: NotificationRecipient[];
+  payload: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  status: NotificationStatus;
+  attempts: number;
+  lastAttemptAt?: string;
+  deliveredAt?: string;
+  lastError?: string;
+  inboxOnly?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationLogListResponse {
+  records: NotificationLog[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface CreateNotificationLogRequest {
+  eventKey: string;
+  channels: NotificationChannel[];
+  recipients: Array<{
+    userId?: string;
+    email?: string;
+    phone?: string;
+    webhookUrl?: string;
+    name?: string;
+  }>;
+  payload?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  inboxOnly?: boolean;
+}
+
+export interface NotificationRouteConfig {
+  _id: string;
+  eventKey: string;
+  channels: Array<{
+    channel: NotificationChannel;
+    enabled: boolean;
+    quietHours?: {
+      start: string;
+      end: string;
+    };
+    fallback?: NotificationChannel[];
+  }>;
+  filters?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  updatedAt: string;
+}
+
+export const notificationAdminService = {
+  async list(params?: {
+    status?: NotificationStatus;
+    eventKey?: string;
+    channel?: NotificationChannel;
+    page?: number;
+    limit?: number;
+  }): Promise<NotificationLogListResponse> {
+    const response = await api.get<{ data: NotificationLogListResponse }>('/notifications', {
+      params,
+    });
+    return response.data.data;
+  },
+
+  async create(payload: CreateNotificationLogRequest): Promise<NotificationLog> {
+    const response = await api.post<{ data: NotificationLog }>('/notifications', payload);
+    return response.data.data;
+  },
+
+  async updateStatus(
+    id: string,
+    payload: { status: NotificationStatus; deliveredAt?: string; error?: string }
+  ): Promise<NotificationLog> {
+    const response = await api.patch<{ data: NotificationLog }>(
+      `/notifications/${id}/status`,
+      payload
+    );
+    return response.data.data;
+  },
+
+  async listRoutes(): Promise<NotificationRouteConfig[]> {
+    const response = await api.get<{ data: NotificationRouteConfig[] }>(
+      '/notifications/routes/list'
+    );
+    return response.data.data;
+  },
+
+  async upsertRoute(payload: {
+    eventKey: string;
+    channels: NotificationRouteConfig['channels'];
+    filters?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+  }): Promise<NotificationRouteConfig> {
+    const response = await api.post<{ data: NotificationRouteConfig }>(
+      '/notifications/routes',
+      payload
+    );
+    return response.data.data;
+  },
+};
 
 export const notificationsService = {
   /**
-   * Get all notifications for current user
+   * Get inbox notifications for current user
    */
-  async getAll(filters?: {
-    type?: NotificationType;
+  async listInbox(params?: {
     read?: boolean;
+    channel?: NotificationChannel;
+    search?: string;
+    includeArchived?: boolean;
     page?: number;
     limit?: number;
-  }) {
-    const params = filters
-      ? Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => {
-            if (value === undefined || value === null) {
-              return false;
-            }
-            return typeof value === 'string' ? value.trim().length > 0 : true;
-          })
-        )
-      : undefined;
-
+  }): Promise<{
+    records: InboxNotification[];
+    pagination: { total: number; page: number; limit: number; totalPages: number };
+    unreadCount: number;
+  }> {
     const response = await api.get<{
       data: {
-        notifications: Notification[];
+        records: InboxNotification[];
+        pagination: { total: number; page: number; limit: number; totalPages: number };
         unreadCount: number;
-        pagination: any;
       };
-    }>('/notifications', { params });
+    }>('/notifications/inbox', { params });
     return response.data.data;
   },
 
   /**
-   * Get notification by ID
+   * Mark inbox notification as read/unread
    */
-  async getById(id: string) {
-    const response = await api.get<{ data: { notification: Notification } }>(
-      `/notifications/${id}`
+  async markInboxRead(id: string, read = true): Promise<InboxNotification> {
+    const response = await api.patch<{ data: InboxNotification }>(
+      `/notifications/inbox/${id}/read`,
+      { read }
     );
-    return response.data.data.notification;
+    return response.data.data;
   },
 
   /**
-   * Mark notification as read
+   * Mark all inbox notifications as read
    */
-  async markAsRead(id: string) {
-    const response = await api.patch<{ data: { notification: Notification } }>(
-      `/notifications/${id}/read`
-    );
-    return response.data.data.notification;
-  },
-
-  /**
-   * Mark all notifications as read
-   */
-  async markAllAsRead() {
+  async markAllInboxRead(): Promise<number> {
     const response = await api.patch<{ data: { count: number } }>(
-      '/notifications/read-all'
+      '/notifications/inbox/read-all'
     );
     return response.data.data.count;
   },
 
   /**
-   * Delete notification
+   * Remove inbox notification
    */
-  async delete(id: string) {
-    await api.delete(`/notifications/${id}`);
+  async deleteInboxItem(id: string): Promise<void> {
+    await api.delete(`/notifications/inbox/${id}`);
   },
 
   /**

@@ -81,12 +81,32 @@ export interface CustomerListResponse {
 export interface CustomerStats {
   totalCustomers: number;
   activeCustomers: number;
-  totalRevenue: number;
+  loyaltyMembers: number;
+  totalLoyaltyPoints: number;
+  totalSpent: number;
+  totalPurchases: number;
+  totalCreditBalance: number;
+  averageLifetimeValue: number;
   averageOrderValue: number;
   topCustomers: Array<{
-    customer: Customer;
+    customer: {
+      _id: string;
+      name: string;
+      email?: string;
+      phone?: string;
+    };
     totalSpent: number;
     totalOrders: number;
+    loyaltyPoints?: number;
+  }>;
+  recentCustomers: Array<{
+    _id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    loyaltyPoints: number;
+    totalSpent: number;
+    createdAt: string;
   }>;
 }
 

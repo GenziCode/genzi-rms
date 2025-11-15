@@ -38,6 +38,9 @@ router.post(
 // GET /api/customers - Get all customers
 router.get('/', [...getCustomersValidation, validate], customerController.getCustomers);
 
+// GET /api/customers/stats - aggregate stats
+router.get('/stats', customerController.getCustomerStats);
+
 // GET /api/customers/:id - Get customer by ID
 router.get('/:id', [...customerIdParamValidation, validate], customerController.getCustomerById);
 

@@ -4,6 +4,8 @@ import { getMasterConnection, closeAllConnections } from './config/database';
 import { initRedis, closeRedis } from './config/redis';
 import { logger } from './utils/logger';
 import { initObservability } from './utils/observability';
+import { TenantSchema } from './models/tenant.model';
+import { UserSchema } from './models/user.model';
 
 // Load environment variables
 dotenv.config();
@@ -25,9 +27,6 @@ const startServer = async () => {
     const masterConn = await getMasterConnection();
 
     // Initialize master database models (creates collections and indexes)
-    const { TenantSchema } = require('./models/tenant.model');
-    const { UserSchema } = require('./models/user.model');
-
     logger.info('Creating master database collections...');
     const Tenant = masterConn.model('Tenant', TenantSchema);
     const User = masterConn.model('User', UserSchema);
