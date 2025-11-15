@@ -1,6 +1,7 @@
 import { Connection } from 'mongoose';
 import { getTenantConnection } from '../config/database';
 import { ProductSchema, IProduct } from '../models/product.model';
+import { CategorySchema } from '../models/category.model';
 import { AppError } from '../utils/appError';
 import { logger } from '../utils/logger';
 // File upload disabled - import QRCode from 'qrcode';
@@ -13,7 +14,6 @@ export class ProductService {
     const connection = await getTenantConnection(tenantId);
     // Ensure Category is registered before Product (needed for populate)
     if (!connection.models.Category) {
-      const { CategorySchema } = require('../models/category.model');
       connection.model('Category', CategorySchema);
     }
     // Return Product model (will be registered by registerBaseTenantModels or create here)

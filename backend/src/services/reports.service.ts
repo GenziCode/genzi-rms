@@ -1,9 +1,9 @@
+import mongoose from 'mongoose';
 import { getTenantConnection } from '../config/database';
 import { SaleSchema, ISale } from '../models/sale.model';
 import { ProductSchema, IProduct } from '../models/product.model';
 import { CustomerSchema, ICustomer } from '../models/customer.model';
 import { VendorSchema, IVendor } from '../models/vendor.model';
-import { StockMovementSchema } from '../models/inventory.model';
 import { logger } from '../utils/logger';
 import moment from 'moment-timezone';
 
@@ -15,7 +15,6 @@ export class ReportsService {
       Product: connection.model<IProduct>('Product', ProductSchema),
       Customer: connection.model<ICustomer>('Customer', CustomerSchema),
       Vendor: connection.model<IVendor>('Vendor', VendorSchema),
-      StockMovement: connection.model('StockMovement', StockMovementSchema),
     };
   }
 
@@ -25,6 +24,7 @@ export class ReportsService {
   async getDashboard(tenantId: string, period: 'today' | 'week' | 'month' = 'today'): Promise<any> {
     try {
       const { Sale, Product, Customer, Vendor } = await this.getModels(tenantId);
+      const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
       // Date range
       const now = moment();
@@ -46,6 +46,7 @@ export class ReportsService {
       const salesData = await Sale.aggregate([
         {
           $match: {
+            tenantId: tenantObjectId,
             createdAt: { $gte: startDate },
             status: { $in: ['completed', 'paid'] },
           },
@@ -71,21 +72,24 @@ export class ReportsService {
       };
 
       // Product stats
-      const totalProducts = await Product.countDocuments({ isActive: true });
+      const totalProducts = await Product.countDocuments({ tenantId: tenantObjectId, isActive: true });
       const lowStockProducts = await Product.countDocuments({
+        tenantId: tenantObjectId,
         isActive: true,
         trackInventory: true,
         stock: { $lte: 10 },
       });
       const outOfStockProducts = await Product.countDocuments({
+        tenantId: tenantObjectId,
         isActive: true,
         trackInventory: true,
         stock: { $lte: 0 },
       });
 
       // Customer stats
-      const totalCustomers = await Customer.countDocuments({ isActive: true });
+      const totalCustomers = await Customer.countDocuments({ tenantId: tenantObjectId, isActive: true });
       const newCustomersCount = await Customer.countDocuments({
+        tenantId: tenantObjectId,
         isActive: true,
         createdAt: { $gte: startDate },
       });
@@ -130,10 +134,12 @@ export class ReportsService {
   async getSalesTrends(tenantId: string, startDate: Date, endDate: Date): Promise<any[]> {
     try {
       const { Sale } = await this.getModels(tenantId);
+      const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
       const trends = await Sale.aggregate([
         {
           $match: {
+            tenantId: tenantObjectId,
             createdAt: { $gte: startDate, $lte: endDate },
             status: { $in: ['completed', 'paid'] },
           },
@@ -178,10 +184,12 @@ export class ReportsService {
   ): Promise<any[]> {
     try {
       const { Sale } = await this.getModels(tenantId);
+      const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
       const topProducts = await Sale.aggregate([
         {
           $match: {
+            tenantId: tenantObjectId,
             createdAt: { $gte: startDate, $lte: endDate },
             status: { $in: ['completed', 'paid'] },
           },
@@ -190,7 +198,7 @@ export class ReportsService {
         {
           $group: {
             _id: '$items.product',
-            productName: { $first: '$items.productName' },
+            productName: { $first: '$items.name' },
             totalQuantity: { $sum: '$items.quantity' },
             totalRevenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } },
             avgPrice: { $avg: '$items.price' },
@@ -219,10 +227,12 @@ export class ReportsService {
   async getPaymentMethodsReport(tenantId: string, startDate: Date, endDate: Date): Promise<any[]> {
     try {
       const { Sale } = await this.getModels(tenantId);
+      const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
       const paymentMethods = await Sale.aggregate([
         {
           $match: {
+            tenantId: tenantObjectId,
             createdAt: { $gte: startDate, $lte: endDate },
             status: { $in: ['completed', 'paid'] },
           },
@@ -255,11 +265,13 @@ export class ReportsService {
   async getProfitLoss(tenantId: string, startDate: Date, endDate: Date): Promise<any> {
     try {
       const { Sale, Product } = await this.getModels(tenantId);
+      const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
       // Sales revenue
       const salesData = await Sale.aggregate([
         {
           $match: {
+            tenantId: tenantObjectId,
             createdAt: { $gte: startDate, $lte: endDate },
             status: { $in: ['completed', 'paid'] },
           },
@@ -284,6 +296,7 @@ export class ReportsService {
       const soldItems = await Sale.aggregate([
         {
           $match: {
+            tenantId: tenantObjectId,
             createdAt: { $gte: startDate, $lte: endDate },
             status: { $in: ['completed', 'paid'] },
           },
@@ -345,10 +358,11 @@ export class ReportsService {
   async getInventoryValuation(tenantId: string): Promise<any> {
     try {
       const { Product } = await this.getModels(tenantId);
+      const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
       const valuation = await Product.aggregate([
         {
-          $match: { isActive: true },
+          $match: { tenantId: tenantObjectId, isActive: true },
         },
         {
           $group: {
@@ -389,10 +403,12 @@ export class ReportsService {
   async getCustomerInsights(tenantId: string, startDate: Date, endDate: Date): Promise<any> {
     try {
       const { Sale, Customer } = await this.getModels(tenantId);
+      const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
       const topCustomers = await Sale.aggregate([
         {
           $match: {
+            tenantId: tenantObjectId,
             createdAt: { $gte: startDate, $lte: endDate },
             status: { $in: ['completed', 'paid'] },
             customer: { $exists: true },
@@ -428,8 +444,9 @@ export class ReportsService {
           c.visits > 0 ? Math.round((c.totalSpent / c.visits) * 100) / 100 : 0,
       }));
 
-      const totalCustomers = await Customer.countDocuments({ isActive: true });
+      const totalCustomers = await Customer.countDocuments({ tenantId: tenantObjectId, isActive: true });
       const newCustomers = await Customer.countDocuments({
+        tenantId: tenantObjectId,
         isActive: true,
         createdAt: { $gte: startDate, $lte: endDate },
       });
@@ -452,8 +469,9 @@ export class ReportsService {
   async getVendorPerformance(tenantId: string, startDate: Date, endDate: Date): Promise<any[]> {
     try {
       const { Vendor } = await this.getModels(tenantId);
+      const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
-      const vendors = await Vendor.find({ isActive: true })
+      const vendors = await Vendor.find({ tenantId: tenantObjectId, isActive: true })
         .select('name email phone stats')
         .sort('-stats.totalPurchased')
         .limit(10);

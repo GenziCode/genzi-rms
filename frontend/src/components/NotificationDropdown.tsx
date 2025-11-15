@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, Check, Trash2, CheckCheck, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { notificationsService } from '@/services/notifications.service';
-import type { Notification } from '@/types/notification.types';
+import type { InboxNotification } from '@/types/notification.types';
 import toast from 'react-hot-toast';
 
 const NOTIFICATIONS_QUERY_KEY = ['notifications'];
@@ -22,19 +22,22 @@ export default function NotificationDropdown() {
     refetch,
   } = useQuery({
     queryKey: [...NOTIFICATIONS_QUERY_KEY, { limit: 10 }],
-    queryFn: () => notificationsService.getAll({ limit: 10 }),
+    queryFn: () =>
+      notificationsService.listInbox({
+        limit: 10,
+      }),
     refetchInterval: isOpen ? 15000 : 30000,
     refetchOnWindowFocus: isOpen,
   });
 
-  const notifications = useMemo(() => data?.notifications ?? [], [data]);
+  const notifications = useMemo(() => data?.records ?? [], [data]);
   const unreadCount = data?.unreadCount ?? 0;
 
   const invalidateNotifications = () =>
     queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY, exact: false });
 
   const markAsReadMutation = useMutation({
-    mutationFn: (id: string) => notificationsService.markAsRead(id),
+    mutationFn: (id: string) => notificationsService.markInboxRead(id, true),
     onSuccess: () => {
       invalidateNotifications();
     },
@@ -44,7 +47,7 @@ export default function NotificationDropdown() {
   });
 
   const markAllAsReadMutation = useMutation({
-    mutationFn: () => notificationsService.markAllAsRead(),
+    mutationFn: () => notificationsService.markAllInboxRead(),
     onSuccess: (count) => {
       invalidateNotifications();
       toast.success(`Marked ${count} notification${count === 1 ? '' : 's'} as read`);
@@ -55,7 +58,7 @@ export default function NotificationDropdown() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => notificationsService.delete(id),
+    mutationFn: (id: string) => notificationsService.deleteInboxItem(id),
     onSuccess: () => {
       invalidateNotifications();
     },
@@ -140,9 +143,9 @@ export default function NotificationDropdown() {
       );
     }
 
-    return notifications.map((notification: Notification) => (
+    return notifications.map((notification: InboxNotification) => (
       <div
-        key={notification._id ?? notification.id}
+        key={notification._id}
         className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition ${
           !notification.read ? 'bg-blue-50' : ''
         }`}

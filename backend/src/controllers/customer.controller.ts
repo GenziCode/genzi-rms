@@ -37,6 +37,20 @@ export class CustomerController {
     }
   };
 
+  getCustomerStats = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+      const stats = await this.customerService.getCustomerStats(tenantId);
+      res.json(successResponse(stats, 'Customer stats retrieved successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
   /**
    * Get all customers
    * GET /api/customers

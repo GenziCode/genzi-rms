@@ -1,3 +1,4 @@
+import fs from 'fs';
 import winston from 'winston';
 
 const { combine, timestamp, printf, colorize, errors } = winston.format;
@@ -39,7 +40,6 @@ export const logger = winston.createLogger({
 
 // Create logs directory if in production
 if (process.env.NODE_ENV === 'production') {
-  const fs = require('fs');
   if (!fs.existsSync('logs')) {
     fs.mkdirSync('logs');
   }

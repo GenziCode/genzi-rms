@@ -640,6 +640,23 @@ export default function SettingsPage() {
         code: createdStore.code,
         isDefault: createdStore.isDefault,
       });
+    queryClient.setQueryData<StoreSettings[] | undefined>(
+      ['stores'],
+      (existing) => {
+        if (!existing || existing.length === 0) {
+          return [createdStore];
+        }
+        const found = existing.some(
+          (store) => store._id === createdStore._id
+        );
+        if (found) {
+          return existing.map((store) =>
+            store._id === createdStore._id ? createdStore : store
+          );
+        }
+        return [...existing, createdStore];
+      }
+    );
       queryClient.invalidateQueries({ queryKey: ['stores'] });
       toast.success('Store created successfully!');
     },
@@ -1014,25 +1031,32 @@ export default function SettingsPage() {
     createStoreMutation.isPending || !isCreateStoreDirty || !isCreateStoreValid;
 
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600 mt-1">Configure your system</p>
+    <div className="min-h-screen bg-slate-50 px-3 py-4 sm:px-6 lg:px-10 space-y-6">
+      <div className="space-y-1 sm:space-y-2">
+        <p className="text-xs uppercase tracking-wide text-slate-500">
+          Control Center
+        </p>
+        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+          Settings
+        </h1>
+        <p className="text-sm text-slate-600">
+          Configure stores, payments, compliance, and more. Optimized for mobile operators.
+        </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow border">
-        <div className="border-b">
-          <div className="flex gap-4 px-6">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100">
+          <nav className="flex flex-wrap gap-2 px-3 py-2 text-sm sm:gap-3 sm:px-6">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`px-4 py-4 border-b-2 font-medium transition-colors flex items-center gap-2 ${
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2 font-medium transition sm:flex-none sm:px-4 sm:py-3 ${
                     activeTab === tab.id
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                      ? 'border-blue-600 bg-blue-50 text-blue-600 shadow-sm'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -1040,10 +1064,10 @@ export default function SettingsPage() {
                 </button>
               );
             })}
-          </div>
+          </nav>
         </div>
 
-        <div className="p-6">
+        <div className="px-3 py-4 sm:p-6">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -1106,6 +1130,93 @@ export default function SettingsPage() {
                       </select>
                     </div>
                   </div>
+
+                  {hasStores && storeList?.length ? (
+                    <section className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            Active stores
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Tap a card to switch context or review status.
+                          </p>
+                        </div>
+                        <span className="text-xs font-medium text-slate-500">
+                          {storeList.length} total
+                        </span>
+                      </div>
+                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {storeList.map((store) => {
+                          const isSelected = store._id === activeStoreId;
+                          return (
+                            <button
+                              key={store._id}
+                              type="button"
+                              onClick={() =>
+                                setCurrentStore({
+                                  _id: store._id,
+                                  name: store.name,
+                                  code: store.code,
+                                  isDefault: store.isDefault,
+                                })
+                              }
+                              className={`rounded-2xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+                                isSelected
+                                  ? 'border-blue-500 bg-blue-50/60 shadow-sm'
+                                  : 'border-slate-200 bg-white hover:border-blue-300'
+                              }`}
+                              aria-pressed={isSelected}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-slate-900">
+                                    {store.name}
+                                  </p>
+                                  <p className="text-xs text-slate-500">
+                                    {store.code}
+                                  </p>
+                                </div>
+                                <div className="text-right text-xs font-semibold">
+                                  <p
+                                    className={
+                                      store.isActive
+                                        ? 'text-emerald-600'
+                                        : 'text-rose-600'
+                                    }
+                                  >
+                                    {store.isActive ? 'Online' : 'Paused'}
+                                  </p>
+                                  {store.isDefault && (
+                                    <span className="mt-1 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                                <span>{store.currency ?? 'USD'}</span>
+                                <span className="text-slate-400">•</span>
+                                <span>
+                                  {store.timezone ??
+                                    store.settings?.timezone ??
+                                    'Timezone'}
+                                </span>
+                              </div>
+                              {store.address?.city && (
+                                <p className="mt-2 text-xs text-slate-500">
+                                  {store.address.city}
+                                  {store.address.country
+                                    ? `, ${store.address.country}`
+                                    : ''}
+                                </p>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ) : null}
 
                   {storesLoading ? (
                     <div className="flex items-center justify-center py-12">

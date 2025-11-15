@@ -15,6 +15,7 @@ import { AppError, ConflictError, NotFoundError } from '../utils/appError';
 import { UserRole, SubscriptionPlan, SubscriptionStatus, TenantStatus } from '../types';
 import { logger } from '../utils/logger';
 import { seedTenantSampleData } from '../seeds/sampleData';
+import { generateAccessToken, generateRefreshToken } from '../utils/jwt';
 
 const { ObjectId } = Types;
 
@@ -141,7 +142,6 @@ export class TenantService {
       );
 
       // Step 6: Generate tokens
-      const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
       const tokenPayload = {
         id: user._id.toString(),
         tenantId: tenant._id.toString(),

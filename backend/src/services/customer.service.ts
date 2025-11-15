@@ -1,4 +1,4 @@
-import { Connection } from 'mongoose';
+import { Connection, Types } from 'mongoose';
 import { getTenantConnection } from '../config/database';
 import { CustomerSchema, ICustomer } from '../models/customer.model';
 import { SaleSchema, ISale } from '../models/sale.model';
@@ -9,6 +9,92 @@ export class CustomerService {
   private async getCustomerModel(tenantId: string) {
     const connection = await getTenantConnection(tenantId);
     return connection.model<ICustomer>('Customer', CustomerSchema);
+  }
+
+  async getCustomerStats(tenantId: string) {
+    try {
+      const Customer = await this.getCustomerModel(tenantId);
+      const tenantObjectId = new Types.ObjectId(tenantId);
+
+      const [summary] = await Customer.aggregate([
+        { $match: { tenantId: tenantObjectId } },
+        {
+          $group: {
+            _id: null,
+            totalCustomers: { $sum: 1 },
+            activeCustomers: {
+              $sum: {
+                $cond: ['$isActive', 1, 0],
+              },
+            },
+            loyaltyMembers: {
+              $sum: {
+                $cond: [{ $gt: ['$loyaltyPoints', 0] }, 1, 0],
+              },
+            },
+            totalLoyaltyPoints: { $sum: '$loyaltyPoints' },
+            totalSpent: { $sum: '$totalSpent' },
+            totalPurchases: { $sum: '$totalPurchases' },
+            totalCreditBalance: { $sum: '$creditBalance' },
+          },
+        },
+      ]);
+
+      const stats = summary ?? {
+        totalCustomers: 0,
+        activeCustomers: 0,
+        loyaltyMembers: 0,
+        totalLoyaltyPoints: 0,
+        totalSpent: 0,
+        totalPurchases: 0,
+        totalCreditBalance: 0,
+      };
+
+      const averageLifetimeValue =
+        stats.totalCustomers > 0 ? stats.totalSpent / stats.totalCustomers : 0;
+      const averageOrderValue =
+        stats.totalPurchases > 0 ? stats.totalSpent / stats.totalPurchases : 0;
+
+      const [recentCustomers, topCustomersRaw] = await Promise.all([
+        Customer.find({ tenantId: tenantObjectId })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .select('name email phone loyaltyPoints totalSpent createdAt')
+          .lean(),
+        Customer.find({ tenantId: tenantObjectId })
+          .sort({ totalSpent: -1 })
+          .limit(5)
+          .select('name email phone totalSpent totalPurchases loyaltyPoints')
+          .lean(),
+      ]);
+
+      return {
+        totalCustomers: stats.totalCustomers,
+        activeCustomers: stats.activeCustomers,
+        loyaltyMembers: stats.loyaltyMembers,
+        totalLoyaltyPoints: stats.totalLoyaltyPoints,
+        totalSpent: stats.totalSpent,
+        totalPurchases: stats.totalPurchases,
+        totalCreditBalance: stats.totalCreditBalance,
+        averageLifetimeValue: Number(averageLifetimeValue.toFixed(2)),
+        averageOrderValue: Number(averageOrderValue.toFixed(2)),
+        recentCustomers,
+        topCustomers: topCustomersRaw.map((customer) => ({
+          customer: {
+            _id: customer._id,
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+          },
+          totalSpent: customer.totalSpent ?? 0,
+          totalOrders: customer.totalPurchases ?? 0,
+          loyaltyPoints: customer.loyaltyPoints ?? 0,
+        })),
+      };
+    } catch (error) {
+      logger.error('Error getting customer stats:', error);
+      throw error;
+    }
   }
 
   private async getSaleModel(tenantId: string) {

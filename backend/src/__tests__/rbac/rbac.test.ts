@@ -9,7 +9,6 @@ import { getMasterConnection } from '../../config/database';
 import { RoleSchema } from '../../models/role.model';
 import { PermissionSchema } from '../../models/permission.model';
 import { RoleAssignmentSchema } from '../../models/roleAssignment.model';
-import { UserSchema } from '../../models/user.model';
 import { permissionService } from '../../services/permission.service';
 import { roleService } from '../../services/role.service';
 
@@ -27,7 +26,7 @@ describe('RBAC System', () => {
   afterAll(async () => {
     // Cleanup test data
     const Role = connection.model('Role', RoleSchema);
-    const Permission = connection.model('Permission', PermissionSchema);
+    connection.model('Permission', PermissionSchema);
     const RoleAssignment = connection.model('RoleAssignment', RoleAssignmentSchema);
     
     await Role.deleteMany({ tenantId: testTenantId });
@@ -82,13 +81,13 @@ describe('RBAC System', () => {
       expect(role).toBeDefined();
       expect(role.name).toBe('Test Role');
       expect(role.code).toBe('TEST_ROLE');
-      testRoleId = role._id.toString();
+      testRoleId = (role._id as mongoose.Types.ObjectId).toString();
     });
 
     it('should get role by ID', async () => {
       const role = await roleService.getRoleById(testTenantId.toString(), testRoleId);
       expect(role).toBeDefined();
-      expect(role._id.toString()).toBe(testRoleId);
+      expect((role._id as mongoose.Types.ObjectId).toString()).toBe(testRoleId);
     });
 
     it('should update role', async () => {

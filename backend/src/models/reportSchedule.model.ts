@@ -4,10 +4,14 @@ import mongoose, { Schema, Document } from 'mongoose';
  * Report Schedule Model
  * Defines scheduled report executions
  */
+export type ReportDeliveryChannel = 'email' | 'webhook' | 'inbox';
+
 export interface IReportSchedule extends Document {
   tenantId: mongoose.Types.ObjectId;
   templateId: mongoose.Types.ObjectId; // Reference to ReportTemplate
   name: string; // Schedule name
+  description?: string;
+  reportKey?: string;
   
   // Schedule configuration
   frequency: 'daily' | 'weekly' | 'monthly' | 'custom';
@@ -19,6 +23,7 @@ export interface IReportSchedule extends Document {
     time?: string; // HH:mm format
     dayOfWeek?: number; // 0-6 (Sunday-Saturday)
     dayOfMonth?: number; // 1-31
+    daysOfWeek?: number[]; // Multiple weekly selections
     cron?: string; // Cron expression for custom schedules
   };
   
@@ -30,7 +35,17 @@ export interface IReportSchedule extends Document {
   }>;
   
   // Filter overrides (optional filters to apply to template)
-  filterOverrides?: Record<string, any>;
+  filterOverrides?: Record<string, unknown>;
+
+  // Delivery preferences
+  deliveryChannels: ReportDeliveryChannel[];
+  deliveryPreferences?: {
+    webhookUrl?: string;
+  };
+  format: 'pdf' | 'excel' | 'csv';
+  timezone: string;
+  startDate?: Date;
+  endDate?: Date;
   
   // Execution tracking
   lastRun?: Date;
@@ -38,6 +53,8 @@ export interface IReportSchedule extends Document {
   lastRunStatus?: 'success' | 'failed' | 'partial';
   lastRunError?: string;
   runCount: number;
+  successCount?: number;
+  failureCount?: number;
   
   // Status
   isActive: boolean;
@@ -68,6 +85,15 @@ const ReportScheduleSchema = new Schema<IReportSchedule>(
       required: true,
       trim: true,
     },
+    description: {
+      type: String,
+      trim: true,
+    },
+    reportKey: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
     frequency: {
       type: String,
       enum: ['daily', 'weekly', 'monthly', 'custom'],
@@ -83,6 +109,13 @@ const ReportScheduleSchema = new Schema<IReportSchedule>(
         min: 0,
         max: 6,
       },
+      daysOfWeek: [
+        {
+          type: Number,
+          min: 0,
+          max: 6,
+        },
+      ],
       dayOfMonth: {
         type: Number,
         min: 1,
@@ -113,6 +146,29 @@ const ReportScheduleSchema = new Schema<IReportSchedule>(
       type: Schema.Types.Mixed,
       default: {},
     },
+    deliveryChannels: [
+      {
+        type: String,
+        enum: ['email', 'webhook', 'inbox'],
+      },
+    ],
+    deliveryPreferences: {
+      webhookUrl: {
+        type: String,
+        trim: true,
+      },
+    },
+    format: {
+      type: String,
+      enum: ['pdf', 'excel', 'csv'],
+      default: 'pdf',
+    },
+    timezone: {
+      type: String,
+      default: 'UTC',
+    },
+    startDate: Date,
+    endDate: Date,
     lastRun: Date,
     nextRun: {
       type: Date,
@@ -125,6 +181,14 @@ const ReportScheduleSchema = new Schema<IReportSchedule>(
     },
     lastRunError: String,
     runCount: {
+      type: Number,
+      default: 0,
+    },
+    successCount: {
+      type: Number,
+      default: 0,
+    },
+    failureCount: {
       type: Number,
       default: 0,
     },

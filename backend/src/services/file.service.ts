@@ -26,7 +26,7 @@ export class FileService {
     const url = `${baseUrl}/uploads/${file.filename}`;
 
     // Process image metadata if it's an image
-    let metadata: any = {};
+    const metadata: Record<string, unknown> = {};
     if (file.mimetype.startsWith('image/')) {
       try {
         const imageMetadata = await sharp(file.path).metadata();

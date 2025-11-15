@@ -658,9 +658,15 @@ export default function DashboardPage() {
   const customerStats = customerStatsData ?? {
     totalCustomers: dashboardData?.customers.total ?? 0,
     activeCustomers: dashboardData?.customers.total ?? 0,
-    totalRevenue: sales.total,
-    averageOrderValue: sales.avgOrderValue,
+    loyaltyMembers: 0,
+    totalLoyaltyPoints: 0,
+    totalSpent: sales.total,
+    totalPurchases: dashboardData?.customers.total ?? 0,
+    totalCreditBalance: 0,
+    averageLifetimeValue: sales.avgOrderValue ?? 0,
+    averageOrderValue: sales.avgOrderValue ?? 0,
     topCustomers: [],
+    recentCustomers: [],
   };
 
   const aiInsights = useMemo(() => {

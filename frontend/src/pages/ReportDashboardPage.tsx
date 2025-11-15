@@ -9,6 +9,12 @@ import {
   RefreshCw,
   Filter,
   Calendar,
+  Clock9,
+  DollarSign,
+  TrendingUp,
+  Package,
+  Users,
+  ShoppingCart,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import KPIWidget from '@/components/dashboard/KPIWidget';
@@ -28,13 +34,7 @@ import {
 import { salesReportsService } from '@/services/salesReports.service';
 import { inventoryReportsService } from '@/services/inventoryReports.service';
 import { formatCurrency } from '@/lib/utils';
-import {
-  DollarSign,
-  TrendingUp,
-  Package,
-  Users,
-  ShoppingCart,
-} from 'lucide-react';
+import { ReportScheduleDrawer } from '@/components/reports/ReportScheduleDrawer';
 
 // Report type mapping
 const REPORT_CONFIGS: Record<
@@ -244,6 +244,7 @@ function ReportDashboardPage() {
     endDate: new Date().toISOString().split('T')[0],
   });
   const [storeId, setStoreId] = useState<string>('');
+  const [showScheduleDrawer, setShowScheduleDrawer] = useState(false);
 
   const config = reportType ? REPORT_CONFIGS[reportType] : null;
   const { currentLayout, saveLayout, loadLayout, createNewLayout } =
@@ -406,6 +407,13 @@ function ReportDashboardPage() {
             Refresh
           </button>
           <button
+            onClick={() => setShowScheduleDrawer(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-800 rounded-lg hover:border-blue-500 hover:text-blue-700 transition-colors"
+          >
+            <Clock9 className="w-4 h-4" />
+            Schedule
+          </button>
+          <button
             onClick={handleSaveLayout}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -511,6 +519,13 @@ function ReportDashboardPage() {
         loading={isLoading}
         title="Detailed Data"
       />
+      {reportType && (
+        <ReportScheduleDrawer
+          reportType={reportType}
+          isOpen={showScheduleDrawer}
+          onClose={() => setShowScheduleDrawer(false)}
+        />
+      )}
     </div>
   );
 }

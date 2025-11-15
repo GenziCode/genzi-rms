@@ -160,7 +160,7 @@ export class SettingsService {
     try {
       const Settings = await this.getSettingsModel(tenantId);
 
-      let settings = await Settings.findOne({ tenantId });
+      const settings = await Settings.findOne({ tenantId });
       if (!settings) {
         throw new AppError('Settings not found', 404);
       }
@@ -188,7 +188,7 @@ export class SettingsService {
     try {
       const Settings = await this.getSettingsModel(tenantId);
 
-      let settings = await Settings.findOne({ tenantId });
+      const settings = await Settings.findOne({ tenantId });
       if (!settings) {
         throw new AppError('Settings not found', 404);
       }
@@ -216,7 +216,7 @@ export class SettingsService {
     try {
       const Settings = await this.getSettingsModel(tenantId);
 
-      let settings = await Settings.findOne({ tenantId });
+      const settings = await Settings.findOne({ tenantId });
       if (!settings) {
         throw new AppError('Settings not found', 404);
       }
@@ -244,7 +244,7 @@ export class SettingsService {
     try {
       const Settings = await this.getSettingsModel(tenantId);
 
-      let settings = await Settings.findOne({ tenantId });
+      const settings = await Settings.findOne({ tenantId });
       if (!settings) {
         throw new AppError('Settings not found', 404);
       }
@@ -272,7 +272,7 @@ export class SettingsService {
     try {
       const Settings = await this.getSettingsModel(tenantId);
 
-      let settings = await Settings.findOne({ tenantId });
+      const settings = await Settings.findOne({ tenantId });
       if (!settings) {
         throw new AppError('Settings not found', 404);
       }

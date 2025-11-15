@@ -41,6 +41,8 @@ import { rolesService, type Role } from '@/services/roles.service';
 import {
   permissionsService,
   type Permission,
+  type FormPermission,
+  type FieldPermission,
 } from '@/services/permissions.service';
 import { usersService } from '@/services/users.service';
 import type { User, UserListResponse } from '@/types/user.types';
@@ -49,6 +51,7 @@ import PermissionMatrix from '@/components/roles/PermissionMatrix';
 import { Spinner } from '@/components/ui/spinner';
 import { useHasPermission } from '@/hooks/usePermissions';
 import { useAuthStore } from '@/store/authStore';
+import UserRoleAssignment from '@/components/users/UserRoleAssignment';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -77,6 +80,41 @@ type ActiveTab =
   | 'permissions'
   | 'assignments'
   | 'analytics';
+type PolicyStatus = 'enabled' | 'paused' | 'draft';
+
+const defaultPolicyPresets: Array<{
+  id: string;
+  title: string;
+  description: string;
+  status: PolicyStatus;
+  kpi: string;
+  owner: string;
+}> = [
+  {
+    id: 'time-windows',
+    title: 'Time-based access windows',
+    description: 'Restrict back-office access to defined operating hours per region.',
+    status: 'enabled',
+    kpi: '4 windows active',
+    owner: 'Security Ops',
+  },
+  {
+    id: 'approval-chain',
+    title: 'Approval chain enforcement',
+    description: 'Require dual approval for roles that can void invoices or edit taxes.',
+    status: 'paused',
+    kpi: 'Ready for pilot',
+    owner: 'Finance',
+  },
+  {
+    id: 'delegation',
+    title: 'Role delegation rules',
+    description: 'Allow store managers to delegate POS roles for limited time.',
+    status: 'draft',
+    kpi: 'Policy draft v2',
+    owner: 'People Ops',
+  },
+];
 
 export default function RolesPermissionsPage() {
   const queryClient = useQueryClient();
@@ -88,6 +126,48 @@ export default function RolesPermissionsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showPermissionMatrix, setShowPermissionMatrix] = useState(false);
+  const [assignmentUser, setAssignmentUser] = useState<User | null>(null);
+  const [selectedForm, setSelectedForm] = useState<FormPermission | null>(null);
+  const [policyCards, setPolicyCards] = useState(defaultPolicyPresets);
+  const [scopeDraft, setScopeDraft] = useState({
+    region: 'global',
+    baseline: 'all-stores',
+    retention: 180,
+    justification: '',
+  });
+
+  const cyclePolicyStatus = (status: PolicyStatus): PolicyStatus => {
+    switch (status) {
+      case 'enabled':
+        return 'paused';
+      case 'paused':
+        return 'draft';
+      default:
+        return 'enabled';
+    }
+  };
+
+  const handlePolicyToggle = (policyId: string) => {
+    setPolicyCards((prev) =>
+      prev.map((policy) =>
+        policy.id === policyId
+          ? { ...policy, status: cyclePolicyStatus(policy.status) }
+          : policy
+      )
+    );
+    toast.success('Policy status updated');
+  };
+
+  const getPolicyBadgeClasses = (status: PolicyStatus) => {
+    switch (status) {
+      case 'enabled':
+        return 'bg-green-100 text-green-700';
+      case 'paused':
+        return 'bg-amber-100 text-amber-700';
+      default:
+        return 'bg-slate-100 text-slate-700';
+    }
+  };
 
   const canManageRoles =
     user?.role === 'owner' ||
@@ -116,6 +196,31 @@ export default function RolesPermissionsPage() {
       queryFn: () => usersService.getAll({ limit: 100 }),
       enabled: canManageRoles,
     });
+
+  // Fetch form permissions grouped by category
+  const {
+    data: formPermissionsByCategory,
+    isLoading: formPermissionsLoading,
+  } = useQuery<Record<string, FormPermission[]>>({
+    queryKey: ['form-permissions-categories'],
+    queryFn: () => permissionsService.getFormsByCategory(),
+    enabled: canManageRoles,
+    staleTime: 300_000,
+  });
+
+  // Fetch field permissions for selected form
+  const {
+    data: fieldPermissionsData,
+    isFetching: fieldPermissionsLoading,
+  } = useQuery<{ fields: FieldPermission[] }>({
+    queryKey: ['field-permissions', selectedForm?.formName],
+    queryFn: () =>
+      selectedForm
+        ? permissionsService.getFieldsForForm(selectedForm.formName)
+        : Promise.resolve({ fields: [] }),
+    enabled: canManageRoles && Boolean(selectedForm),
+    staleTime: 300_000,
+  });
 
   // Mutations
   const deleteMutation = useMutation({
@@ -190,6 +295,46 @@ export default function RolesPermissionsPage() {
       return acc;
     }, {});
   }, [roles]);
+
+  const normalizeFormCollection = (raw: unknown): FormPermission[] => {
+    if (Array.isArray(raw)) {
+      return raw as FormPermission[];
+    }
+    if (raw && typeof raw === 'object') {
+      const maybeForms = (raw as { forms?: unknown }).forms;
+      if (Array.isArray(maybeForms)) {
+        return maybeForms as FormPermission[];
+      }
+      return Object.values(raw as Record<string, unknown>).flatMap((value) =>
+        Array.isArray(value)
+          ? (value as FormPermission[])
+          : Array.isArray((value as { forms?: unknown }).forms)
+            ? ((value as { forms?: FormPermission[] }).forms ?? [])
+            : []
+      );
+    }
+    return [];
+  };
+
+  const formAnalytics = useMemo(() => {
+    const categories = formPermissionsByCategory ?? {};
+    const normalizedEntries = Object.entries(categories).reduce<
+      Record<string, FormPermission[]>
+    >((acc, [category, forms]) => {
+      acc[category] = normalizeFormCollection(forms);
+      return acc;
+    }, {});
+
+    const totalForms = Object.values(normalizedEntries).reduce(
+      (sum, forms) => sum + forms.length,
+      0
+    );
+
+    return {
+      totalForms,
+      categories: normalizedEntries,
+    };
+  }, [formPermissionsByCategory]);
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -295,38 +440,38 @@ export default function RolesPermissionsPage() {
               onValueChange={(value) => setActiveTab(value as ActiveTab)}
               className="w-full"
             >
-              <TabsList className="grid grid-cols-5 w-full h-12 bg-transparent border-0 p-1">
+              <TabsList className="flex flex-wrap gap-2 w-full bg-transparent border-0 p-0">
                 <TabsTrigger
                   value="overview"
-                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md"
+                  className="flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md"
                 >
                   <BarChart3 className="w-4 h-4" />
                   <span className="hidden sm:inline">Overview</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="roles"
-                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md"
+                  className="flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md"
                 >
                   <Shield className="w-4 h-4" />
                   <span className="hidden sm:inline">Roles</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="permissions"
-                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md"
+                  className="flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md"
                 >
                   <Key className="w-4 h-4" />
                   <span className="hidden sm:inline">Permissions</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="assignments"
-                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md"
+                  className="flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md"
                 >
                   <UserCheck className="w-4 h-4" />
                   <span className="hidden sm:inline">Assignments</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="analytics"
-                  className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-md"
+                  className="flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-md"
                 >
                   <TrendingUp className="w-4 h-4" />
                   <span className="hidden sm:inline">Analytics</span>
@@ -501,6 +646,150 @@ export default function RolesPermissionsPage() {
                 </CardHeader>
               </Card>
             </div>
+
+            {/* Policy & Scope Controls */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              {policyCards.map((policy) => (
+                <Card key={policy.id} className="border-slate-200">
+                  <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+                    <div>
+                      <CardTitle className="text-base">{policy.title}</CardTitle>
+                      <CardDescription>{policy.description}</CardDescription>
+                    </div>
+                    <span
+                      className={`text-xs font-medium px-2 py-1 rounded-full ${getPolicyBadgeClasses(
+                        policy.status
+                      )}`}
+                    >
+                      {policy.status === 'draft'
+                        ? 'Draft'
+                        : policy.status === 'paused'
+                        ? 'Paused'
+                        : 'Enabled'}
+                    </span>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="text-sm text-slate-600 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-blue-500" />
+                      {policy.kpi}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Owner: <span className="font-medium text-slate-700">{policy.owner}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handlePolicyToggle(policy.id)}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium hover:border-blue-500 hover:text-blue-600 transition-colors"
+                    >
+                      <Zap className="w-4 h-4" />
+                      Cycle Status
+                    </button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            <Card className="border-slate-200">
+              <CardHeader>
+                <CardTitle>Data scope controls</CardTitle>
+                <CardDescription>
+                  Define which stores, regions, and records each policy applies to. Changes sync to
+                  API gateways automatically.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Region</label>
+                    <select
+                      value={scopeDraft.region}
+                      onChange={(e) =>
+                        setScopeDraft((prev) => ({ ...prev, region: e.target.value }))
+                      }
+                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    >
+                      <option value="global">Global</option>
+                      <option value="mena">MENA</option>
+                      <option value="south-asia">South Asia</option>
+                      <option value="custom">Custom selection</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Store coverage</label>
+                    <select
+                      value={scopeDraft.baseline}
+                      onChange={(e) =>
+                        setScopeDraft((prev) => ({ ...prev, baseline: e.target.value }))
+                      }
+                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    >
+                      <option value="all-stores">All stores</option>
+                      <option value="hq-only">HQ only</option>
+                      <option value="franchise">Franchise stores</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-slate-700">Retention (days)</label>
+                    <input
+                      type="number"
+                      min={30}
+                      max={365}
+                      value={scopeDraft.retention}
+                      onChange={(e) =>
+                        setScopeDraft((prev) => ({
+                          ...prev,
+                          retention: Number(e.target.value),
+                        }))
+                      }
+                      className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700">
+                    Change justification
+                  </label>
+                  <textarea
+                    value={scopeDraft.justification}
+                    onChange={(e) =>
+                      setScopeDraft((prev) => ({ ...prev, justification: e.target.value }))
+                    }
+                    rows={3}
+                    className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
+                    placeholder="Document why scope is being updated..."
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-3 justify-between">
+                  <div className="text-xs text-slate-500 flex items-center gap-2">
+                    <Database className="w-4 h-4" />
+                    Syncs with compliance audit trail
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() =>
+                        setScopeDraft({
+                          region: 'global',
+                          baseline: 'all-stores',
+                          retention: 180,
+                          justification: '',
+                        })
+                      }
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => toast.success('Scope draft saved')}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      Save Scope
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Roles Tab */}
@@ -826,6 +1115,209 @@ export default function RolesPermissionsPage() {
                 </Card>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Eye className="w-5 h-5" />
+                    Form Permission Explorer
+                  </CardTitle>
+                  <CardDescription>
+                    {formAnalytics.totalForms > 0
+                      ? `${formAnalytics.totalForms} forms synced from Candela. Select a form to inspect controls.`
+                      : 'Sync form registry to populate this list.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {formPermissionsLoading ? (
+                    <div className="flex justify-center py-10">
+                      <Spinner size="lg" />
+                    </div>
+                  ) : formAnalytics.totalForms === 0 ? (
+                    <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center">
+                      <EyeOff className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                      <p className="text-sm text-slate-600">
+                        No forms have been synchronized yet. Run the RBAC sync
+                        script or import form metadata.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {Object.entries(formAnalytics.categories).map(
+                        ([category, forms]) => {
+                          const formList = Array.isArray(forms) ? forms : [];
+                          return (
+                            <div
+                              key={category}
+                              className="rounded-xl border border-slate-200 p-4"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-slate-900 capitalize">
+                                  {category}
+                                </span>
+                                <Badge variant="secondary">
+                                  {formList.length} forms
+                                </Badge>
+                              </div>
+                              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {formList.slice(0, 4).map((form) => {
+                                  const isActive =
+                                    selectedForm?.formName === form.formName;
+                                  return (
+                                    <button
+                                      key={form.formName}
+                                      type="button"
+                                      onClick={() => setSelectedForm(form)}
+                                      className={`rounded-lg border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                                        isActive
+                                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                          : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
+                                      }`}
+                                      aria-pressed={isActive}
+                                    >
+                                      <p className="text-sm font-semibold line-clamp-1">
+                                        {form.formCaption || form.formName}
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {form.formName}
+                                      </p>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {formList.length > 4 && (
+                                <p className="mt-2 text-xs text-slate-500">
+                                  +{formList.length - 4} additional forms in
+                                  this category
+                                </p>
+                              )}
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Key className="w-5 h-5" />
+                    Field Permission Detail
+                  </CardTitle>
+                  <CardDescription>
+                    {selectedForm
+                      ? `Controls for ${selectedForm.formCaption ?? selectedForm.formName}`
+                      : 'Select a form on the left to inspect field visibility and edit rules.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {selectedForm ? (
+                    <>
+                      <div className="rounded-lg border border-slate-200 p-3 text-xs text-slate-600 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span>Form Name</span>
+                          <code>{selectedForm.formName}</code>
+                        </div>
+                        {selectedForm.route && (
+                          <div className="flex items-center justify-between">
+                            <span>Route</span>
+                            <code>{selectedForm.route}</code>
+                          </div>
+                        )}
+                        {selectedForm.httpMethods && (
+                          <div className="flex items-center justify-between">
+                            <span>Methods</span>
+                            <span>{selectedForm.httpMethods.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                      {fieldPermissionsLoading ? (
+                        <div className="flex justify-center py-10">
+                          <Spinner size="lg" />
+                        </div>
+                      ) : (fieldPermissionsData?.fields?.length ?? 0) === 0 ? (
+                        <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center">
+                          <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+                          <p className="text-sm text-slate-600">
+                            No field metadata has been synced for this form yet.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="max-h-[360px] overflow-auto rounded-lg border border-slate-200">
+                          <table className="w-full text-sm">
+                            <thead className="bg-slate-50 text-left">
+                              <tr>
+                                <th className="px-3 py-2 font-medium text-slate-600">
+                                  Control
+                                </th>
+                                <th className="px-3 py-2 font-medium text-slate-600">
+                                  Visibility
+                                </th>
+                                <th className="px-3 py-2 font-medium text-slate-600">
+                                  Editable
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {fieldPermissionsData?.fields?.map((field) => (
+                                <tr
+                                  key={`${field.formName}-${field.controlName}`}
+                                  className="border-t border-slate-100"
+                                >
+                                  <td className="px-3 py-2">
+                                    <p className="font-medium text-slate-800">
+                                      {field.label || field.controlName}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      {field.controlName}
+                                    </p>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        field.isVisible
+                                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                          : 'border-rose-200 bg-rose-50 text-rose-700'
+                                      }
+                                    >
+                                      {field.isVisible ? 'Visible' : 'Hidden'}
+                                    </Badge>
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        field.isEditable
+                                          ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                          : 'border-slate-200 bg-slate-50 text-slate-600'
+                                      }
+                                    >
+                                      {field.isEditable ? 'Editable' : 'Read only'}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center">
+                      <Eye className="w-10 h-10 text-blue-400 mx-auto mb-3" />
+                      <p className="text-sm text-slate-600">
+                        Choose a form from the explorer to view its field
+                        permissions.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Assignments Tab */}
@@ -875,7 +1367,11 @@ export default function RolesPermissionsPage() {
                             {user.role}
                           </Badge>
                           {user.role !== 'owner' && (
-                            <Button variant="outline" size="sm">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setAssignmentUser(user)}
+                            >
                               <Edit className="w-4 h-4 mr-2" />
                               Change Role
                             </Button>
@@ -974,6 +1470,14 @@ export default function RolesPermissionsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {assignmentUser && (
+        <UserRoleAssignment
+          userId={assignmentUser._id}
+          isOpen={Boolean(assignmentUser)}
+          onClose={() => setAssignmentUser(null)}
+        />
       )}
     </div>
   );

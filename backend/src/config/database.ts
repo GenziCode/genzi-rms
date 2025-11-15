@@ -162,10 +162,6 @@ export const initializeTenantDatabase = async (
   try {
     logger.info(`Initializing tenant database: ${connection.name}`);
 
-    // Import models
-    const { CategorySchema } = require('../models/category.model');
-    const { StoreSchema } = require('../models/store.model');
-
     // Create models
     const Category = connection.model('Category', CategorySchema);
     const Store = connection.model('Store', StoreSchema);
@@ -185,7 +181,6 @@ export const initializeTenantDatabase = async (
     // Note: Stores should be created via seedTenantSampleData with proper tenantId
     // This is kept for backward compatibility but should not be used for new tenants
     if (tenantId) {
-      const mongoose = require('mongoose');
       const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
       const existingStore = await Store.findOne({ tenantId: tenantObjectId, isDefault: true });
       if (!existingStore) {

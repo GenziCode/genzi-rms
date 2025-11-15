@@ -84,8 +84,10 @@ export const resolveTenant = async (
     const tenantConn = await getTenantConnection(tenant._id.toString(), tenant.dbName);
 
     // Attach tenant to request
+    const tenantId = tenant._id.toString();
     req.tenant = {
-      id: tenant._id.toString(),
+      id: tenantId,
+      tenantId,
       name: tenant.name,
       subdomain: tenant.subdomain,
       dbName: tenant.dbName,

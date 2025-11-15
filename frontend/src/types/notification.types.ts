@@ -12,48 +12,39 @@ export type NotificationType =
   | 'alert'
   | 'reminder';
 
-export type NotificationChannel = 
-  | 'in_app'
-  | 'email'
-  | 'sms'
-  | 'push';
+export type NotificationChannel = 'in_app' | 'email' | 'sms' | 'webhook';
 
-export interface Notification {
+export type NotificationSeverity = 'info' | 'success' | 'warning' | 'error';
+
+export interface InboxNotification {
   _id: string;
-  id: string;
-  tenantId: string;
-  userId?: string;
-  type: NotificationType;
-  channel: NotificationChannel;
+  notificationId?: string;
+  eventKey: string;
   title: string;
   message: string;
-  data?: Record<string, any>;
+  channels: NotificationChannel[];
+  payload?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  actionUrl?: string;
+  severity: NotificationSeverity;
   read: boolean;
   readAt?: string;
-  sentAt?: string;
-  deliveryStatus: 'pending' | 'sent' | 'failed' | 'delivered';
-  errorMessage?: string;
-  entityType?: string;
-  entityId?: string;
-  actionUrl?: string;
-  createdBy?: string;
+  archived: boolean;
+  deliveredAt?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface NotificationPreferences {
-  email: boolean;
-  sms: boolean;
-  push: boolean;
-  inApp: boolean;
-  types: {
-    sale: boolean;
-    payment: boolean;
-    inventory: boolean;
-    order: boolean;
-    customer: boolean;
-    alert: boolean;
-    reminder: boolean;
+export interface NotificationChannelPreference {
+  enabled: boolean;
+  quietHours?: {
+    start?: string;
+    end?: string;
   };
+}
+
+export interface NotificationPreferences {
+  channels: Record<NotificationChannel, NotificationChannelPreference>;
+  metadata?: Record<string, unknown>;
 }
 

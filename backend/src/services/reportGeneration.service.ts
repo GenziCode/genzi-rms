@@ -1,10 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * Report generation operates on dynamic template definitions, so pragmatic `any` usage
+ * is allowed within this file to keep the aggregation builder flexible.
+ */
 import mongoose from 'mongoose';
 import { getTenantConnection } from '../config/database';
-import { ReportTemplateSchema, IReportTemplate } from '../models/reportTemplate.model';
 import { ReportExecutionSchema, IReportExecution } from '../models/reportExecution.model';
 import { getMasterConnection } from '../config/database';
 import { reportTemplateService } from './reportTemplate.service';
-import { NotFoundError, BadRequestError } from '../utils/appError';
+import { BadRequestError } from '../utils/appError';
 import { logger } from '../utils/logger';
 import moment from 'moment-timezone';
 
@@ -21,9 +25,6 @@ export class ReportGenerationService {
     const tenantConn = await getTenantConnection(tenantId);
 
     return {
-      ReportTemplate:
-        masterConn.models.ReportTemplate ||
-        masterConn.model<IReportTemplate>('ReportTemplate', ReportTemplateSchema),
       ReportExecution:
         masterConn.models.ReportExecution ||
         masterConn.model<IReportExecution>('ReportExecution', ReportExecutionSchema),
@@ -38,7 +39,12 @@ export class ReportGenerationService {
     tenantId: string,
     templateId: string,
     parameters: Record<string, any> = {},
-    executedBy: string
+    executedBy: string,
+    options?: {
+      scheduleId?: string;
+      reportType?: 'template' | 'scheduled';
+      suppressData?: boolean;
+    }
   ): Promise<{
     data: any[];
     metadata: {
@@ -47,9 +53,10 @@ export class ReportGenerationService {
       executionTime: number;
       columns: any[];
     };
+    executionId: string;
   }> {
     const startTime = Date.now();
-    const { ReportTemplate, ReportExecution, tenantConnection } = await this.getModels(tenantId);
+    const { ReportExecution, tenantConnection } = await this.getModels(tenantId);
 
     // Get template
     const template = await reportTemplateService.getTemplateById(tenantId, templateId);
@@ -63,7 +70,8 @@ export class ReportGenerationService {
       tenantId: new mongoose.Types.ObjectId(tenantId),
       templateId: new mongoose.Types.ObjectId(templateId),
       reportName: template.name,
-      reportType: 'template',
+      reportType: options?.reportType || 'template',
+      scheduleId: options?.scheduleId ? new mongoose.Types.ObjectId(options.scheduleId) : undefined,
       parameters,
       status: 'running',
       startedAt: new Date(),
@@ -239,13 +247,14 @@ export class ReportGenerationService {
       );
 
       return {
-        data: formattedResults,
+        data: options?.suppressData ? [] : formattedResults,
         metadata: {
           templateName: template.name,
           recordCount: formattedResults.length,
           executionTime: duration,
           columns: template.columns.filter((c) => c.visible),
         },
+        executionId: execution._id.toString(),
       };
     } catch (error: any) {
       // Update execution record with error
