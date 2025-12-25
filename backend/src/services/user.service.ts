@@ -1,4 +1,3 @@
-import { Connection } from 'mongoose';
 import { getMasterConnection } from '../config/database';
 import { UserSchema, IUser } from '../models/user.model';
 import { AppError } from '../utils/appError';
@@ -264,7 +263,7 @@ export class UserService {
   /**
    * Delete user (deactivate)
    */
-  async deleteUser(userId: string, deleterId: string): Promise<void> {
+  async deleteUser(userId: string, _deleterId: string): Promise<void> {
     try {
       const User = await this.getUserModel();
 

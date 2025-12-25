@@ -46,7 +46,15 @@ export class WarehouseService {
     }
   }
 
-  async listWarehouses(tenantId: string, filters: WarehouseFilters = {}) {
+  async listWarehouses(tenantId: string, filters: WarehouseFilters = {}): Promise<{
+    records: IWarehouse[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     const Warehouse = await this.getModel(tenantId);
     const query: Record<string, unknown> = { tenantId };
     if (filters.storeId) {
@@ -72,7 +80,7 @@ export class WarehouseService {
     ]);
 
     return {
-      records,
+      records: records as IWarehouse[],
       pagination: {
         total,
         page,
@@ -82,7 +90,7 @@ export class WarehouseService {
     };
   }
 
-  async getWarehouseById(tenantId: string, id: string) {
+  async getWarehouseById(tenantId: string, id: string): Promise<IWarehouse> {
     const Warehouse = await this.getModel(tenantId);
     const warehouse = await Warehouse.findById(id);
     if (!warehouse) {
@@ -91,7 +99,7 @@ export class WarehouseService {
     return warehouse;
   }
 
-  async createWarehouse(tenantId: string, payload: CreateWarehousePayload) {
+  async createWarehouse(tenantId: string, payload: CreateWarehousePayload): Promise<IWarehouse> {
     this.ensureZoneCodesUnique(payload.zones);
 
     const Warehouse = await this.getModel(tenantId);
@@ -114,7 +122,7 @@ export class WarehouseService {
     tenantId: string,
     id: string,
     payload: UpdateWarehousePayload
-  ) {
+  ): Promise<IWarehouse> {
     const warehouse = await this.getWarehouseById(tenantId, id);
     if (payload.zones) {
       this.ensureZoneCodesUnique(payload.zones);
@@ -129,7 +137,7 @@ export class WarehouseService {
     return warehouse;
   }
 
-  async deleteWarehouse(tenantId: string, id: string) {
+  async deleteWarehouse(tenantId: string, id: string): Promise<void> {
     const Warehouse = await this.getModel(tenantId);
     const result = await Warehouse.deleteOne({ _id: id, tenantId });
     if (result.deletedCount === 0) {

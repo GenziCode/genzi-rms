@@ -1,7 +1,6 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { POSController } from '../controllers/pos.controller';
 import { authenticate } from '../middleware/auth.middleware';
-import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { body, param, query } from 'express-validator';
 import { requireFormAccess } from '../middleware/formPermission.middleware';
@@ -11,10 +10,10 @@ const posController = new POSController();
 
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
-router.use(authenticate);
+router.use((req: Request, res: Response, next: NextFunction) => authenticate(req as any, res, next));
 
 // All POS routes require form access
-router.use(requireFormAccess('frmSalesAndReturns'));
+router.use((req: Request, res: Response, next: NextFunction) => requireFormAccess('frmSalesAndReturns')(req as any, res, next));
 
 /**
  * Validation rules

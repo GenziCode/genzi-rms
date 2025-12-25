@@ -503,7 +503,7 @@ export class PurchaseOrderService {
   /**
    * Get purchase order statistics
    */
-  async getPOStats(tenantId: string, dateRange?: { start: Date; end: Date }) {
+  async getPOStats(tenantId: string, dateRange?: { start: Date; end: Date }): Promise<any> {
     try {
       const PO = await this.getPOModel(tenantId);
       const Vendor = await this.getVendorModel(tenantId);

@@ -3,7 +3,7 @@ import { logger } from './logger';
 
 let sentryInitialized = false;
 
-export const initObservability = () => {
+export const initObservability = (): void => {
   if (sentryInitialized) {
     return;
   }
@@ -25,7 +25,7 @@ export const initObservability = () => {
   logger.info('Sentry observability initialized.');
 };
 
-export const captureException = (error: unknown, context?: Record<string, any>) => {
+export const captureException = (error: unknown, context?: Record<string, any>): void => {
   if (!sentryInitialized) {
     return;
   }

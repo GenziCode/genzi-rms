@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import { Schema, Document } from 'mongoose';
 import { TenantStatus, SubscriptionPlan, SubscriptionStatus } from '../types';
 
 export interface ITenant extends Document {

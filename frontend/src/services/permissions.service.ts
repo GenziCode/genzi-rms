@@ -6,7 +6,7 @@ export interface Permission {
   module: string;
   action: string;
   description?: string;
-  category: 'crud' | 'action' | 'report' | 'admin';
+  category: 'crud' | 'action' | 'report' | 'admin' | 'system' | 'finance';
   isSystem?: boolean;
 }
 
@@ -52,7 +52,7 @@ class PermissionsService {
    */
   async getGroupedByModule(): Promise<Record<string, Permission[]>> {
     const response = await api.get('/permissions/grouped');
-    return response.data.data.permissions || {};
+    return response.data.permissions || {};
   }
 
   /**

@@ -93,14 +93,22 @@ export interface UpdatePlanPayload {
 
 export const tenantService = {
   async getUsage(tenantId: string) {
-    const response = await api.get<{ data: TenantUsageResponse }>(
+    const response = await api.get<{
+      success: boolean;
+      data: TenantUsageResponse;
+      message: string;
+    }>(
       `/tenants/${tenantId}/usage`
     );
     return response.data.data;
   },
 
   async updateLimits(tenantId: string, limits: UpdateLimitsPayload) {
-    const response = await api.patch<{ data: { tenant: any } }>(
+    const response = await api.patch<{
+      success: boolean;
+      data: { tenant: any };
+      message: string;
+    }>(
       `/tenants/${tenantId}/limits`,
       { limits }
     );
@@ -108,7 +116,11 @@ export const tenantService = {
   },
 
   async updatePlan(tenantId: string, payload: UpdatePlanPayload) {
-    const response = await api.patch<{ data: { tenant: any } }>(
+    const response = await api.patch<{
+      success: boolean;
+      data: { tenant: any };
+      message: string;
+    }>(
       `/tenants/${tenantId}/plan`,
       payload
     );

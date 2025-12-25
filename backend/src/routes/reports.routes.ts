@@ -1,10 +1,9 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { ReportsController } from '../controllers/reports.controller';
 import { reportGenerationController } from '../controllers/reportGeneration.controller';
 import { salesReportsController } from '../controllers/salesReports.controller';
 import { inventoryReportsController } from '../controllers/inventoryReports.controller';
 import { authenticate } from '../middleware/auth.middleware';
-import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { query, param, body } from 'express-validator';
 
@@ -13,7 +12,7 @@ const reportsController = new ReportsController();
 
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
-router.use(authenticate);
+router.use((req: Request, res: Response, next: NextFunction) => authenticate(req as any, res, next));
 
 /**
  * Validation rules

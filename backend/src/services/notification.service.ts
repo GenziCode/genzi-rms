@@ -503,7 +503,7 @@ class NotificationService {
     if (typeof notification.payload?.title === 'string') {
       return notification.payload.title;
     }
-    const parts = notification.eventKey.split(/[\._]/).filter(Boolean);
+    const parts = notification.eventKey.split(/[._]/).filter(Boolean);
     return parts.length
       ? parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
       : 'Notification';

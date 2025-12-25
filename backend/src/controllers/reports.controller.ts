@@ -1,27 +1,35 @@
 import { Request, Response, NextFunction } from 'express';
+import { TenantRequest } from '../types';
 import { ReportsService } from '../services/reports.service';
-import { successResponse } from '../utils/response';
-import moment from 'moment-timezone';
+import { sendSuccess, sendError } from '../utils/response';
+import { logger } from '../utils/logger';
+
+const reportsService = new ReportsService();
 
 export class ReportsController {
-  private reportsService: ReportsService;
-
-  constructor() {
-    this.reportsService = new ReportsService();
-  }
-
   /**
    * Get dashboard KPIs
-   * GET /api/reports/dashboard
    */
-  getDashboard = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getDashboard = async (req: TenantRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const period = (req.query.period as 'today' | 'week' | 'month') || 'today';
+      const { period = 'today' } = req.query as { period?: string };
+      const tenantId = req.tenant?.id;
+      
+      if (!tenantId) {
+        sendError(res, 'Tenant not specified', 400, 'TENANT_NOT_SPECIFIED');
+        return;
+      }
 
-      const dashboard = await this.reportsService.getDashboard(tenantId, period);
+      // Check if subscription is expired
+      const isSubscriptionExpired = req.tenant?.subscription?.status === 'expired';
+      
+      const dashboard = await reportsService.getDashboard(
+        tenantId, 
+        period as 'today' | 'week' | 'month', 
+        isSubscriptionExpired
+      );
 
-      res.json(successResponse(dashboard, 'Dashboard data retrieved successfully'));
+      sendSuccess(res, dashboard, 'Dashboard data retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -29,25 +37,25 @@ export class ReportsController {
 
   /**
    * Get sales trends
-   * GET /api/reports/sales-trends
    */
-  getSalesTrends = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getSalesTrends = async (req: TenantRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const { startDate, endDate } = req.query;
+      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      const tenantId = req.tenant?.id;
 
-      const start = startDate
-        ? moment(startDate as string).toDate()
-        : moment().subtract(30, 'days').toDate();
-      const end = endDate ? moment(endDate as string).toDate() : moment().toDate();
+      if (!tenantId) {
+        return sendError(res, 'Tenant not specified', 400, 'TENANT_NOT_SPECIFIED');
+      }
 
-      const trends = await this.reportsService.getSalesTrends(tenantId, start, end);
+      const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 1000);
+      const end = endDate ? new Date(endDate) : new Date();
 
-      res.json(
-        successResponse(trends, 'Sales trends retrieved successfully', 200, {
-          dateRange: { start, end },
-        })
-      );
+      // Check if subscription is expired
+      const isSubscriptionExpired = req.tenant?.subscription?.status === 'expired';
+
+      const trends = await reportsService.getSalesTrends(tenantId, start, end, isSubscriptionExpired);
+
+      sendSuccess(res, trends, 'Sales trends retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -55,26 +63,23 @@ export class ReportsController {
 
   /**
    * Get top selling products
-   * GET /api/reports/top-products
    */
-  getTopProducts = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getTopProducts = async (req: TenantRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const { startDate, endDate, limit } = req.query;
+      const { startDate, endDate, limit = '10' } = req.query as { startDate?: string; endDate?: string; limit?: string };
+      const tenantId = req.tenant?.id;
 
-      const start = startDate
-        ? moment(startDate as string).toDate()
-        : moment().subtract(30, 'days').toDate();
-      const end = endDate ? moment(endDate as string).toDate() : moment().toDate();
-      const limitNum = limit ? parseInt(limit as string) : 10;
+      if (!tenantId) {
+        return sendError(res, 'Tenant not specified', 400, 'TENANT_NOT_SPECIFIED');
+      }
 
-      const topProducts = await this.reportsService.getTopProducts(tenantId, start, end, limitNum);
+      const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 1000);
+      const end = endDate ? new Date(endDate) : new Date();
+      const limitNum = parseInt(limit, 10) || 10;
 
-      res.json(
-        successResponse(topProducts, 'Top products retrieved successfully', 200, {
-          dateRange: { start, end },
-        })
-      );
+      const topProducts = await reportsService.getTopProducts(tenantId, start, end, limitNum);
+
+      sendSuccess(res, topProducts, 'Top products retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -82,29 +87,23 @@ export class ReportsController {
 
   /**
    * Get payment methods report
-   * GET /api/reports/payment-methods
    */
-  getPaymentMethods = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getPaymentMethods = async (req: TenantRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const { startDate, endDate } = req.query;
+      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      const tenantId = req.tenant?.id;
 
-      const start = startDate
-        ? moment(startDate as string).toDate()
-        : moment().subtract(30, 'days').toDate();
-      const end = endDate ? moment(endDate as string).toDate() : moment().toDate();
+      if (!tenantId) {
+        sendError(res, 'Tenant not specified', 400, 'TENANT_NOT_SPECIFIED');
+        return;
+      }
 
-      const paymentMethods = await this.reportsService.getPaymentMethodsReport(
-        tenantId,
-        start,
-        end
-      );
+      const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 1000);
+      const end = endDate ? new Date(endDate) : new Date();
 
-      res.json(
-        successResponse(paymentMethods, 'Payment methods report retrieved successfully', 200, {
-          dateRange: { start, end },
-        })
-      );
+      const paymentMethods = await reportsService.getPaymentMethodsReport(tenantId, start, end);
+
+      sendSuccess(res, paymentMethods, 'Payment methods report retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -112,21 +111,23 @@ export class ReportsController {
 
   /**
    * Get profit & loss report
-   * GET /api/reports/profit-loss
    */
-  getProfitLoss = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getProfitLoss = async (req: TenantRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const { startDate, endDate } = req.query;
+      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      const tenantId = req.tenant?.id;
 
-      const start = startDate
-        ? moment(startDate as string).toDate()
-        : moment().subtract(30, 'days').toDate();
-      const end = endDate ? moment(endDate as string).toDate() : moment().toDate();
+      if (!tenantId) {
+        sendError(res, 'Tenant not specified', 400, 'TENANT_NOT_SPECIFIED');
+        return;
+      }
 
-      const profitLoss = await this.reportsService.getProfitLoss(tenantId, start, end);
+      const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 1000);
+      const end = endDate ? new Date(endDate) : new Date();
 
-      res.json(successResponse(profitLoss, 'Profit & loss report retrieved successfully'));
+      const profitLoss = await reportsService.getProfitLoss(tenantId, start, end);
+
+      sendSuccess(res, profitLoss, 'Profit & loss report retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -134,19 +135,19 @@ export class ReportsController {
 
   /**
    * Get inventory valuation
-   * GET /api/reports/inventory-valuation
    */
-  getInventoryValuation = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> => {
+  getInventoryValuation = async (req: TenantRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.tenant?.id;
 
-      const valuation = await this.reportsService.getInventoryValuation(tenantId);
+      if (!tenantId) {
+        sendError(res, 'Tenant not specified', 400, 'TENANT_NOT_SPECIFIED');
+        return;
+      }
 
-      res.json(successResponse(valuation, 'Inventory valuation retrieved successfully'));
+      const valuation = await reportsService.getInventoryValuation(tenantId);
+
+      sendSuccess(res, valuation, 'Inventory valuation retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -154,21 +155,23 @@ export class ReportsController {
 
   /**
    * Get customer insights
-   * GET /api/reports/customer-insights
    */
-  getCustomerInsights = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getCustomerInsights = async (req: TenantRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const { startDate, endDate } = req.query;
+      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      const tenantId = req.tenant?.id;
 
-      const start = startDate
-        ? moment(startDate as string).toDate()
-        : moment().subtract(30, 'days').toDate();
-      const end = endDate ? moment(endDate as string).toDate() : moment().toDate();
+      if (!tenantId) {
+        sendError(res, 'Tenant not specified', 400, 'TENANT_NOT_SPECIFIED');
+        return;
+      }
 
-      const insights = await this.reportsService.getCustomerInsights(tenantId, start, end);
+      const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 1000);
+      const end = endDate ? new Date(endDate) : new Date();
 
-      res.json(successResponse(insights, 'Customer insights retrieved successfully'));
+      const insights = await reportsService.getCustomerInsights(tenantId, start, end);
+
+      sendSuccess(res, insights, 'Customer insights retrieved successfully');
     } catch (error) {
       next(error);
     }
@@ -176,27 +179,27 @@ export class ReportsController {
 
   /**
    * Get vendor performance
-   * GET /api/reports/vendor-performance
    */
-  getVendorPerformance = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getVendorPerformance = async (req: TenantRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
-      const { startDate, endDate } = req.query;
+      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      const tenantId = req.tenant?.id;
 
-      const start = startDate
-        ? moment(startDate as string).toDate()
-        : moment().subtract(30, 'days').toDate();
-      const end = endDate ? moment(endDate as string).toDate() : moment().toDate();
+      if (!tenantId) {
+        sendError(res, 'Tenant not specified', 400, 'TENANT_NOT_SPECIFIED');
+        return;
+      }
 
-      const performance = await this.reportsService.getVendorPerformance(tenantId, start, end);
+      const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 1000);
+      const end = endDate ? new Date(endDate) : new Date();
 
-      res.json(
-        successResponse(performance, 'Vendor performance retrieved successfully', 200, {
-          dateRange: { start, end },
-        })
-      );
+      const performance = await reportsService.getVendorPerformance(tenantId, start, end);
+
+      sendSuccess(res, performance, 'Vendor performance retrieved successfully');
     } catch (error) {
       next(error);
     }
   };
 }
+
+export const reportsController = new ReportsController();

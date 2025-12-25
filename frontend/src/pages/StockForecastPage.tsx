@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   TrendingDown,
   TrendingUp,
+  X,
 } from 'lucide-react';
 import { stockForecastService, type StockForecast } from '@/services/stockForecast.service';
 import { settingsService } from '@/services/settings.service';
@@ -260,7 +261,7 @@ export default function StockForecastPage() {
               ...payload,
             })
           }
-          isSaving={updateOverrideMutation.isLoading}
+          isSaving={updateOverrideMutation.isPending}
         />
       )}
     </div>

@@ -5,13 +5,14 @@ import { useOfflineQueueStore } from '@/store/offlineQueueStore';
 import { formatCurrency } from '@/lib/utils';
 
 export function OfflineQueuePanel() {
-  const { queue, markSaleStatus, removeSale } = useOfflineQueueStore();
+  const { queue, markSaleStatus, removeSale, resolveConflict } = useOfflineQueueStore();
 
   const grouped = useMemo(() => {
     return {
       syncing: queue.filter((sale) => sale.status === 'syncing'),
       pending: queue.filter((sale) => sale.status === 'pending'),
       failed: queue.filter((sale) => sale.status === 'failed'),
+      conflict: queue.filter((sale) => sale.status === 'conflict'),
     };
   }, [queue]);
 
@@ -33,7 +34,7 @@ export function OfflineQueuePanel() {
         <Clock className="w-5 h-5 text-gray-400" />
       </div>
 
-      {(['syncing', 'pending', 'failed'] as const).map((status) => {
+      {(['syncing', 'pending', 'failed', 'conflict'] as const).map((status) => {
         const items = grouped[status];
         if (!items.length) return null;
 
@@ -44,7 +45,9 @@ export function OfflineQueuePanel() {
                 ? 'Waiting to sync'
                 : status === 'syncing'
                   ? 'Syncing'
-                  : 'Needs attention'}
+                  : status === 'failed'
+                    ? 'Failed - needs attention'
+                    : 'Conflicts - needs resolution'}
             </p>
             <div className="space-y-2">
               {items.map((sale) => (
@@ -54,9 +57,18 @@ export function OfflineQueuePanel() {
                 >
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex flex-col">
-                      <span className="font-medium text-gray-900">
-                        {sale.customerSnapshot?.name ?? 'Walk-in customer'}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900">
+                          {sale.customerSnapshot?.name ?? 'Walk-in customer'}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          sale.type === 'resume_held'
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {sale.type === 'resume_held' ? 'Held Resume' : 'Sale'}
+                        </span>
+                      </div>
                       <span className="text-xs text-gray-500">
                         {formatDistanceToNow(new Date(sale.createdAt), {
                           addSuffix: true,
@@ -99,6 +111,28 @@ export function OfflineQueuePanel() {
                         className="ml-3 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-red-600"
                       >
                         <Trash2 className="w-3 h-3" />
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                  {status === 'conflict' && (
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => resolveConflict(sale.id, 'overwrite')}
+                        className="text-xs font-medium text-green-600 hover:text-green-700"
+                      >
+                        Overwrite
+                      </button>
+                      <button
+                        onClick={() => resolveConflict(sale.id, 'skip')}
+                        className="text-xs font-medium text-yellow-600 hover:text-yellow-700"
+                      >
+                        Skip
+                      </button>
+                      <button
+                        onClick={() => removeSale(sale.id)}
+                        className="text-xs font-medium text-gray-600 hover:text-red-600"
+                      >
                         Remove
                       </button>
                     </div>

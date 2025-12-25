@@ -41,5 +41,29 @@ router.put('/:id', requirePermission('role:update'), roleController.updateRole);
  */
 router.delete('/:id', requirePermission('role:delete'), roleController.deleteRole);
 
+/**
+ * GET /api/roles/analytics
+ * Get role analytics
+ */
+router.get('/analytics', roleController.getAnalytics);
+
+/**
+ * GET /api/roles/distribution
+ * Get role distribution by category
+ */
+router.get('/distribution', roleController.getDistribution);
+
+/**
+ * GET /api/roles/built-in
+ * Get built-in system roles
+ */
+router.get('/built-in', roleController.getBuiltInRoles);
+
+/**
+ * POST /api/roles/initialize
+ * Initialize default roles for tenant (requires role:create permission)
+ */
+router.post('/initialize', requirePermission('role:create'), roleController.initializeRoles);
+
 export default router;
 

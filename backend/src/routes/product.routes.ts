@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
 import { requireFormAccess } from '../middleware/formPermission.middleware';
+import { param } from 'express-validator';
 import {
   createProductValidation,
   updateProductValidation,
@@ -35,6 +36,15 @@ router.get('/low-stock', productController.getLowStockProducts);
 
 // GET /api/products/sku/:sku - Get product by SKU (must be before /:id)
 router.get('/sku/:sku', [...skuParamValidation, validate], productController.getProductBySKU);
+
+// GET /api/products/barcode/:code - Get product by barcode (must be before /:id)
+router.get('/barcode/:code', [param('code').notEmpty().withMessage('Barcode is required'), validate], productController.getProductByBarcode);
+
+// GET /api/products/qr/:data - Get product by QR code (must be before /:id)
+router.get('/qr/:data', [param('data').notEmpty().withMessage('QR data is required'), validate], productController.scanQRCode);
+
+// GET /api/products/stats - Get product statistics (must be before /:id)
+router.get('/stats', productController.getProductStats);
 
 // POST /api/products/scan-qr - Scan QR code
 router.post('/scan-qr', [...scanQRValidation, validate], productController.scanQRCode);

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response } from 'express';
 import { TenantRequest } from '../types';
 import { salesReportsService } from '../services/reports/salesReports.service';
 import { successResponse } from '../utils/response';

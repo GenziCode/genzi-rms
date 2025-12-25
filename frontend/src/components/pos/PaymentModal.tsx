@@ -17,10 +17,11 @@ import { toast } from 'react-hot-toast';
 import { posService } from '@/services/pos.service';
 import { usePOSStore } from '@/store/posStore';
 import type { Payment, Sale } from '@/types/pos.types';
-import type { StoreSettings } from '@/types/settings.types';
+import type { StoreSettings, PaymentSettings } from '@/types/settings.types';
 import { formatCurrency } from '@/lib/utils';
 import { useOfflineQueueStore } from '@/store/offlineQueueStore';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { usePOSSessionStore } from '@/store/posSessionStore';
 import { useAuthStore } from '@/store/authStore';
 import { useStore } from '@/contexts/StoreContext';
 import {
@@ -84,8 +85,9 @@ export default function PaymentModal({
     getTotalTax,
     getGrandTotal,
   } = usePOSStore();
-  const { enqueueSale } = useOfflineQueueStore();
+  const { enqueueSale, enqueueHeldSale } = useOfflineQueueStore();
   const { isOnline } = useNetworkStatus();
+  const { recordSale } = usePOSSessionStore();
   const { user } = useAuthStore();
   const { currentStore } = useStore();
 
@@ -94,6 +96,11 @@ export default function PaymentModal({
   const { data: receiptSettingsData } = useQuery({
     queryKey: ['receiptSettings'],
     queryFn: settingsService.getReceiptSettings,
+  });
+
+  const { data: paymentSettingsData } = useQuery({
+    queryKey: ['paymentSettings'],
+    queryFn: settingsService.getPaymentSettings,
   });
 
   const shouldFetchStore =
@@ -120,6 +127,7 @@ export default function PaymentModal({
   const [payments, setPayments] = useState<Payment[]>([]);
   const [selectedMethod, setSelectedMethod] =
     useState<PaymentMethodValue>('cash');
+  const [selectedCurrency, setSelectedCurrency] = useState('USD');
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
   const [showReceipt, setShowReceipt] = useState(false);
@@ -156,6 +164,31 @@ export default function PaymentModal({
 
   const roundToTwo = (value: number) =>
     Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
+
+  // Calculate surcharge for a payment method
+  const calculateSurcharge = (method: PaymentMethodValue, baseAmount: number) => {
+    const methodConfig = paymentSettingsData?.paymentMethods?.[method];
+    if (!methodConfig?.surcharge || !methodConfig.enabled) {
+      return { surchargeAmount: 0, surchargeRate: 0 };
+    }
+
+    const surchargeRate = methodConfig.surcharge;
+    let surchargeAmount = 0;
+
+    if (methodConfig.surchargeType === 'percentage') {
+      surchargeAmount = roundToTwo((baseAmount * surchargeRate) / 100);
+    } else {
+      surchargeAmount = surchargeRate;
+    }
+
+    return { surchargeAmount, surchargeRate };
+  };
+
+  // Get available currencies for a payment method
+  const getAvailableCurrencies = (method: PaymentMethodValue) => {
+    const methodConfig = paymentSettingsData?.paymentMethods?.[method];
+    return methodConfig?.currencies || paymentSettingsData?.supportedCurrencies || ['USD'];
+  };
 
   const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
   const creditApplied = payments.reduce(
@@ -250,6 +283,9 @@ export default function PaymentModal({
     mutationFn: posService.createSale,
     onSuccess: (data) => {
       toast.success('Sale completed successfully!');
+      // Record sale in session analytics
+      const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+      recordSale(effectiveTotal, totalItems);
       setCompletedSale(data);
       setShowReceipt(true);
       queryClient.invalidateQueries({ queryKey: ['sales'] });
@@ -282,6 +318,9 @@ export default function PaymentModal({
     }) => posService.resumeTransaction(saleId, { payments }),
     onSuccess: (data) => {
       toast.success('Held transaction completed successfully!');
+      // Record resumed sale in session analytics
+      const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+      recordSale(effectiveTotal, totalItems);
       setCompletedSale(data);
       setShowReceipt(true);
       queryClient.invalidateQueries({ queryKey: ['sales'] });
@@ -329,6 +368,7 @@ export default function PaymentModal({
         {
           method: 'credit',
           amount: roundToTwo(creditToApply),
+          currency: selectedCurrency,
         },
       ]);
       toast.success(`Applied ${formatMoney(creditToApply)} customer credit`);
@@ -349,14 +389,27 @@ export default function PaymentModal({
       return;
     }
 
+    // Calculate surcharge
+    const { surchargeAmount, surchargeRate } = calculateSurcharge(selectedMethod, paymentAmount);
+    const totalAmount = roundToTwo(paymentAmount + surchargeAmount);
+
     setPayments([
       ...payments,
       {
         method: selectedMethod,
-        amount: roundToTwo(paymentAmount),
+        amount: totalAmount,
+        currency: selectedCurrency,
+        surchargeAmount: surchargeAmount > 0 ? surchargeAmount : undefined,
+        surchargeRate: surchargeRate > 0 ? surchargeRate : undefined,
         reference: reference || undefined,
       },
     ]);
+
+    if (surchargeAmount > 0) {
+      toast.success(`Payment added with ${formatMoney(surchargeAmount)} surcharge (${surchargeRate}${paymentSettingsData?.paymentMethods?.[selectedMethod]?.surchargeType === 'percentage' ? '%' : ' fixed'})`);
+    } else {
+      toast.success(`Payment added: ${formatMoney(totalAmount)}`);
+    }
 
     setAmount('');
     setReference('');
@@ -394,28 +447,41 @@ export default function PaymentModal({
             },
           ];
 
-    const queued = enqueueSale(
-      {
-        storeId,
-        customer,
-        cart: cart.map((item) => ({
-          ...item,
-          product: { ...item.product },
-        })),
-        payments: fallbackPayments,
-        notes,
-        discount: getTotalDiscount(),
-        cashierId: undefined,
-        subtotal: getSubtotal(),
-        totalTax: getTotalTax(),
-        totalDiscount: getTotalDiscount(),
-        grandTotal: getGrandTotal(),
-      },
-      message
-    );
+    const saleArgs = {
+      storeId,
+      customer,
+      cart: cart.map((item) => ({
+        ...item,
+        product: { ...item.product },
+      })),
+      payments: fallbackPayments,
+      notes,
+      discount: getTotalDiscount(),
+      cashierId: undefined,
+      subtotal: getSubtotal(),
+      totalTax: getTotalTax(),
+      totalDiscount: getTotalDiscount(),
+      grandTotal: getGrandTotal(),
+    };
+
+    let queued;
+    if (isResume && heldSale) {
+      // This is a held transaction resume
+      queued = enqueueHeldSale(
+        {
+          ...saleArgs,
+          heldSaleId: heldSale._id,
+          originalHeldSale: heldSale,
+        },
+        message
+      );
+    } else {
+      // This is a regular sale
+      queued = enqueueSale(saleArgs, message);
+    }
 
     toast.success(
-      `Sale saved offline${
+      `${isResume ? 'Held transaction resume' : 'Sale'} saved offline${
         queued.customerSnapshot?.name
           ? ` for ${queued.customerSnapshot.name}`
           : ''
@@ -578,14 +644,28 @@ export default function PaymentModal({
                         key={`${payment.method}-${index}`}
                         className="flex items-center justify-between text-sm bg-gray-50 px-3 py-2 rounded-md"
                       >
-                        <span className="flex items-center gap-2 text-gray-600">
-                          {method && (
-                            <method.icon
-                              className={`w-4 h-4 ${method.color}`}
-                            />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 text-gray-600">
+                            {method && (
+                              <method.icon
+                                className={`w-4 h-4 ${method.color}`}
+                              />
+                            )}
+                            <span>
+                              {method?.label ?? formatMethodLabel(payment.method)}
+                              {payment.currency && payment.currency !== paymentSettingsData?.defaultCurrency && (
+                                <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">
+                                  {payment.currency}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          {payment.surchargeAmount && payment.surchargeAmount > 0 && (
+                            <div className="text-xs text-amber-600 mt-1">
+                              +{formatMoney(payment.surchargeAmount)} surcharge
+                            </div>
                           )}
-                          {method?.label ?? formatMethodLabel(payment.method)}
-                        </span>
+                        </div>
                         <span className="font-medium">
                           {formatMoney(payment.amount)}
                         </span>
@@ -748,6 +828,45 @@ export default function PaymentModal({
             </div>
           </div>
 
+          {/* Currency Selection */}
+          {paymentSettingsData?.supportedCurrencies &&
+           paymentSettingsData.supportedCurrencies.length > 1 && (
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Currency
+              </label>
+              <select
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {paymentSettingsData.supportedCurrencies.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Surcharge Display */}
+          {(() => {
+            const { surchargeAmount, surchargeRate } = calculateSurcharge(selectedMethod, parseFloat(amount) || 0);
+            return surchargeAmount > 0 ? (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-amber-800 font-medium">Surcharge:</span>
+                  <span className="text-amber-800 font-bold">
+                    {formatMoney(surchargeAmount)} ({surchargeRate}{paymentSettingsData?.paymentMethods?.[selectedMethod]?.surchargeType === 'percentage' ? '%' : ' fixed'})
+                  </span>
+                </div>
+                <p className="text-xs text-amber-700 mt-1">
+                  Total payment will be {formatMoney((parseFloat(amount) || 0) + surchargeAmount)}
+                </p>
+              </div>
+            ) : null;
+          })()}
+
           {/* Amount Input */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -850,12 +969,22 @@ export default function PaymentModal({
                           <method.icon className={`w-5 h-5 ${method.color}`} />
                         )}
                         <div>
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-gray-900 flex items-center gap-2">
                             {method?.label}
+                            {payment.currency && payment.currency !== paymentSettingsData?.defaultCurrency && (
+                              <span className="text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">
+                                {payment.currency}
+                              </span>
+                            )}
                           </p>
                           {payment.reference && (
                             <p className="text-xs text-gray-500">
                               Ref: {payment.reference}
+                            </p>
+                          )}
+                          {payment.surchargeAmount && payment.surchargeAmount > 0 && (
+                            <p className="text-xs text-amber-600">
+                              +{formatMoney(payment.surchargeAmount)} surcharge
                             </p>
                           )}
                         </div>

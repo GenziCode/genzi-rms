@@ -309,13 +309,13 @@ export default function StockTransfersPage() {
                               label="Submit"
                               variant="primary"
                               onClick={() => handleTransition('submit', transfer)}
-                              loading={transitionMutation.isLoading}
+                              loading={transitionMutation.isPending}
                             />
                             <ActionButton
                               label="Cancel"
                               variant="ghost"
                               onClick={() => handleTransition('cancel', transfer)}
-                              loading={transitionMutation.isLoading}
+                              loading={transitionMutation.isPending}
                             />
                           </>
                         )}
@@ -325,13 +325,13 @@ export default function StockTransfersPage() {
                               label="Approve"
                               variant="primary"
                               onClick={() => handleTransition('approve', transfer)}
-                              loading={transitionMutation.isLoading}
+                              loading={transitionMutation.isPending}
                             />
                             <ActionButton
                               label="Reject"
                               variant="danger"
                               onClick={() => handleTransition('reject', transfer)}
-                              loading={transitionMutation.isLoading}
+                              loading={transitionMutation.isPending}
                             />
                           </>
                         )}
@@ -341,13 +341,13 @@ export default function StockTransfersPage() {
                               label="Start picking"
                               variant="primary"
                               onClick={() => handleTransition('picking', transfer)}
-                              loading={transitionMutation.isLoading}
+                              loading={transitionMutation.isPending}
                             />
                             <ActionButton
                               label="Cancel"
                               variant="ghost"
                               onClick={() => handleTransition('cancel', transfer)}
-                              loading={transitionMutation.isLoading}
+                              loading={transitionMutation.isPending}
                             />
                           </>
                         )}
@@ -356,7 +356,7 @@ export default function StockTransfersPage() {
                             label="Mark in transit"
                             variant="primary"
                             onClick={() => handleTransition('in_transit', transfer)}
-                            loading={transitionMutation.isLoading}
+                            loading={transitionMutation.isPending}
                           />
                         )}
                         {transfer.status === 'in_transit' && (
@@ -364,7 +364,7 @@ export default function StockTransfersPage() {
                             label="Mark received"
                             variant="primary"
                             onClick={() => handleTransition('received', transfer)}
-                            loading={transitionMutation.isLoading}
+                            loading={transitionMutation.isPending}
                           />
                         )}
                       </div>
@@ -795,10 +795,10 @@ function CreateTransferDrawer({ isOpen, onClose }: CreateTransferDrawerProps) {
               </button>
               <button
                 type="submit"
-                disabled={createMutation.isLoading}
+                disabled={createMutation.isPending}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
               >
-                {createMutation.isLoading ? (
+                {createMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <ShieldCheck className="w-4 h-4" />

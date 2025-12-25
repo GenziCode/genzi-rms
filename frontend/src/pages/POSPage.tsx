@@ -18,6 +18,7 @@ import {
   Grid,
   List,
   ChevronRight,
+  Activity,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { productsService } from '@/services/products.service';
@@ -35,6 +36,7 @@ import InvoiceSearch from '@/components/pos/InvoiceSearch';
 import HeldTransactions from '@/components/pos/HeldTransactions';
 import { OfflineStatusBanner } from '@/components/pos/OfflineStatusBanner';
 import { OfflineQueuePanel } from '@/components/pos/OfflineQueuePanel';
+import POSAnalyticsSidebar from '@/components/pos/POSAnalyticsSidebar';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useStore } from '@/contexts/StoreContext';
 import { useOfflineQueueStore } from '@/store/offlineQueueStore';
@@ -89,6 +91,7 @@ export default function POSPage() {
   const [showHeld, setShowHeld] = useState(false);
   const [showBarcode, setShowBarcode] = useState(false);
   const [heldSale, setHeldSale] = useState<Sale | null>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -352,6 +355,13 @@ export default function POSPage() {
                 <Clock className="w-4 h-4" />
                 <span className="hidden sm:inline">Held</span>
               </button>
+              <button
+                onClick={() => setShowAnalytics(!showAnalytics)}
+                className={`btn-header ${showAnalytics ? 'bg-blue-100 text-blue-700' : ''}`}
+              >
+                <Activity className="w-4 h-4" />
+                <span className="hidden sm:inline">Analytics</span>
+              </button>
             </div>
           </div>
 
@@ -406,7 +416,7 @@ export default function POSPage() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Products */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className={`${showAnalytics ? 'flex-1' : 'flex-1'} overflow-y-auto p-6`}>
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -642,6 +652,11 @@ export default function POSPage() {
             </div>
           )}
         </div>
+
+        {/* Analytics Sidebar */}
+        {showAnalytics && (
+          <POSAnalyticsSidebar onToggleQueuePanel={() => setShowHeld(true)} />
+        )}
       </div>
 
       {/* Modals */}

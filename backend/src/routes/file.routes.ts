@@ -4,8 +4,8 @@ import { fileController } from '../controllers/file.controller';
 import { validate } from '../middleware/validation.middleware';
 import { authenticate } from '../middleware/auth.middleware';
 import { resolveTenant } from '../middleware/tenant.middleware';
-import { uploadSingle, uploadMultiple, uploadImage } from '../middleware/upload.middleware';
-import { isValidMongoId } from '../utils/validators';
+import { uploadSingle, uploadMultiple } from '../middleware/upload.middleware';
+import { isValidObjectId } from '../utils/validators';
 
 const router = Router();
 
@@ -37,7 +37,7 @@ router.get(
     query('entityId')
       .optional()
       .custom((value) => {
-        if (value && !isValidMongoId(value)) {
+        if (value && !isValidObjectId(value)) {
           throw new Error('Invalid entity ID');
         }
         return true;
@@ -67,7 +67,7 @@ router.get(
   [
     param('id')
       .custom((value) => {
-        if (!isValidMongoId(value)) {
+        if (!isValidObjectId(value)) {
           throw new Error('Invalid file ID');
         }
         return true;
@@ -97,7 +97,7 @@ router.post(
     body('entityId')
       .optional()
       .custom((value) => {
-        if (value && !isValidMongoId(value)) {
+        if (value && !isValidObjectId(value)) {
           throw new Error('Invalid entity ID');
         }
         return true;
@@ -128,7 +128,7 @@ router.post(
     body('entityId')
       .optional()
       .custom((value) => {
-        if (value && !isValidMongoId(value)) {
+        if (value && !isValidObjectId(value)) {
           throw new Error('Invalid entity ID');
         }
         return true;
@@ -148,7 +148,7 @@ router.delete(
   [
     param('id')
       .custom((value) => {
-        if (!isValidMongoId(value)) {
+        if (!isValidObjectId(value)) {
           throw new Error('Invalid file ID');
         }
         return true;

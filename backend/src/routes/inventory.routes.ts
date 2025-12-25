@@ -1,7 +1,6 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { InventoryController } from '../controllers/inventory.controller';
 import { authenticate } from '../middleware/auth.middleware';
-import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { body, param, query } from 'express-validator';
 import { requireFormAccess } from '../middleware/formPermission.middleware';
@@ -11,10 +10,10 @@ const inventoryController = new InventoryController();
 
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
-router.use(authenticate);
+router.use((req: Request, res: Response, next: NextFunction) => authenticate(req as any, res, next));
 
 // All inventory routes require form access
-router.use(requireFormAccess('frmShopInventory'));
+router.use((req: Request, res: Response, next: NextFunction) => requireFormAccess('frmShopInventory')(req as any, res, next));
 
 /**
  * Validation rules

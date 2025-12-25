@@ -15,10 +15,10 @@ export class AuditService {
     entityType: string;
     entityId?: string;
     entityName?: string;
-    changes?: Array<{ field: string; oldValue: any; newValue: any }>;
-    snapshotBefore?: Record<string, any> | null;
-    snapshotAfter?: Record<string, any> | null;
-    metadata?: Record<string, any>;
+    changes?: Array<{ field: string; oldValue: unknown; newValue: unknown }>;
+    snapshotBefore?: Record<string, unknown> | null;
+    snapshotAfter?: Record<string, unknown> | null;
+    metadata?: Record<string, unknown>;
     ipAddress?: string;
     userAgent?: string;
   }): Promise<void> {
@@ -61,9 +61,9 @@ export class AuditService {
     entityType: string;
     entityId?: string;
     entityName?: string;
-    before?: any;
-    after?: any;
-    metadata?: Record<string, any>;
+    before?: unknown;
+    after?: unknown;
+    metadata?: Record<string, unknown>;
     ipAddress?: string;
     userAgent?: string;
   }): Promise<void> {
@@ -117,7 +117,36 @@ export class AuditService {
       page?: number;
       limit?: number;
     } = {}
-  ) {
+  ): Promise<{
+    logs: Array<{
+      _id?: string;
+      tenantId: string;
+      userId?: string;
+      action: AuditAction;
+      entityType: string;
+      entityId?: string;
+      entityName?: string;
+      changes?: Array<{ field: string; oldValue: unknown; newValue: unknown }>;
+      snapshotBefore?: Record<string, unknown> | null;
+      snapshotAfter?: Record<string, unknown> | null;
+      metadata?: Record<string, unknown>;
+      ipAddress?: string;
+      userAgent?: string;
+      timestamp: Date;
+      user?: {
+        id?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      };
+    }>;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     const tenantConn = await getTenantConnection(tenantId);
     const AuditLog = tenantConn.model<IAuditLog>('AuditLog', AuditLogSchema);
 
@@ -185,7 +214,36 @@ export class AuditService {
     entityId: string,
     page: number = 1,
     limit: number = 50
-  ) {
+  ): Promise<{
+    logs: Array<{
+      _id?: string;
+      tenantId: string;
+      userId?: string;
+      action: AuditAction;
+      entityType: string;
+      entityId?: string;
+      entityName?: string;
+      changes?: Array<{ field: string; oldValue: unknown; newValue: unknown }>;
+      snapshotBefore?: Record<string, unknown> | null;
+      snapshotAfter?: Record<string, unknown> | null;
+      metadata?: Record<string, unknown>;
+      ipAddress?: string;
+      userAgent?: string;
+      timestamp: Date;
+      user?: {
+        id?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      };
+    }>;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     return this.getAll(tenantId, {
       entityType,
       entityId,
@@ -202,7 +260,36 @@ export class AuditService {
     userId: string,
     page: number = 1,
     limit: number = 50
-  ) {
+  ): Promise<{
+    logs: Array<{
+      _id?: string;
+      tenantId: string;
+      userId?: string;
+      action: AuditAction;
+      entityType: string;
+      entityId?: string;
+      entityName?: string;
+      changes?: Array<{ field: string; oldValue: unknown; newValue: unknown }>;
+      snapshotBefore?: Record<string, unknown> | null;
+      snapshotAfter?: Record<string, unknown> | null;
+      metadata?: Record<string, unknown>;
+      ipAddress?: string;
+      userAgent?: string;
+      timestamp: Date;
+      user?: {
+        id?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      };
+    }>;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     return this.getAll(tenantId, {
       userId,
       page,

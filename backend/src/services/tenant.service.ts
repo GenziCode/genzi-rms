@@ -57,7 +57,7 @@ export class TenantService {
     firstName: string;
     lastName: string;
     phone?: string;
-  }): Promise<{ tenant: ITenant; user: any; accessToken: string; refreshToken: string }> {
+  }): Promise<{ tenant: ITenant; user: { id: string; email: string; firstName: string; lastName: string; role: string }; accessToken: string; refreshToken: string }> {
     const Tenant = await this.getTenantModel();
     const User = await this.getUserModel();
 
@@ -166,14 +166,20 @@ export class TenantService {
         accessToken,
         refreshToken,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorDetails = error instanceof Error ? {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      } : {
+        message: 'Unknown error',
+        stack: undefined,
+        name: 'UnknownError',
+      };
+
       logger.error(
         `Failed to register tenant ${data.subdomain || data.name}:`,
-        {
-          message: error?.message,
-          stack: error?.stack,
-          name: error?.name,
-        }
+        errorDetails
       );
 
       // Rollback: Delete user if created
@@ -181,11 +187,15 @@ export class TenantService {
         try {
           await User.deleteOne({ _id: user._id });
           logger.info(`Rolled back: Deleted user ${user.email}`);
-        } catch (deleteUserError: any) {
-          logger.error('Failed to delete user after rollback:', {
-            message: deleteUserError?.message,
+        } catch (deleteUserError: unknown) {
+          const userErrorDetails = deleteUserError instanceof Error ? {
+            message: deleteUserError.message,
             userId: user._id,
-          });
+          } : {
+            message: 'Unknown error deleting user',
+            userId: user._id,
+          };
+          logger.error('Failed to delete user after rollback:', userErrorDetails);
         }
       }
 
@@ -194,11 +204,15 @@ export class TenantService {
         try {
           await Tenant.deleteOne({ _id: tenant._id });
           logger.info(`Rolled back: Deleted tenant ${tenant.subdomain}`);
-        } catch (deleteTenantError: any) {
-          logger.error('Failed to delete tenant after rollback:', {
-            message: deleteTenantError?.message,
+        } catch (deleteTenantError: unknown) {
+          const tenantErrorDetails = deleteTenantError instanceof Error ? {
+            message: deleteTenantError.message,
             tenantId: tenant._id,
-          });
+          } : {
+            message: 'Unknown error deleting tenant',
+            tenantId: tenant._id,
+          };
+          logger.error('Failed to delete tenant after rollback:', tenantErrorDetails);
         }
       }
 
@@ -211,11 +225,15 @@ export class TenantService {
           );
           await tenantConnRollback.db.dropDatabase();
           logger.info(`Rolled back: Dropped tenant database ${tenant.dbName}`);
-        } catch (dropError: any) {
-          logger.error('Failed to drop tenant database after rollback:', {
-            message: dropError?.message,
+        } catch (dropError: unknown) {
+          const dropErrorDetails = dropError instanceof Error ? {
+            message: dropError.message,
             dbName: tenant.dbName,
-          });
+          } : {
+            message: 'Unknown error dropping database',
+            dbName: tenant.dbName,
+          };
+          logger.error('Failed to drop tenant database after rollback:', dropErrorDetails);
         }
       }
 
@@ -223,11 +241,11 @@ export class TenantService {
       if (error instanceof AppError) {
         throw error;
       }
-      
+
       // For other errors, wrap with better context but preserve message
-      const errorMessage = error?.message || 'Unknown error during tenant registration';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error during tenant registration';
       const wrappedError = new Error(`Tenant registration failed: ${errorMessage}`);
-      (wrappedError as any).originalError = error;
+      (wrappedError as { originalError: unknown }).originalError = error;
       throw wrappedError;
     }
   }
@@ -267,7 +285,86 @@ export class TenantService {
     return !existing;
   }
 
-  async getUsage(tenantId: string): Promise<any> {
+  async getUsage(tenantId: string): Promise<{
+    tenant: {
+      id: string;
+      name: string;
+      status: string;
+      plan: string;
+      billingCycle: string;
+      suspendedAt?: Date;
+      suspendReason?: string;
+      features: {
+        multiStore: boolean;
+        restaurant: boolean;
+        inventory: boolean;
+        loyalty: boolean;
+        reporting: boolean;
+        api: boolean;
+        webhooks: boolean;
+      };
+    };
+    limits: {
+      users: number;
+      stores: number;
+      products: number;
+      monthlyTransactions: number;
+      storageBytes: number;
+    };
+    usage: {
+      seats: {
+        used: number;
+        limit: number;
+        percent: number;
+        byRole: Array<{ role: string; count: number }>;
+      };
+      stores: {
+        used: number;
+        active: number;
+        inactive: number;
+        limit: number;
+        percent: number;
+      };
+      products: {
+        used: number;
+        limit: number;
+        percent: number;
+      };
+      monthlyTransactions: {
+        count: number;
+        totalAmount: number;
+        totalTax: number;
+        limit: number;
+        percent: number;
+        periodStart: Date;
+      };
+      storage: {
+        usedBytes: number;
+        limitBytes: number;
+        percent: number;
+      };
+    };
+    sync: {
+      deviceCount: number;
+      online: number;
+      offline: number;
+      degraded: number;
+      conflicts: number;
+      latestSyncAt?: Date;
+      devices: Array<{
+        id: string;
+        label: string;
+        status: string;
+        lastSyncAt?: Date;
+        lastSeenAt?: Date;
+        queueSize: number;
+        conflicts: number;
+        appVersion: string;
+        platform: string;
+      }>;
+    };
+    updatedAt: Date;
+  }> {
     const tenant = await this.ensureTenant(tenantId);
 
     const tenantConn = await getTenantConnection(tenantId, tenant.dbName);
@@ -499,7 +596,7 @@ export class TenantService {
 
   async activate(
     tenantId: string,
-    options: { reactivatedBy?: string } = {}
+    _options: { reactivatedBy?: string } = {}
   ): Promise<ITenant> {
     const Tenant = await this.getTenantModel();
     const tenant = await Tenant.findById(tenantId);

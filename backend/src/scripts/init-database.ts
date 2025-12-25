@@ -38,10 +38,12 @@ async function initMasterDatabase() {
   
   logger.info('✅ Master database initialized');
   logger.info('Collections created:');
-  const collections = await connection.db.listCollections().toArray();
-  collections.forEach(col => {
-    logger.info(`  - ${col.name}`);
-  });
+  const collections = await connection.db?.listCollections().toArray();
+  if (collections) {
+    collections.forEach(col => {
+      logger.info(`  - ${col.name}`);
+    });
+  }
 
   await connection.close();
 }
@@ -74,6 +76,13 @@ async function initSampleTenantDatabase() {
   await Category.createIndexes();
   await Store.createIndexes();
   await Product.createIndexes();
+
+  const collections = await connection.db?.listCollections().toArray();
+  if (collections) {
+    collections.forEach(col => {
+      logger.info(`  - ${col.name}`);
+    });
+  }
 
   // Seed default categories
   logger.info('Seeding default categories...');
@@ -114,10 +123,12 @@ async function initSampleTenantDatabase() {
 
   logger.info('✅ Sample tenant database initialized');
   logger.info('Collections created:');
-  const collections = await connection.db.listCollections().toArray();
-  collections.forEach(col => {
-    logger.info(`  - ${col.name}`);
-  });
+  const tenantCollections = await connection.db?.listCollections().toArray();
+  if (tenantCollections) {
+    tenantCollections.forEach(col => {
+      logger.info(`  - ${col.name}`);
+    });
+  }
 
   await connection.close();
 }
@@ -212,7 +223,7 @@ async function createSampleTenantRecord() {
   const user = await User.create({
     tenantId: tenant._id,
     email: 'demo@genzi.com',
-    password: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password: "demo123"
+    password: 'demo123', // Will be hashed by pre-save hook
     firstName: 'Demo',
     lastName: 'Owner',
     role: UserRole.OWNER,

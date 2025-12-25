@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { query } from 'express-validator';
 import { salesReportsController } from '../controllers/salesReports.controller';
 import { authenticate } from '../middleware/auth.middleware';
+import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
 
 const router = Router();
 
+router.use(resolveTenant);
 router.use(authenticate);
 
 /**

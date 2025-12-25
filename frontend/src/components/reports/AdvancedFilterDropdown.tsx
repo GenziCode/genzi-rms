@@ -16,6 +16,7 @@ interface AdvancedFilterDropdownProps {
   searchable?: boolean;
   loading?: boolean;
   placeholder?: string;
+  className?: string;
 }
 
 export default function AdvancedFilterDropdown({
@@ -27,6 +28,7 @@ export default function AdvancedFilterDropdown({
   searchable = true,
   loading = false,
   placeholder = 'Search...',
+  className = '',
 }: AdvancedFilterDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,7 +70,7 @@ export default function AdvancedFilterDropdown({
   };
 
   return (
-    <div ref={dropdownRef} className="relative">
+    <div ref={dropdownRef} className={`relative ${className}`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={loading}

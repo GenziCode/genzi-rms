@@ -47,27 +47,27 @@ export class SettingsService {
     }
   }
 
-  async getBusinessSettings(tenantId: string) {
+  async getBusinessSettings(tenantId: string): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     return this.toPlain(settings.business);
   }
 
-  async getTaxSettings(tenantId: string) {
+  async getTaxSettings(tenantId: string): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     return this.toPlain(settings.tax);
   }
 
-  async getReceiptSettings(tenantId: string) {
+  async getReceiptSettings(tenantId: string): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     return this.toPlain(settings.receipt);
   }
 
-  async getPOSSettings(tenantId: string) {
+  async getPOSSettings(tenantId: string): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     return this.toPlain(settings.pos);
   }
 
-  async getPaymentSettings(tenantId: string) {
+  async getPaymentSettings(tenantId: string): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     const payments = settings.payments || (settings.payments = {} as any);
     const stripe = payments.stripe || {};
@@ -90,7 +90,7 @@ export class SettingsService {
     };
   }
 
-  async getIntegrationSettings(tenantId: string) {
+  async getIntegrationSettings(tenantId: string): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     const integrations = settings.integrations || (settings.integrations = {} as any);
     const ecommerce = integrations.ecommerce || {};
@@ -133,7 +133,7 @@ export class SettingsService {
     };
   }
 
-  async getComplianceSettings(tenantId: string) {
+  async getComplianceSettings(tenantId: string): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     const compliance = settings.compliance || (settings.compliance = {} as any);
 
@@ -292,7 +292,7 @@ export class SettingsService {
   /**
    * Get communication (email/SMS) settings
    */
-  async getCommunicationSettings(tenantId: string) {
+  async getCommunicationSettings(tenantId: string): Promise<any> {
     try {
       const settings = await this.ensureSettings(tenantId);
       const notifications = settings.notifications || ({} as ISettings['notifications']);
@@ -364,7 +364,7 @@ export class SettingsService {
         fromNumber?: string;
       };
     }
-  ) {
+  ): Promise<any> {
     try {
       const settings = await this.ensureSettings(tenantId);
       const notifications = settings.notifications;
@@ -536,7 +536,7 @@ export class SettingsService {
         webhookSecret?: string | null;
       };
     }
-  ) {
+  ): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     const payments = settings.payments || (settings.payments = {} as any);
     const stripe = payments.stripe || (payments.stripe = {} as any);
@@ -607,7 +607,7 @@ export class SettingsService {
     return this.getPaymentSettings(tenantId);
   }
 
-  async recordStripeTestResult(tenantId: string, userId: string, success: boolean) {
+  async recordStripeTestResult(tenantId: string, userId: string, success: boolean): Promise<void> {
     const settings = await this.ensureSettings(tenantId);
     const payments = settings.payments || (settings.payments = {} as any);
     const stripe = payments.stripe || (payments.stripe = {} as any);
@@ -650,7 +650,7 @@ export class SettingsService {
         secret?: string | null;
       };
     }
-  ) {
+  ): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     const integrations = settings.integrations || (settings.integrations = {} as any);
 
@@ -769,7 +769,7 @@ export class SettingsService {
     tenantId: string,
     userId: string,
     data: Partial<ISettings['compliance']>
-  ) {
+  ): Promise<any> {
     const settings = await this.ensureSettings(tenantId);
     const compliance = settings.compliance || (settings.compliance = {} as any);
 

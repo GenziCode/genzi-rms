@@ -61,7 +61,11 @@ export const webhooksService = {
    * Get webhook by ID
    */
   async getById(id: string) {
-    const response = await api.get<{ data: { webhook: WebhookConfig } }>(
+    const response = await api.get<{
+      success: boolean;
+      data: { webhook: WebhookConfig };
+      message: string;
+    }>(
       `/webhooks-config/${id}`
     );
     return response.data.data.webhook;
@@ -76,7 +80,11 @@ export const webhooksService = {
     events: string[];
     maxRetries?: number;
   }) {
-    const response = await api.post<{ data: { webhook: WebhookConfig } }>(
+    const response = await api.post<{
+      success: boolean;
+      data: { webhook: WebhookConfig };
+      message: string;
+    }>(
       '/webhooks-config',
       data
     );
@@ -87,7 +95,11 @@ export const webhooksService = {
    * Update webhook
    */
   async update(id: string, data: Partial<WebhookConfig>) {
-    const response = await api.put<{ data: { webhook: WebhookConfig } }>(
+    const response = await api.put<{
+      success: boolean;
+      data: { webhook: WebhookConfig };
+      message: string;
+    }>(
       `/webhooks-config/${id}`,
       data
     );
@@ -141,7 +153,11 @@ export const webhooksService = {
    * Toggle webhook active status
    */
   async toggleActive(id: string, active: boolean) {
-    const response = await api.patch<{ data: { webhook: WebhookConfig } }>(
+    const response = await api.patch<{
+      success: boolean;
+      data: { webhook: WebhookConfig };
+      message: string;
+    }>(
       `/webhooks-config/${id}/toggle`,
       { active }
     );

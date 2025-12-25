@@ -53,7 +53,6 @@ export interface ISettings extends Document {
     showLogo: boolean;
     showTaxId: boolean;
     showBarcode: boolean;
-    showBarcode: boolean;
     showQRCode: boolean;
     paperSize: 'A4' | '80mm' | '58mm';
     logoUrl?: string;

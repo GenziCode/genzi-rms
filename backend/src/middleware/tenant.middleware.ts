@@ -2,9 +2,9 @@ import { Response, NextFunction } from 'express';
 import { TenantRequest } from '../types';
 import { getMasterConnection, getTenantConnection } from '../config/database';
 import { TenantSchema } from '../models/tenant.model';
-import { 
-  TenantNotFoundError, 
-  TenantSuspendedError, 
+import {
+  TenantNotFoundError,
+  TenantSuspendedError,
   SubscriptionExpiredError,
   LimitExceededError,
   AppError
@@ -41,6 +41,48 @@ export const resolveTenant = async (
       
       subdomain = parts[0];
     }
+    
+    // For IP-based access (public IP), we'll implement a fallback mechanism
+    if (host === 'localhost' ||
+        host.startsWith('192.168.') ||
+        host.match(/^\d+\.\d+\.\d+\.\d+/) ||  // matches IP addresses like 39.39.213.253
+        host.includes('localhost')) {
+      // For IP-based access, find the first active tenant as a fallback
+      const masterConn = await getMasterConnection();
+      const TenantModel = masterConn.model('Tenant', TenantSchema);
+      
+      const defaultTenant = await TenantModel.findOne({
+        status: 'active'
+      }).sort({ createdAt: 1 }).lean();
+      
+      if (!defaultTenant) {
+        throw new TenantNotFoundError();
+      }
+      
+      // Get tenant database connection
+      const tenantConn = await getTenantConnection(defaultTenant._id.toString(), defaultTenant.dbName as string);
+      
+      // Attach tenant to request
+      req.tenant = {
+        id: defaultTenant._id.toString(),
+        tenantId: defaultTenant._id.toString(),
+        name: defaultTenant.name as string,
+        subdomain: defaultTenant.subdomain as string,
+        dbName: defaultTenant.dbName as string,
+        connection: tenantConn,
+        features: defaultTenant.features as Record<string, boolean>,
+        limits: defaultTenant.limits as Record<string, number>,
+        subscription: {
+          plan: defaultTenant.subscription.plan as string,
+          status: defaultTenant.subscription.status as string,
+        },
+      };
+      
+      logger.debug(`Default tenant resolved for IP access: ${defaultTenant.subdomain} (${defaultTenant.dbName})`);
+      
+      next();
+      return;
+    }
 
     if (!subdomain) {
       throw new AppError('Tenant not specified', 400, 'TENANT_NOT_SPECIFIED');
@@ -75,28 +117,30 @@ export const resolveTenant = async (
       throw new SubscriptionExpiredError();
     }
 
-    // Check if trial is expired
-    if (tenant.isTrialExpired()) {
-      throw new SubscriptionExpiredError();
+    // Check if trial is expired - using manual check instead of method
+    if (tenant.subscription.status === 'trial' && tenant.subscription.trialEndDate) {
+      const isExpired = new Date() > new Date(tenant.subscription.trialEndDate as Date);
+      if (isExpired) {
+        throw new SubscriptionExpiredError();
+      }
     }
 
     // Get tenant database connection
-    const tenantConn = await getTenantConnection(tenant._id.toString(), tenant.dbName);
+    const tenantConn = await getTenantConnection(tenant._id.toString(), tenant.dbName as string);
 
     // Attach tenant to request
-    const tenantId = tenant._id.toString();
     req.tenant = {
-      id: tenantId,
-      tenantId,
-      name: tenant.name,
-      subdomain: tenant.subdomain,
-      dbName: tenant.dbName,
+      id: tenant._id.toString(),
+      tenantId: tenant._id.toString(),
+      name: tenant.name as string,
+      subdomain: tenant.subdomain as string,
+      dbName: tenant.dbName as string,
       connection: tenantConn,
-      features: tenant.features,
-      limits: tenant.limits,
+      features: tenant.features as Record<string, boolean>,
+      limits: tenant.limits as Record<string, number>,
       subscription: {
-        plan: tenant.subscription.plan,
-        status: tenant.subscription.status,
+        plan: tenant.subscription.plan as string,
+        status: tenant.subscription.status as string,
       },
     };
 
@@ -151,11 +195,12 @@ export const checkUsageLimit = (resource: string) => {
         throw new TenantNotFoundError();
       }
 
-      const usage = tenant.usage[resource] || 0;
-      const limit = tenant.limits[resource] || 0;
-
-      if (usage >= limit) {
-        throw new LimitExceededError(resource, limit, usage);
+      // Use different variable names to avoid redeclaration
+      const resourceUsage = (tenant.usage as Record<string, number>)[resource] || 0;
+      const resourceLimit = (tenant.limits as Record<string, number>)[resource] || 0;
+  
+      if (resourceUsage >= resourceLimit) {
+        throw new LimitExceededError(resource, resourceLimit, resourceUsage);
       }
 
       next();
@@ -191,4 +236,3 @@ export const incrementUsage = async (
     // Don't throw - usage tracking failure shouldn't block operations
   }
 };
-

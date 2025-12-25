@@ -110,6 +110,7 @@ function MainLayout({ children }: MainLayoutProps) {
         { name: 'Physical Audits', href: '/physical-audits', icon: ClipboardList },
         { name: 'Forecasting', href: '/stock-forecast', icon: Sparkles },
         { name: 'Warehouse Mgmt', href: '/warehouse-management', icon: MapIcon },
+        { name: 'Stores', href: '/stores', icon: Store },
         { name: 'Stock Analytics', href: '/stock-analytics', icon: BarChart3 },
       ],
     },

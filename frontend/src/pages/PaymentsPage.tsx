@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   CreditCard,
   DollarSign,
-  RefreshCw,
   CheckCircle,
   XCircle,
   Clock,
@@ -11,10 +10,11 @@ import {
 import { formatCurrency } from '@/lib/utils';
 import { paymentsService, type Payment } from '@/services/payments.service';
 import PaymentCreateModal from '@/components/payments/PaymentCreateModal';
+import RefundModal from '@/components/payments/RefundModal';
 
 export default function PaymentsPage() {
-  const queryClient = useQueryClient();
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [refundPayment, setRefundPayment] = useState<Payment | null>(null);
   const [filters, setFilters] = useState({
     page: 1,
     limit: 50,
@@ -28,14 +28,6 @@ export default function PaymentsPage() {
 
   const payments = data?.payments || [];
   const pagination = data?.pagination;
-
-  // Refund mutation
-  const refundMutation = useMutation({
-    mutationFn: (id: string) => paymentsService.refund(id, {}),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-    },
-  });
 
   const getStatusBadge = (status: Payment['status']) => {
     const styles = {
@@ -219,13 +211,8 @@ export default function PaymentsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {payment.status === 'succeeded' && (
                       <button
-                        onClick={() => {
-                          if (confirm('Refund this payment?')) {
-                            refundMutation.mutate(payment._id);
-                          }
-                        }}
-                        disabled={refundMutation.isPending}
-                        className="text-orange-600 hover:text-orange-700 font-medium disabled:opacity-50"
+                        onClick={() => setRefundPayment(payment)}
+                        className="text-orange-600 hover:text-orange-700 font-medium"
                       >
                         Refund
                       </button>
@@ -241,6 +228,16 @@ export default function PaymentsPage() {
       {/* Create Payment Modal */}
       {showCreateModal && (
         <PaymentCreateModal onClose={() => setShowCreateModal(false)} />
+      )}
+
+      {/* Refund Modal */}
+      {refundPayment && (
+        <RefundModal
+          paymentId={refundPayment._id}
+          amount={refundPayment.amount}
+          currency={refundPayment.currency}
+          onClose={() => setRefundPayment(null)}
+        />
       )}
     </div>
   );

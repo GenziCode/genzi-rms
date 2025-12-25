@@ -47,7 +47,7 @@ if (process.env.NODE_ENV === 'production') {
 
 // Stream for Morgan HTTP logger
 export const httpLoggerStream = {
-  write: (message: string) => {
+  write: (message: string): void => {
     logger.http(message.trim());
   },
 };

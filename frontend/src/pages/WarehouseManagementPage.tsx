@@ -516,10 +516,10 @@ function WarehouseDrawer({ onClose, onCreated, stores }: WarehouseDrawerProps) {
               </button>
               <button
                 type="submit"
-                disabled={createMutation.isLoading}
+                disabled={createMutation.isPending}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
               >
-                {createMutation.isLoading ? (
+                {createMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <MapIcon className="w-4 h-4" />

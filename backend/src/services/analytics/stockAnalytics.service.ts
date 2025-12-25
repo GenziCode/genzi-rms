@@ -21,7 +21,18 @@ export class StockAnalyticsService {
     };
   }
 
-  async getAgingBuckets(tenantId: string, filters: AnalyticsFilters = {}) {
+  async getAgingBuckets(tenantId: string, filters: AnalyticsFilters = {}): Promise<Array<{
+    _id: string;
+    products: Array<{
+      name: string;
+      sku: string;
+      currentStock: number;
+      lastMovementDate?: Date;
+      daysSinceMovement: number;
+    }>;
+    totalUnits: number;
+    count: number;
+  }>> {
     const { Product } = await this.getModels(tenantId);
     const match: Record<string, unknown> = { isActive: true };
 
@@ -68,7 +79,10 @@ export class StockAnalyticsService {
     return buckets;
   }
 
-  async getTurnover(tenantId: string, filters: AnalyticsFilters = {}) {
+  async getTurnover(tenantId: string, filters: AnalyticsFilters = {}): Promise<Array<{
+    productId: mongoose.Types.ObjectId;
+    turnover: number;
+  }>> {
     const { StockMovement } = await this.getModels(tenantId);
     const lookbackDays = filters.lookbackDays ?? 90;
     const since = new Date();
@@ -106,7 +120,13 @@ export class StockAnalyticsService {
     return results;
   }
 
-  async getCongestion(tenantId: string, filters: AnalyticsFilters = {}) {
+  async getCongestion(tenantId: string, filters: AnalyticsFilters = {}): Promise<Array<{
+    _id: {
+      store: mongoose.Types.ObjectId;
+      type: string;
+    };
+    count: number;
+  }>> {
     const { StockMovement } = await this.getModels(tenantId);
     const lookbackDays = filters.lookbackDays ?? 30;
     const since = new Date();

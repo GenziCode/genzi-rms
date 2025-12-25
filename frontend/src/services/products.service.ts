@@ -22,7 +22,8 @@ export const productsService = {
         page: number;
         totalPages: number;
       };
-      meta?: {
+      message: string;
+      meta: {
         pagination: {
           page: number;
           limit: number;
@@ -56,13 +57,21 @@ export const productsService = {
 
   /**
    * Search products
-   * GET /api/products/search
+   * GET /api/products?search={query}
    */
   async search(query: string) {
-    const response = await api.get<{ data: Product[] }>('/products/search', {
-      params: { q: query },
+    const response = await api.get<{
+      success: boolean;
+      data: {
+        products: Product[];
+        total: number;
+        page: number;
+        totalPages: number;
+      };
+    }>('/products', {
+      params: { search: query },
     });
-    return response.data.data;
+    return response.data.data.products;
   },
 
   /**
@@ -109,7 +118,7 @@ export const productsService = {
    */
   async delete(id: string) {
     const response = await api.delete(`/products/${id}`);
-    return response.data;
+    return response.data.data;
   },
 
   /**
@@ -134,11 +143,11 @@ export const productsService = {
 
   /**
    * Bulk import products
-   * POST /api/products/bulk
+   * POST /api/products/bulk-import
    */
   async bulkImport(products: CreateProductRequest[]) {
     const response = await api.post<{ data: { created: number; failed: number } }>(
-      '/products/bulk',
+      '/products/bulk-import',
       { products }
     );
     return response.data.data;

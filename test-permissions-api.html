@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Permissions API Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        button.secondary {
+            background: #2196F3;
+        }
+
+        button.secondary:hover {
+            background: #0b7dda;
+        }
+
+        #output {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .success {
+            color: #4CAF50;
+        }
+
+        .error {
+            color: #f44336;
+        }
+
+        .info {
+            color: #2196F3;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧪 Permissions API Test Tool</h1>
+        <p>Test the Permissions API to verify data is loading correctly.</p>
+
+        <div style="margin: 20px 0;">
+            <button onclick="testAuth()">1. Check Auth Token</button>
+            <button onclick="testGroupedAPI()" class="secondary">2. Test Grouped API</button>
+            <button onclick="testAllAPI()" class="secondary">3. Test All Permissions</button>
+            <button onclick="clearOutput()" style="background: #999;">Clear</button>
+        </div>
+
+        <div id="stats" class="stats" style="display: none;"></div>
+        <pre id="output">Click a button above to start testing...</pre>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+        const output = document.getElementById('output');
+        const statsDiv = document.getElementById('stats');
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'success' ? '✅' : type === 'error' ? '❌' : '📝';
+            output.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+        }
+
+        function clearOutput() {
+            output.textContent = '';
+            statsDiv.style.display = 'none';
+            statsDiv.innerHTML = '';
+        }
+
+        function showStats(data) {
+            if (!data || !data.permissions) return;
+
+            const modules = Object.keys(data.permissions);
+            const totalPerms = Object.values(data.permissions)
+                .reduce((sum, perms) => sum + perms.length, 0);
+
+            statsDiv.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${totalPerms}</div>
+                    <div class="stat-label">Total Permissions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${modules.length}</div>
+                    <div class="stat-label">Modules</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.permissions.product?.length || 0}</div>
+                    <div class="stat-label">Product Permissions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${data.permissions.customer?.length || 0}</div>
+                    <div class="stat-label">Customer Permissions</div>
+                </div>
+            `;
+            statsDiv.style.display = 'grid';
+        }
+
+        async function testAuth() {
+            clearOutput();
+            log('Checking authentication...', 'info');
+
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                log('No auth token found in localStorage', 'error');
+                log('Please login at: http://localhost:3000/login', 'info');
+                log('Credentials: haseeb@genzi-rms.com / Hello1234', 'info');
+                return;
+            }
+
+            log('Auth token found!', 'success');
+            log(`Token: ${token.substring(0, 20)}...`, 'info');
+
+            // Try to decode JWT
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                log('\nToken Payload:', 'info');
+                log(JSON.stringify(payload, null, 2), 'info');
+            } catch (e) {
+                log('Could not decode token', 'error');
+            }
+        }
+
+        async function testGroupedAPI() {
+            clearOutput();
+            log('Testing /api/permissions/grouped...', 'info');
+
+            const token = localStorage.getItem('token');
+            // Try to get tenant from auth storage
+            let tenant = 'haseebautos'; // Default fallback
+            try {
+                const authStorage = JSON.parse(localStorage.getItem('auth-storage') || '{}');
+                if (authStorage.state && authStorage.state.tenant) {
+                    tenant = authStorage.state.tenant;
+                    log(`Found tenant in storage: ${tenant}`, 'success');
+                } else {
+                    log(`Using default tenant: ${tenant}`, 'info');
+                }
+            } catch (e) {
+                log(`Using default tenant: ${tenant}`, 'info');
+            }
+
+            if (!token) {
+                log('No auth token! Please login first.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/permissions/grouped`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'X-Tenant': tenant
+                    }
+                });
+
+                log(`Response Status: ${response.status} ${response.statusText}`, 'info');
+
+                const data = await response.json();
+
+                if (data.success && data.data && data.data.permissions) {
+                    log('API call successful!', 'success');
+
+                    const modules = Object.keys(data.data.permissions);
+                    const totalPerms = Object.values(data.data.permissions)
+                        .reduce((sum, perms) => sum + perms.length, 0);
+
+                    log(`\nFound ${modules.length} modules with ${totalPerms} total permissions`, 'success');
+                    log('\nModules:', 'info');
+                    modules.forEach(module => {
+                        const count = data.data.permissions[module].length;
+                        log(`  - ${module}: ${count} permissions`, 'info');
+                    });
+
+                    log('\nSample Permission:', 'info');
+                    const firstModule = modules[0];
+                    const firstPerm = data.data.permissions[firstModule][0];
+                    log(JSON.stringify(firstPerm, null, 2), 'info');
+
+                    showStats(data.data);
+                } else {
+                    log('API call failed!', 'error');
+                    log(JSON.stringify(data, null, 2), 'error');
+                }
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testAllAPI() {
+            clearOutput();
+            log('Testing /api/permissions...', 'info');
+
+            const token = localStorage.getItem('token');
+            // Try to get tenant from auth storage
+            let tenant = 'haseebautos'; // Default fallback
+            try {
+                const authStorage = JSON.parse(localStorage.getItem('auth-storage') || '{}');
+                if (authStorage.state && authStorage.state.tenant) {
+                    tenant = authStorage.state.tenant;
+                }
+            } catch (e) { }
+
+            if (!token) {
+                log('No auth token! Please login first.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/permissions`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                        'X-Tenant': tenant
+                    }
+                });
+
+                log(`Response Status: ${response.status} ${response.statusText}`, 'info');
+
+                const data = await response.json();
+
+                if (data.success && data.data && data.data.permissions) {
+                    log('API call successful!', 'success');
+                    log(`\nFound ${data.data.permissions.length} permissions`, 'success');
+
+                    log('\nFirst 5 permissions:', 'info');
+                    data.data.permissions.slice(0, 5).forEach(perm => {
+                        log(`  ${perm.code} - ${perm.name}`, 'info');
+                    });
+                } else {
+                    log('API call failed!', 'error');
+                    log(JSON.stringify(data, null, 2), 'error');
+                }
+            } catch (error) {
+                log(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run auth check on load
+        window.addEventListener('load', () => {
+            setTimeout(testAuth, 500);
+        });
+    </script>
+</body>
+
+</html>

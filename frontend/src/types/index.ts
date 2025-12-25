@@ -35,6 +35,7 @@ export interface User {
   role: UserRole;
   tenantId: string; // Backend returns this!
   isActive: boolean;
+  phone?: string;
   createdAt?: string;
   updatedAt?: string;
 }

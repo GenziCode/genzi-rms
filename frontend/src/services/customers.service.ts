@@ -23,7 +23,8 @@ export const customersService = {
         page: number;
         totalPages: number;
       };
-      meta?: {
+      message: string;
+      meta: {
         pagination: {
           page: number;
           limit: number;

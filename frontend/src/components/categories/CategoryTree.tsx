@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, FolderOpen, Folder, Edit, Trash2, Plus } from 'lucide-react';
+import { ChevronRight, Plus, Edit, Trash2, AlertCircle } from 'lucide-react';
 import type { Category } from '@/types/products.types';
 
 interface CategoryTreeProps {
@@ -9,138 +9,122 @@ interface CategoryTreeProps {
   onAddChild: (parent: Category) => void;
 }
 
-interface CategoryNode extends Category {
-  children: CategoryNode[];
-  level: number;
+interface TreeNode extends Category {
+  children: TreeNode[];
 }
 
-function buildTree(categories: Category[]): CategoryNode[] {
-  const categoryMap = new Map<string, CategoryNode>();
-  const rootCategories: CategoryNode[] = [];
+function buildTree(categories: Category[]): TreeNode[] {
+  const categoryMap = new Map<string, TreeNode>();
+  const rootCategories: TreeNode[] = [];
 
-  // First pass: create nodes
-  categories.forEach((cat) => {
-    categoryMap.set(cat._id, { ...cat, children: [], level: 0 });
+  categories.forEach(category => {
+    categoryMap.set(category._id, { ...category, children: [] });
   });
 
-  // Second pass: build tree
-  categories.forEach((cat) => {
-    const node = categoryMap.get(cat._id)!;
-    if (cat.parent) {
-      const parentNode = categoryMap.get(cat.parent);
-      if (parentNode) {
-        node.level = parentNode.level + 1;
-        parentNode.children.push(node);
-      } else {
-        rootCategories.push(node);
-      }
+  categories.forEach(category => {
+    if (category.parent && categoryMap.has(category.parent)) {
+      categoryMap.get(category.parent)!.children.push(categoryMap.get(category._id)!);
     } else {
-      rootCategories.push(node);
+      rootCategories.push(categoryMap.get(category._id)!);
     }
   });
-
-  // Sort by sortOrder
-  const sortNodes = (nodes: CategoryNode[]) => {
-    nodes.sort((a, b) => a.sortOrder - b.sortOrder);
-    nodes.forEach((node) => sortNodes(node.children));
-  };
-  sortNodes(rootCategories);
 
   return rootCategories;
 }
 
-function CategoryTreeNode({
-  node,
-  onEdit,
-  onDelete,
-  onAddChild,
-}: {
-  node: CategoryNode;
-  onEdit: (category: Category) => void;
-  onDelete: (id: string, name: string) => void;
-  onAddChild: (parent: Category) => void;
-}) {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
+function CategoryNode({ node, onEdit, onDelete, onAddChild }: { node: TreeNode; onEdit: (category: Category) => void; onDelete: (id: string, name: string) => void; onAddChild: (parent: Category) => void; }) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleAddChild = () => {
+    setLoadingAction('addChild');
+    setError(null);
+    try {
+      onAddChild(node);
+    } catch (err) {
+      setError('Failed to add child category');
+      console.error('Error adding child category:', err);
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleEdit = () => {
+    setLoadingAction('edit');
+    setError(null);
+    try {
+      onEdit(node);
+    } catch (err) {
+      setError('Failed to edit category');
+      console.error('Error editing category:', err);
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleDelete = () => {
+    setLoadingAction('delete');
+    setError(null);
+    try {
+      onDelete(node._id, node.name);
+    } catch (err) {
+      setError('Failed to delete category');
+      console.error('Error deleting category:', err);
+    } finally {
+      setLoadingAction(null);
+    }
+  };
 
   return (
-    <div className={`ml-${node.level * 6}`}>
-      <div
-        className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg group transition"
-        style={{ paddingLeft: `${node.level * 24 + 12}px` }}
-      >
-        <div className="flex items-center flex-1">
-          {hasChildren ? (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="mr-2 p-1 hover:bg-gray-200 rounded"
+    <div className="ml-4">
+      <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100">
+        <div className="flex items-center">
+          {node.children.length > 0 && (
+            <button 
+              onClick={() => setIsOpen(!isOpen)} 
+              className="p-1 rounded-full hover:bg-gray-200 disabled:opacity-50"
+              disabled={loadingAction !== null}
             >
-              {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-gray-600" />
-              ) : (
-                <ChevronRight className="w-4 h-4 text-gray-600" />
-              )}
+              <ChevronRight className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
             </button>
-          ) : (
-            <div className="w-6 mr-2" />
           )}
-
-          <div
-            className="w-8 h-8 rounded flex items-center justify-center mr-3 text-lg"
-            style={{ backgroundColor: node.color ? node.color + '30' : '#E5E7EB' }}
-          >
-            {node.icon || (hasChildren ? <Folder className="w-4 h-4" /> : <FolderOpen className="w-4 h-4" />)}
-          </div>
-
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <span className="font-medium text-gray-900">{node.name}</span>
-              <span className="text-xs text-gray-500">
-                ({node.children.length} sub)
-              </span>
-            </div>
-            {node.description && (
-              <p className="text-sm text-gray-500 mt-1">{node.description}</p>
-            )}
-          </div>
+          <span className="ml-2">{node.icon} {node.name}</span>
         </div>
-
-        <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition">
-          <button
-            onClick={() => onAddChild(node)}
-            className="p-2 text-green-600 hover:bg-green-50 rounded transition"
-            title="Add sub-category"
+        <div className="flex items-center space-x-2">
+          <button 
+            onClick={handleAddChild} 
+            className="p-1 text-gray-500 hover:text-blue-600 disabled:opacity-50"
+            disabled={loadingAction !== null}
           >
             <Plus className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onEdit(node)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded transition"
-            title="Edit"
+          <button 
+            onClick={handleEdit} 
+            className="p-1 text-gray-500 hover:text-blue-600 disabled:opacity-50"
+            disabled={loadingAction !== null}
           >
             <Edit className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onDelete(node._id, node.name)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded transition"
-            title="Delete"
+          <button 
+            onClick={handleDelete} 
+            className="p-1 text-gray-500 hover:text-red-600 disabled:opacity-50"
+            disabled={loadingAction !== null}
           >
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
-
-      {/* Children */}
-      {hasChildren && isExpanded && (
-        <div>
-          {node.children.map((child) => (
-            <CategoryTreeNode
-              key={child._id}
-              node={child}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onAddChild={onAddChild}
-            />
+      {error && (
+        <div className="flex items-center text-red-600 text-sm mt-1 ml-6">
+          <AlertCircle className="w-4 h-4 mr-1" />
+          {error}
+        </div>
+      )}
+      {isOpen && node.children.length > 0 && (
+        <div className="border-l-2 border-gray-200">
+          {node.children.map(child => (
+            <CategoryNode key={child._id} node={child} onEdit={onEdit} onDelete={onDelete} onAddChild={onAddChild} />
           ))}
         </div>
       )}
@@ -148,31 +132,14 @@ function CategoryTreeNode({
   );
 }
 
-function CategoryTree({ categories, onEdit, onDelete, onAddChild }: CategoryTreeProps) {
+export default function CategoryTree({ categories, onEdit, onDelete, onAddChild }: CategoryTreeProps) {
   const tree = buildTree(categories);
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900">Category Hierarchy</h3>
-        <p className="text-sm text-gray-600 mt-1">
-          {categories.length} total categories
-        </p>
-      </div>
-      <div className="p-2">
-        {tree.map((node) => (
-          <CategoryTreeNode
-            key={node._id}
-            node={node}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onAddChild={onAddChild}
-          />
-        ))}
-      </div>
+    <div className="bg-white rounded-lg shadow p-4">
+      {tree.map(node => (
+        <CategoryNode key={node._id} node={node} onEdit={onEdit} onDelete={onDelete} onAddChild={onAddChild} />
+      ))}
     </div>
   );
 }
-
-export default CategoryTree;
-

@@ -10,6 +10,19 @@ export interface ICategory extends Document {
   image?: string;
   sortOrder: number;
   isActive: boolean;
+  isPublic: boolean;
+  sharedWith: Schema.Types.ObjectId[];
+  accessControl: {
+   roles: {
+     role: string;
+     permissions: string[];
+   }[];
+   users: {
+     userId: Schema.Types.ObjectId;
+     permissions: string[];
+   }[];
+  };
+  isArchived: boolean;
   createdBy?: Schema.Types.ObjectId;
   updatedBy?: Schema.Types.ObjectId;
   createdAt: Date;
@@ -51,6 +64,28 @@ export const CategorySchema = new Schema<ICategory>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    isPublic: {
+       type: Boolean,
+       default: false,
+    },
+    sharedWith: [{
+       type: Schema.Types.ObjectId,
+       ref: 'Tenant',
+    }],
+    accessControl: {
+       roles: [{
+         role: String,
+         permissions: [String]
+       }],
+       users: [{
+         userId: { type: Schema.Types.ObjectId, ref: 'User' },
+         permissions: [String]
+       }]
+    },
+    isArchived: {
+       type: Boolean,
+       default: false,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

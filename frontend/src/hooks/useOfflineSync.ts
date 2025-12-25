@@ -34,23 +34,32 @@ export function useOfflineSync(options: SyncOptions) {
           const payload = next.payload;
 
           try {
-            await posService.createSale({
-              storeId: payload.storeId || storeIdFallback,
-              customerId: payload.customerId,
-              notes: payload.notes,
-              discount: payload.discount,
-              items: payload.cart.map((item) => ({
-                productId: item.product._id,
-                quantity: item.quantity,
-                price: item.price,
-                discount: item.discount ?? 0,
-                discountType: 'fixed',
-              })),
-              payments: payload.payments as Payment[],
-            });
+            if (next.type === 'resume_held' && payload.heldSaleId) {
+              // This is a held transaction resume
+              await posService.resumeTransaction(payload.heldSaleId, {
+                payments: payload.payments as Payment[],
+              });
+              toast.success('Offline held transaction resume synced successfully');
+            } else {
+              // This is a regular sale
+              await posService.createSale({
+                storeId: payload.storeId || storeIdFallback,
+                customerId: payload.customerId,
+                notes: payload.notes,
+                discount: payload.discount,
+                items: payload.cart.map((item) => ({
+                  productId: item.product._id,
+                  quantity: item.quantity,
+                  price: item.price,
+                  discount: item.discount ?? 0,
+                  discountType: 'fixed',
+                })),
+                payments: payload.payments as Payment[],
+              });
+              toast.success('Offline sale synced successfully');
+            }
 
             removeSale(next.id);
-            toast.success('Offline sale synced successfully');
           } catch (error) {
             const message =
               (error as { response?: { data?: { message?: string } } })

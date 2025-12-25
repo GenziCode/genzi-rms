@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { TenantRequest } from '../types';
 import { formPermissionService } from '../services/formPermission.service';
 import { sendSuccess, sendError } from '../utils/response';
@@ -22,9 +22,9 @@ export class FormPermissionController {
         forms,
         total: forms.length,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error getting forms:', error);
-      return sendError(res, error.message || 'Failed to get forms', 500);
+      return sendError(res, error instanceof Error ? error.message : 'Failed to get forms', 500);
     }
   }
 
@@ -47,9 +47,9 @@ export class FormPermissionController {
         totalCategories: Object.keys(grouped).length,
         totalForms: Object.values(grouped).reduce((sum, forms) => sum + forms.length, 0),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error getting forms by category:', error);
-      return sendError(res, error.message || 'Failed to get forms by category', 500);
+      return sendError(res, error instanceof Error ? error.message : 'Failed to get forms by category', 500);
     }
   }
 
@@ -73,9 +73,9 @@ export class FormPermissionController {
         module: module || 'all',
         total: forms.length,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error getting forms by module:', error);
-      return sendError(res, error.message || 'Failed to get forms by module', 500);
+      return sendError(res, error instanceof Error ? error.message : 'Failed to get forms by module', 500);
     }
   }
 
@@ -100,9 +100,9 @@ export class FormPermissionController {
       }
 
       return sendSuccess(res, { form });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error getting form:', error);
-      return sendError(res, error.message || 'Failed to get form', 500);
+      return sendError(res, error instanceof Error ? error.message : 'Failed to get form', 500);
     }
   }
 
@@ -127,9 +127,9 @@ export class FormPermissionController {
         formName,
         hasAccess,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error checking form access:', error);
-      return sendError(res, error.message || 'Failed to check form access', 500);
+      return sendError(res, error instanceof Error ? error.message : 'Failed to check form access', 500);
     }
   }
 
@@ -163,9 +163,9 @@ export class FormPermissionController {
       );
 
       return sendSuccess(res, { access: results });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error checking bulk form access:', error);
-      return sendError(res, error.message || 'Failed to check bulk form access', 500);
+      return sendError(res, error instanceof Error ? error.message : 'Failed to check bulk form access', 500);
     }
   }
 
@@ -186,9 +186,9 @@ export class FormPermissionController {
         availableCategories: getAllCategories(),
         availableModules: getAllModules(),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error getting form statistics:', error);
-      return sendError(res, error.message || 'Failed to get statistics', 500);
+      return sendError(res, error instanceof Error ? error.message : 'Failed to get statistics', 500);
     }
   }
 
@@ -223,9 +223,9 @@ export class FormPermissionController {
         message: `Successfully synced ${count} forms`,
         synced: count,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error syncing forms:', error);
-      return sendError(res, error.message || 'Failed to sync forms', 500);
+      return sendError(res, error instanceof Error ? error.message : 'Failed to sync forms', 500);
     }
   }
 
@@ -241,9 +241,9 @@ export class FormPermissionController {
         categories: getAllCategories(),
         modules: getAllModules(),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error getting forms config:', error);
-      return sendError(res, error.message || 'Failed to get forms config', 500);
+      return sendError(res, error instanceof Error ? error.message : 'Failed to get forms config', 500);
     }
   }
 }

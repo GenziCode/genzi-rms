@@ -8,8 +8,9 @@ import DashboardPage from '@/pages/DashboardPage';
 import ReportsPage from '@/pages/ReportsPage';
 import ReportsAnalyticsPage from '@/pages/ReportsAnalyticsPage';
 import ProductsPage from '@/pages/ProductsPage';
+import StoresPage from '@/pages/StoresPage';
 import CategoriesPage from '@/pages/CategoriesPage';
-import POSPage from '@/pages/POSPage';
+import POSPageAdvanced from '@/pages/POSPageAdvanced';
 import InventoryPage from '@/pages/InventoryPage';
 import CustomersPage from '@/pages/CustomersPage';
 import VendorsPage from '@/pages/VendorsPage';
@@ -57,6 +58,7 @@ import OverstockReport from '@/pages/reports/OverstockReport';
 import StockMovementReport from '@/pages/reports/StockMovementReport';
 import StockValuationReport from '@/pages/reports/StockValuationReport';
 import ReportDashboardPage from '@/pages/ReportDashboardPage';
+import SubscriptionPage from '@/pages/SubscriptionPage';
 import MainLayout from '@/components/layout/MainLayout';
 
 // Protected Route Component
@@ -119,7 +121,7 @@ function AppRoutes() {
             <MainLayout>
               <Routes>
                 <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/pos" element={<POSPage />} />
+                <Route path="/pos" element={<POSPageAdvanced />} />
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/customers" element={<CustomersPage />} />
                 <Route path="/vendors" element={<VendorsPage />} />
@@ -140,6 +142,7 @@ function AppRoutes() {
                   element={<RolesPermissionsPage />}
                 />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/subscription" element={<SubscriptionPage />} />
                 <Route path="/invoices" element={<InvoicesPage />} />
                 <Route path="/payments" element={<PaymentsPage />} />
                 <Route path="/audit-logs" element={<AuditLogsPage />} />
@@ -248,6 +251,7 @@ function AppRoutes() {
                   element={<ReportSchedulesPage />}
                 />
                 <Route path="/products" element={<ProductsPage />} />
+                <Route path="/stores" element={<StoresPage />} />
                 <Route path="/categories" element={<CategoriesPage />} />
                 <Route
                   path="/"

@@ -138,7 +138,7 @@ export const invoiceService = {
     const response = await api.get(`/invoices/${id}/pdf`, {
       responseType: 'blob',
     });
-    return response.data;
+    return response.data.data;
   },
 
   /**

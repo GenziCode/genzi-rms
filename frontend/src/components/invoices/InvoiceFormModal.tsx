@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Loader2 } from 'lucide-react';
 import { customersService } from '@/services/customers.service';
 import { productsService } from '@/services/products.service';
 import { invoiceService } from '@/services/invoice.service';
-import type { DocumentType } from '@/types/invoice.types';
+import type { DocumentType, Invoice } from '@/types/invoice.types';
 import toast from 'react-hot-toast';
 
 interface InvoiceFormModalProps {
   onClose: () => void;
+  invoice?: Invoice;
 }
 
 interface LineItem {
@@ -20,14 +21,26 @@ interface LineItem {
   taxRate: number;
 }
 
-const createInitialFormState = () => ({
-  type: 'sale_invoice' as DocumentType,
-  customerId: '',
-  date: new Date().toISOString().split('T')[0],
-  dueDate: '',
-  notes: '',
-  terms: '',
-});
+const createInitialFormState = (invoice?: Invoice) => {
+  if (invoice) {
+    return {
+      type: invoice.type,
+      customerId: invoice.to.customerId || '',
+      date: new Date(invoice.date).toISOString().split('T')[0],
+      dueDate: invoice.dueDate ? new Date(invoice.dueDate).toISOString().split('T')[0] : '',
+      notes: invoice.notes || '',
+      terms: invoice.terms || '',
+    };
+  }
+  return {
+    type: 'sale_invoice' as DocumentType,
+    customerId: '',
+    date: new Date().toISOString().split('T')[0],
+    dueDate: '',
+    notes: '',
+    terms: '',
+  };
+};
 
 const createEmptyLineItem = (): LineItem => ({
   productId: '',
@@ -38,11 +51,23 @@ const createEmptyLineItem = (): LineItem => ({
   taxRate: 0,
 });
 
-export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
+export default function InvoiceFormModal({ onClose, invoice }: InvoiceFormModalProps) {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState(createInitialFormState);
+  const [formData, setFormData] = useState(() => createInitialFormState(invoice));
 
-  const [lineItems, setLineItems] = useState<LineItem[]>([createEmptyLineItem()]);
+  const [lineItems, setLineItems] = useState<LineItem[]>(() => {
+    if (invoice && invoice.items.length > 0) {
+      return invoice.items.map((item) => ({
+        productId: item.productId || '',
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discount: item.discount || 0,
+        taxRate: item.taxRate || 0,
+      }));
+    }
+    return [createEmptyLineItem()];
+  });
 
   // Fetch customers
   const { data: customersData } = useQuery({
@@ -58,6 +83,11 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
   });
   const products = productsData?.products || [];
 
+  const resetForm = () => {
+    setFormData(createInitialFormState());
+    setLineItems([createEmptyLineItem()]);
+  };
+
   const createMutation = useMutation({
     mutationFn: (payload: any) => invoiceService.create(payload),
     onSuccess: () => {
@@ -70,6 +100,21 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
       const details = error?.response?.data?.error;
       const detailMessage = Array.isArray(details?.details) ? details.details[0]?.message : undefined;
       const message = detailMessage || details?.message || error?.response?.data?.message || 'Failed to create invoice';
+      toast.error(message);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: any) => invoiceService.update(invoice!.id, payload),
+    onSuccess: () => {
+      toast.success('Invoice updated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      onClose();
+    },
+    onError: (error: any) => {
+      const details = error?.response?.data?.error;
+      const detailMessage = Array.isArray(details?.details) ? details.details[0]?.message : undefined;
+      const message = detailMessage || details?.message || error?.response?.data?.message || 'Failed to update invoice';
       toast.error(message);
     },
   });
@@ -114,6 +159,12 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
     return taxableAmount + taxAmount;
   };
 
+  const calculateSubtotal = () => {
+    return lineItems.reduce((sum, item) => {
+      return sum + (item.quantity * item.unitPrice);
+    }, 0);
+  };
+
   const calculateTotal = () => {
     return lineItems.reduce((sum, item) => sum + calculateLineTotal(item), 0);
   };
@@ -121,7 +172,7 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (createMutation.isPending) {
+    if (createMutation.isPending || updateMutation.isPending) {
       return;
     }
 
@@ -156,7 +207,7 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
       const quantity = item.quantity > 0 ? item.quantity : 0;
       const unitPrice = item.unitPrice >= 0 ? item.unitPrice : 0;
       const lineSubtotal = quantity * unitPrice;
-      const discountValue = Math.min(item.discount || 0, lineSubtotal);
+      const discountValue = Math.min(item.discount || 0, lineSubtotal); // Assuming discount is a fixed amount or percentage already applied
       const taxableAmount = Math.max(lineSubtotal - discountValue, 0);
       const taxRate = item.taxRate >= 0 ? item.taxRate : 0;
       const taxAmount = Number(((taxableAmount * taxRate) / 100).toFixed(2));
@@ -173,7 +224,7 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
         unit: product?.unit || 'pcs',
         unitPrice,
         discount: Number(discountValue.toFixed(2)),
-        discountType: 'fixed' as const,
+        discountType: 'fixed' as const, // Assuming fixed discount for simplicity
         taxRate,
         taxAmount,
         subtotal: Number(lineSubtotal.toFixed(2)),
@@ -199,9 +250,9 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
       email: selectedCustomer.email,
     };
 
-    const invoicePayload = {
+    const payload = {
       type: formData.type,
-      status: 'draft',
+      status: 'draft', // Default status for new invoices
       date: new Date(formData.date).toISOString(),
       dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
       notes: formData.notes || undefined,
@@ -210,8 +261,8 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
       totalDiscount,
       totalTax,
       total: totalDue,
-      amountPaid: 0,
-      amountDue: totalDue,
+      amountPaid: invoice?.amountPaid || 0, // Keep existing amountPaid if editing
+      amountDue: totalDue - (invoice?.amountPaid || 0), // Recalculate amountDue
       from: {
         businessName: 'Main Store',
         address: {
@@ -232,39 +283,68 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
       items: itemsPayload,
     };
 
-    try {
-      await createMutation.mutateAsync(invoicePayload);
-    } catch (err) {
-      // Errors handled in mutation onError
+    if (invoice) {
+      updateMutation.mutate(payload);
+    } else {
+      createMutation.mutate(payload);
     }
   };
 
-  const resetForm = () => {
-    setFormData(createInitialFormState());
-    setLineItems([createEmptyLineItem()]);
+  const handleProductChange = (index: number, productId: string) => {
+    const product = products.find((p) => p._id === productId);
+    const newItems = [...lineItems];
+    if (product) {
+      newItems[index] = {
+        ...newItems[index],
+        productId,
+        description: product.name,
+        unitPrice: product.price,
+        taxRate: product.taxRate || 0,
+      };
+    } else {
+      newItems[index] = {
+        ...newItems[index],
+        productId,
+        description: '',
+        unitPrice: 0,
+        taxRate: 0,
+      };
+    }
+    setLineItems(newItems);
   };
+
+  const updateLineItem = (index: number, field: keyof LineItem, value: any) => {
+    const newItems = [...lineItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setLineItems(newItems);
+  };
+
+  const removeLineItem = (index: number) => {
+    if (lineItems.length === 1) return;
+    setLineItems(lineItems.filter((_, i) => i !== index));
+  };
+
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <h2 className="text-2xl font-bold text-gray-900">Create Invoice</h2>
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b sticky top-0 bg-white z-10">
+          <h2 className="text-xl font-bold text-gray-900">
+            {invoice ? 'Edit Invoice' : 'Create New Invoice'}
+          </h2>
           <button
-            onClick={() => {
-              if (createMutation.isPending) return;
-              resetForm();
-              onClose();
-            }}
+            onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-lg transition"
+            disabled={isSubmitting}
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Invoice Info */}
-          <div className="grid grid-cols-3 gap-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+          {/* Header Info */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Document Type
@@ -272,118 +352,104 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
               <select
                 value={formData.type}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    type: e.target.value as DocumentType,
-                  })
+                  setFormData({ ...formData, type: e.target.value as DocumentType })
                 }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                disabled={isSubmitting}
               >
                 <option value="sale_invoice">Invoice</option>
                 <option value="quotation">Quotation</option>
                 <option value="proforma_invoice">Proforma Invoice</option>
                 <option value="credit_note">Credit Note</option>
                 <option value="receipt">Receipt</option>
+                <option value="purchase_order">Purchase Order</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date
+                Customer <span className="text-red-500">*</span>
               </label>
-              <input
-                type="date"
-                value={formData.date}
+              <select
+                value={formData.customerId}
                 onChange={(e) =>
-                  setFormData({ ...formData, date: e.target.value })
+                  setFormData({ ...formData, customerId: e.target.value })
                 }
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 required
-              />
+                disabled={isSubmitting}
+              >
+                <option value="">Select Customer</option>
+                {customers.map((customer) => (
+                  <option key={customer._id} value={customer._id}>
+                    {customer.name}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Due Date
-              </label>
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, dueDate: e.target.value })
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) =>
+                    setFormData({ ...formData, date: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dueDate: e.target.value })
+                  }
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  disabled={isSubmitting}
+                />
+              </div>
             </div>
-          </div>
-
-          {/* Customer Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Customer <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.customerId}
-              onChange={(e) =>
-                setFormData({ ...formData, customerId: e.target.value })
-              }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              required
-            >
-              <option value="">Select a customer</option>
-              {customers.map((customer) => (
-                <option key={customer._id} value={customer._id}>
-                  {customer.name} - {customer.email}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Line Items */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Line Items
-              </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Line Items</h3>
               <button
                 type="button"
-                onClick={handleAddLineItem}
-                className="flex items-center px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                onClick={() => setLineItems([...lineItems, createEmptyLineItem()])}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                disabled={isSubmitting}
               >
-                <Plus className="w-4 h-4 mr-1" />
+                <Plus className="w-4 h-4" />
                 Add Item
               </button>
             </div>
-
-            {/* Line item headers */}
-            <div className="grid grid-cols-12 gap-2 px-3 py-2 mb-2 bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-600 uppercase rounded-lg">
-              <span className="col-span-3">Product</span>
-              <span className="col-span-3">Description</span>
-              <span className="col-span-1 text-right">Qty</span>
-              <span className="col-span-2 text-right">Unit Price</span>
-              <span className="col-span-1 text-right">Discount</span>
-              <span className="col-span-1 text-right">Tax %</span>
-              <span className="col-span-1 text-right">Total</span>
-            </div>
-
-            <div className="space-y-3">
+            <div className="space-y-4">
               {lineItems.map((item, index) => (
                 <div
                   key={index}
-                  className="grid grid-cols-12 gap-2 p-3 border border-gray-200 rounded-lg"
+                  className="grid grid-cols-12 gap-4 items-start bg-gray-50 p-4 rounded-lg"
                 >
-                  {/* Product Select */}
                   <div className="col-span-3">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Product
+                    </label>
                     <select
                       value={item.productId}
-                      onChange={(e) =>
-                        handleLineItemChange(index, 'productId', e.target.value)
-                      }
-                      className="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) => handleProductChange(index, e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      disabled={isSubmitting}
                     >
                       <option value="">Select Product</option>
-                      {productsLoading && <option disabled>Loading products...</option>}
-                      {!productsLoading && products.length === 0 && (
-                        <option disabled>No products available</option>
-                      )}
                       {products.map((product) => (
                         <option key={product._id} value={product._id}>
                           {product.name}
@@ -391,147 +457,125 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
                       ))}
                     </select>
                   </div>
-
-                  {/* Description */}
                   <div className="col-span-3">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Description
+                    </label>
                     <input
                       type="text"
                       value={item.description}
                       onChange={(e) =>
-                        handleLineItemChange(
-                          index,
-                          'description',
-                          e.target.value
-                        )
+                        updateLineItem(index, 'description', e.target.value)
                       }
-                      placeholder="Description"
-                      className="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
-                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      placeholder="Item description"
+                      disabled={isSubmitting}
                     />
                   </div>
-
-                  {/* Quantity */}
                   <div className="col-span-1">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Qty
+                    </label>
                     <input
                       type="number"
                       value={item.quantity}
                       onChange={(e) =>
-                        handleLineItemChange(
-                          index,
-                          'quantity',
-                          parseFloat(e.target.value) || 0
-                        )
+                        updateLineItem(index, 'quantity', parseFloat(e.target.value))
                       }
-                      placeholder="Qty"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       min="1"
-                      step="0.01"
-                      className="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
-                      required
+                      disabled={isSubmitting}
                     />
                   </div>
-
-                  {/* Unit Price */}
                   <div className="col-span-2">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Price
+                    </label>
                     <input
                       type="number"
                       value={item.unitPrice}
                       onChange={(e) =>
-                        handleLineItemChange(
-                          index,
-                          'unitPrice',
-                          parseFloat(e.target.value) || 0
-                        )
+                        updateLineItem(index, 'unitPrice', parseFloat(e.target.value))
                       }
-                      placeholder="Price"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       min="0"
                       step="0.01"
-                      className="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
-                      required
+                      disabled={isSubmitting}
                     />
                   </div>
-
-                  {/* Discount */}
                   <div className="col-span-1">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Disc %
+                    </label>
                     <input
                       type="number"
                       value={item.discount}
                       onChange={(e) =>
-                        handleLineItemChange(
-                          index,
-                          'discount',
-                          parseFloat(e.target.value) || 0
-                        )
+                        updateLineItem(index, 'discount', parseFloat(e.target.value))
                       }
-                      placeholder="Disc"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       min="0"
-                      step="0.01"
-                      className="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                      max="100"
+                      disabled={isSubmitting}
                     />
                   </div>
-
-                  {/* Tax */}
                   <div className="col-span-1">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">
+                      Tax %
+                    </label>
                     <input
                       type="number"
                       value={item.taxRate}
                       onChange={(e) =>
-                        handleLineItemChange(
-                          index,
-                          'taxRate',
-                          parseFloat(e.target.value) || 0
-                        )
+                        updateLineItem(index, 'taxRate', parseFloat(e.target.value))
                       }
-                      placeholder="Tax %"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       min="0"
-                      step="0.01"
-                      className="w-full px-2 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                      max="100"
+                      disabled={isSubmitting}
                     />
                   </div>
-
-                  {/* Total & Delete */}
-                  <div className="col-span-1 flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">
-                      ${calculateLineTotal(item).toFixed(2)}
-                    </span>
-                    {lineItems.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveLineItem(index)}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                  <div className="col-span-1 pt-6 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => removeLineItem(index)}
+                      className="text-red-500 hover:text-red-700 p-1"
+                      disabled={lineItems.length === 1 || isSubmitting}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
 
-          {/* Total */}
-          <div className="flex justify-end">
-            <div className="w-64 border-t-2 border-gray-300 pt-4">
-              <div className="flex items-center justify-between text-xl font-bold text-gray-900">
-                <span>Total:</span>
-                <span>${calculateTotal().toFixed(2)}</span>
+            <div className="mt-6 flex justify-end">
+              <div className="w-64 space-y-2">
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Subtotal:</span>
+                  <span>${calculateSubtotal().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold text-gray-900 border-t pt-2">
+                  <span>Total:</span>
+                  <span>${calculateTotal().toFixed(2)}</span>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Notes & Terms */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Notes
               </label>
               <textarea
                 value={formData.notes}
-                onChange={(e) =>
-                  setFormData({ ...formData, notes: e.target.value })
-                }
-                rows={3}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Internal notes..."
+                rows={3}
+                placeholder="Notes for the customer..."
+                disabled={isSubmitting}
               />
             </div>
             <div>
@@ -540,36 +584,38 @@ export default function InvoiceFormModal({ onClose }: InvoiceFormModalProps) {
               </label>
               <textarea
                 value={formData.terms}
-                onChange={(e) =>
-                  setFormData({ ...formData, terms: e.target.value })
-                }
-                rows={3}
+                onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Payment terms..."
+                rows={3}
+                placeholder="Payment terms, delivery details..."
+                disabled={isSubmitting}
               />
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t">
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 pt-6 border-t">
             <button
               type="button"
-              onClick={() => {
-                if (createMutation.isPending) return;
-                resetForm();
-                onClose();
-              }}
-              disabled={createMutation.isPending}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={createMutation.isPending}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting}
+              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-70"
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Invoice'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {invoice ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                invoice ? 'Update Invoice' : 'Create Invoice'
+              )}
             </button>
           </div>
         </form>

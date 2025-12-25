@@ -171,6 +171,30 @@ export class CategoryController {
     }
   };
 
+  archiveCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const category = await this.categoryService.archiveCategory(tenantId, id, userId);
+      res.json(successResponse(category, 'Category archived successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  unarchiveCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const category = await this.categoryService.unarchiveCategory(tenantId, id, userId);
+      res.json(successResponse(category, 'Category unarchived successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
   /**
    * Update category sort order
    * PUT /api/categories/sort-order
@@ -212,6 +236,104 @@ export class CategoryController {
       const stats = await this.categoryService.getCategoryStats(tenantId);
 
       res.json(successResponse(stats, 'Category stats retrieved successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get categories in tree structure
+   * GET /api/categories/tree
+   */
+ getCategoriesTree = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+ ): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+      const { includeInactive } = req.query;
+
+      const tree = await this.categoryService.getCategoriesTree(tenantId, {
+        includeInactive: includeInactive === 'true',
+      });
+
+      res.json(successResponse(tree, 'Category tree retrieved successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get category templates
+   * GET /api/categories/templates
+   */
+  getTemplates = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+
+      const templates = await this.categoryService.getTemplates(tenantId);
+
+      res.json(successResponse(templates, 'Category templates retrieved successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Create category from template
+   * POST /api/categories/from-template
+   */
+  createFromTemplate = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+      const userId = req.user!.id;
+      const { templateId, name, parent } = req.body;
+
+      const categories = await this.categoryService.createFromTemplate(
+        tenantId,
+        templateId,
+        userId,
+        name,
+        parent
+      );
+
+      res.status(201).json(
+        successResponse(categories, 'Categories created from template successfully', 201)
+      );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Save category as template
+   * POST /api/categories/save-template
+   */
+  saveAsTemplate = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+      const { categoryId, templateName } = req.body;
+
+      const template = await this.categoryService.saveAsTemplate(
+        tenantId,
+        categoryId,
+        templateName
+      );
+
+      res.json(successResponse(template, 'Category saved as template successfully'));
     } catch (error) {
       next(error);
     }

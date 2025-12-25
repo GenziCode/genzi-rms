@@ -30,6 +30,9 @@ export interface CartItem {
 export interface Payment {
   method: 'cash' | 'card' | 'mobile' | 'bank' | 'credit' | 'other';
   amount: number;
+  currency?: string; // Currency code (e.g., 'USD', 'EUR')
+  surchargeAmount?: number; // Amount added due to surcharge
+  surchargeRate?: number; // Surcharge rate applied
   reference?: string;
   note?: string;
 }

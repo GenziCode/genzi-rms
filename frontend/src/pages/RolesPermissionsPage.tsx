@@ -35,6 +35,8 @@ import {
   Database,
   FileText,
   X,
+  Copy,
+  Globe,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { rolesService, type Role } from '@/services/roles.service';
@@ -90,31 +92,31 @@ const defaultPolicyPresets: Array<{
   kpi: string;
   owner: string;
 }> = [
-  {
-    id: 'time-windows',
-    title: 'Time-based access windows',
-    description: 'Restrict back-office access to defined operating hours per region.',
-    status: 'enabled',
-    kpi: '4 windows active',
-    owner: 'Security Ops',
-  },
-  {
-    id: 'approval-chain',
-    title: 'Approval chain enforcement',
-    description: 'Require dual approval for roles that can void invoices or edit taxes.',
-    status: 'paused',
-    kpi: 'Ready for pilot',
-    owner: 'Finance',
-  },
-  {
-    id: 'delegation',
-    title: 'Role delegation rules',
-    description: 'Allow store managers to delegate POS roles for limited time.',
-    status: 'draft',
-    kpi: 'Policy draft v2',
-    owner: 'People Ops',
-  },
-];
+    {
+      id: 'time-windows',
+      title: 'Time-based access windows',
+      description: 'Restrict back-office access to defined operating hours per region.',
+      status: 'enabled',
+      kpi: '4 windows active',
+      owner: 'Security Ops',
+    },
+    {
+      id: 'approval-chain',
+      title: 'Approval chain enforcement',
+      description: 'Require dual approval for roles that can void invoices or edit taxes.',
+      status: 'paused',
+      kpi: 'Ready for pilot',
+      owner: 'Finance',
+    },
+    {
+      id: 'delegation',
+      title: 'Role delegation rules',
+      description: 'Allow store managers to delegate POS roles for limited time.',
+      status: 'draft',
+      kpi: 'Policy draft v2',
+      owner: 'People Ops',
+    },
+  ];
 
 export default function RolesPermissionsPage() {
   const queryClient = useQueryClient();
@@ -183,10 +185,24 @@ export default function RolesPermissionsPage() {
   });
 
   // Fetch permissions
-  const { data: permissionsData, isLoading: permissionsLoading } = useQuery({
+  const { data: permissionsData, isLoading: permissionsLoading, error: permissionsError } = useQuery({
     queryKey: ['permissions-grouped'],
-    queryFn: () => permissionsService.getGroupedByModule(),
+    queryFn: async () => {
+      console.log('🔍 Fetching permissions...');
+      const result = await permissionsService.getGroupedByModule();
+      console.log('✅ Permissions fetched:', result);
+      console.log('📊 Modules:', Object.keys(result));
+      console.log('📊 Total permissions:', Object.values(result).flat().length);
+      return result;
+    },
     enabled: canManageRoles,
+    onSuccess: (data) => {
+      console.log('✅ Permissions query success:', data);
+    },
+    onError: (error: any) => {
+      console.error('❌ Permissions query error:', error);
+      toast.error('Failed to load permissions: ' + (error.message || 'Unknown error'));
+    },
   });
 
   // Fetch users for assignments
@@ -403,43 +419,43 @@ export default function RolesPermissionsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg">
-                <Shield className="w-8 h-8 text-white" />
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as ActiveTab)}
+        className="w-full"
+      >
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg">
+                  <Shield className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                    Role & Permission Center
+                  </h1>
+                  <p className="text-sm lg:text-base text-gray-600 mt-1">
+                    Comprehensive role management and access control system
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Role & Permission Center
-                </h1>
-                <p className="text-sm lg:text-base text-gray-600 mt-1">
-                  Comprehensive role management and access control system
-                </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => setShowForm(true)}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+                >
+                  <Plus className="w-5 h-5" />
+                  Create Role
+                </Button>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() => setShowForm(true)}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-              >
-                <Plus className="w-5 h-5" />
-                Create Role
-              </Button>
             </div>
           </div>
-        </div>
 
-        {/* Navigation Tabs */}
-        <div className="border-t border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Tabs
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as ActiveTab)}
-              className="w-full"
-            >
+          {/* Navigation Tabs */}
+          <div className="border-t border-gray-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <TabsList className="flex flex-wrap gap-2 w-full bg-transparent border-0 p-0">
                 <TabsTrigger
                   value="overview"
@@ -477,18 +493,12 @@ export default function RolesPermissionsPage() {
                   <span className="hidden sm:inline">Analytics</span>
                 </TabsTrigger>
               </TabsList>
-            </Tabs>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(value as ActiveTab)}
-          className="w-full"
-        >
+        {/* Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
             {/* Analytics Cards */}
@@ -664,8 +674,8 @@ export default function RolesPermissionsPage() {
                       {policy.status === 'draft'
                         ? 'Draft'
                         : policy.status === 'paused'
-                        ? 'Paused'
-                        : 'Enabled'}
+                          ? 'Paused'
+                          : 'Enabled'}
                     </span>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -798,52 +808,43 @@ export default function RolesPermissionsPage() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex flex-col lg:flex-row gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <Input
-                        type="text"
-                        placeholder="Search roles..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      placeholder="Search roles..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-                  <div className="flex gap-2">
-                    <select
-                      value={selectedCategory}
-                      onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="all">All Categories</option>
-                      <option value="system">System</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                    <div className="flex border border-gray-300 rounded-lg">
+                  <div className="flex gap-4">
+                    <div className="w-full lg:w-48">
+                      <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        <option value="all">All Categories</option>
+                        <option value="system">System Roles</option>
+                        <option value="custom">Custom Roles</option>
+                      </select>
+                    </div>
+                    <div className="flex rounded-md border bg-white">
                       <Button
-                        variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                        size="sm"
+                        variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                        size="icon"
                         onClick={() => setViewMode('grid')}
-                        className="rounded-r-none"
+                        className="rounded-none rounded-l-md"
                       >
                         <Grid className="w-4 h-4" />
                       </Button>
                       <Button
-                        variant={viewMode === 'list' ? 'default' : 'ghost'}
-                        size="sm"
+                        variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                        size="icon"
                         onClick={() => setViewMode('list')}
-                        className="rounded-none"
+                        className="rounded-none rounded-r-md"
                       >
                         <List className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant={viewMode === 'matrix' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setViewMode('matrix')}
-                        className="rounded-l-none"
-                      >
-                        <Database className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
@@ -851,156 +852,161 @@ export default function RolesPermissionsPage() {
               </CardContent>
             </Card>
 
-            {/* Roles Display */}
-            {viewMode === 'matrix' ? (
-              <PermissionMatrix
-                permissions={permissions}
-                roles={filteredRoles}
-              />
+            {/* Roles List */}
+            {rolesLoading ? (
+              <div className="flex justify-center py-12">
+                <Spinner size="lg" />
+              </div>
+            ) : filteredRoles.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Shield className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-1">
+                  No roles found
+                </h3>
+                <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                  {searchTerm || selectedCategory !== 'all'
+                    ? "No roles match your search criteria. Try adjusting your filters."
+                    : "Get started by creating your first role or initializing the system defaults."}
+                </p>
+                <div className="flex items-center justify-center gap-4">
+                  {!searchTerm && selectedCategory === 'all' && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        toast.promise(rolesService.initializeDefaultRoles(), {
+                          loading: 'Initializing default roles...',
+                          success: () => {
+                            queryClient.invalidateQueries({ queryKey: ['roles'] });
+                            return 'Default roles initialized successfully';
+                          },
+                          error: 'Failed to initialize roles',
+                        });
+                      }}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Initialize Defaults
+                    </Button>
+                  )}
+                  <Button onClick={() => setShowForm(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Role
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div
                 className={
                   viewMode === 'grid'
-                    ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                    ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6'
                     : 'space-y-4'
                 }
               >
-                {rolesLoading ? (
-                  <div className="col-span-full flex justify-center py-12">
-                    <Spinner size="lg" />
-                  </div>
-                ) : filteredRoles.length === 0 ? (
-                  <div className="col-span-full text-center py-12">
-                    <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      No roles found
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      {searchTerm || selectedCategory !== 'all'
-                        ? 'Try adjusting your search or filters'
-                        : 'Create your first role to get started'}
-                    </p>
-                    {!searchTerm && selectedCategory === 'all' && (
-                      <Button onClick={() => setShowForm(true)}>
-                        <Plus className="w-5 h-5 mr-2" />
-                        Create Role
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  filteredRoles.map((role) => {
-                    const Icon = getRoleIcon(role);
-                    return (
-                      <Card
-                        key={role.id}
-                        className={`hover:shadow-lg transition-all duration-200 ${!role.isActive ? 'opacity-60' : ''}`}
-                      >
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={`p-2 rounded-lg ${role.isSystemRole ? 'bg-yellow-100' : 'bg-blue-100'}`}
-                              >
-                                <Icon
-                                  className={`w-5 h-5 ${role.isSystemRole ? 'text-yellow-600' : 'text-blue-600'}`}
-                                />
-                              </div>
-                              <div>
-                                <CardTitle className="text-lg">
-                                  {role.name}
-                                </CardTitle>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <code className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">
-                                    {role.code}
-                                  </code>
-                                  <Badge
-                                    className={getCategoryColor(role.category)}
-                                  >
-                                    {role.category}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleEdit(role)}
-                                >
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Edit Role
-                                </DropdownMenuItem>
-                                {!role.isSystemRole && (
-                                  <DropdownMenuItem
-                                    onClick={() => handleDelete(role)}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Delete Role
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {role.description && (
-                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                              {role.description}
-                            </p>
-                          )}
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-1">
-                                <Key className="w-4 h-4 text-gray-400" />
-                                <span className="text-gray-600">
-                                  {role.permissions?.length || 0} permissions
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {role.isActive ? (
-                                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                ) : (
-                                  <XCircle className="w-4 h-4 text-red-500" />
-                                )}
-                                <span
-                                  className={
-                                    role.isActive
-                                      ? 'text-green-600'
-                                      : 'text-red-600'
-                                  }
-                                >
-                                  {role.isActive ? 'Active' : 'Inactive'}
-                                </span>
-                              </div>
-                            </div>
-                            {role.isSystemRole && (
-                              <Badge
-                                variant="secondary"
-                                className="bg-yellow-100 text-yellow-800"
-                              >
-                                <Crown className="w-3 h-3 mr-1" />
-                                System
-                              </Badge>
+                {filteredRoles.map((role) => (
+                  <Card
+                    key={role.id}
+                    className={`group hover:shadow-lg transition-all duration-200 border-l-4 ${role.isSystemRole ? 'border-l-orange-500' : 'border-l-blue-500'
+                      }`}
+                  >
+                    <CardHeader className="pb-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-2 rounded-lg ${role.isSystemRole
+                              ? 'bg-orange-100 text-orange-600'
+                              : 'bg-blue-100 text-blue-600'
+                              }`}
+                          >
+                            {role.isSystemRole ? (
+                              <Crown className="w-5 h-5" />
+                            ) : (
+                              <Users className="w-5 h-5" />
                             )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
+                          <div>
+                            <CardTitle className="text-base font-semibold flex items-center gap-2">
+                              {role.name}
+                              {role.isSystemRole && (
+                                <Badge variant="secondary" className="text-xs font-normal">
+                                  System
+                                </Badge>
+                              )}
+                            </CardTitle>
+                            <CardDescription className="text-xs font-mono mt-0.5">
+                              {role.code}
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEdit(role)}>
+                              <Edit className="w-4 h-4 mr-2" />
+                              Edit Role
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedRole(null);
+                              // Logic to clone would go here - prefill form
+                              setShowForm(true);
+                              toast.info("Clone feature coming soon");
+                            }}>
+                              <Copy className="w-4 h-4 mr-2" />
+                              Clone Role
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleDelete(role)}
+                              disabled={role.isSystemRole}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Role
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2 min-h-[2.5rem]">
+                        {role.description || 'No description provided.'}
+                      </p>
+
+                      <div className="flex items-center justify-between text-sm text-gray-500 pt-4 border-t">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-1.5" title="Permissions">
+                            <Key className="w-4 h-4" />
+                            <span>{role.permissions?.length || 0}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5" title="Users">
+                            <Users className="w-4 h-4" />
+                            <span>0</span> {/* Placeholder for user count */}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Globe className="w-3 h-3" />
+                          <span className="capitalize">{role.scope?.type || 'All'}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </TabsContent>
 
+
           {/* Permissions Tab */}
-          <TabsContent value="permissions" className="space-y-6">
+          < TabsContent value="permissions" className="space-y-6" >
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <Card>
@@ -1015,8 +1021,39 @@ export default function RolesPermissionsPage() {
                   </CardHeader>
                   <CardContent>
                     {permissionsLoading ? (
-                      <div className="flex justify-center py-8">
+                      <div className="flex flex-col items-center justify-center py-12">
                         <Spinner size="lg" />
+                        <p className="text-sm text-gray-500 mt-4">Loading permissions...</p>
+                      </div>
+                    ) : permissionsError ? (
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
+                        <p className="text-sm font-medium text-red-900">Failed to load permissions</p>
+                        <p className="text-xs text-red-700 mt-2">{(permissionsError as any)?.message || 'Unknown error'}</p>
+                        <Button
+                          onClick={() => queryClient.invalidateQueries({ queryKey: ['permissions-grouped'] })}
+                          className="mt-4"
+                          variant="outline"
+                        >
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Retry
+                        </Button>
+                      </div>
+                    ) : Object.keys(permissions).length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <Database className="w-12 h-12 text-gray-400 mb-4" />
+                        <p className="text-sm font-medium text-gray-900">No permissions found</p>
+                        <p className="text-xs text-gray-600 mt-2">Permissions need to be seeded in the database</p>
+                        <Button
+                          onClick={() => {
+                            toast.info('Run: cd backend && node seed-permissions.js');
+                          }}
+                          className="mt-4"
+                          variant="outline"
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Show Seed Command
+                        </Button>
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -1169,11 +1206,10 @@ export default function RolesPermissionsPage() {
                                       key={form.formName}
                                       type="button"
                                       onClick={() => setSelectedForm(form)}
-                                      className={`rounded-lg border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                                        isActive
-                                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                          : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
-                                      }`}
+                                      className={`rounded-lg border px-3 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isActive
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                        : 'border-slate-200 hover:border-blue-200 hover:bg-slate-50'
+                                        }`}
                                       aria-pressed={isActive}
                                     >
                                       <p className="text-sm font-semibold line-clamp-1">
@@ -1318,10 +1354,10 @@ export default function RolesPermissionsPage() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
+          </TabsContent >
 
           {/* Assignments Tab */}
-          <TabsContent value="assignments" className="space-y-6">
+          < TabsContent value="assignments" className="space-y-6" >
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1383,10 +1419,10 @@ export default function RolesPermissionsPage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent >
 
           {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
+          < TabsContent value="analytics" className="space-y-6" >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -1433,8 +1469,8 @@ export default function RolesPermissionsPage() {
               </Card>
             </div>
           </TabsContent>
-        </Tabs>
-      </div>
+        </div>
+      </Tabs>
 
       {/* Modals */}
       {showForm && (
@@ -1446,9 +1482,9 @@ export default function RolesPermissionsPage() {
             setSelectedRole(null);
           }}
           onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['roles'] });
             setShowForm(false);
             setSelectedRole(null);
-            queryClient.invalidateQueries({ queryKey: ['roles'] });
           }}
         />
       )}

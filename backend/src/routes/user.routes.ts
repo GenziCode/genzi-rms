@@ -1,7 +1,6 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { UserController } from '../controllers/user.controller';
 import { authenticate } from '../middleware/auth.middleware';
-import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { requireFormAccess } from '../middleware/formPermission.middleware';
 import {
@@ -18,10 +17,10 @@ const userController = new UserController();
 
 // All routes require authentication
 // Note: resolveTenant is already applied in routes/index.ts
-router.use(authenticate);
+router.use((req: Request, res: Response, next: NextFunction) => authenticate(req as any, res, next));
 
 // All user routes require form access
-router.use(requireFormAccess('frmDefShopEmployees'));
+router.use((req: Request, res: Response, next: NextFunction) => requireFormAccess('frmDefShopEmployees')(req as any, res, next));
 
 /**
  * Routes

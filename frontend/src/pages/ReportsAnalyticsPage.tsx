@@ -877,71 +877,75 @@ export default function ReportsAnalyticsPage() {
       {/* Header - Fixed width container */}
       <div className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-5">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-3 md:gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 md:gap-4 min-w-0 flex-1">
               <div className="p-2.5 md:p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg">
                 <Rocket className="w-6 h-6 md:w-8 md:h-8 text-white" />
               </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent truncate">
                   Analytics & Intelligence
                 </h1>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                <p className="text-xs sm:text-sm text-gray-600 mt-1 truncate">
                   Advanced business intelligence and reporting platform
                 </p>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 md:gap-3 w-full lg:w-auto">
-              {/* Date Range */}
-              <div className="flex items-center gap-2 px-3 md:px-4 py-2 bg-gray-100 rounded-lg border border-gray-200">
-                <Calendar className="w-4 h-4 text-gray-600 flex-shrink-0" />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto min-w-0">
+              {/* Date Range - Made more compact on mobile */}
+              <div className="flex items-center gap-1 px-2 py-1.5 bg-gray-100 rounded-lg border border-gray-200 text-xs sm:text-sm min-w-0 flex-1 sm:flex-none">
+                <Calendar className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />
                 <input
                   type="date"
                   value={dateRange.startDate}
                   onChange={(e) =>
                     setDateRange({ ...dateRange, startDate: e.target.value })
                   }
-                  className="bg-transparent border-none outline-none text-xs md:text-sm flex-1 min-w-0"
+                  className="bg-transparent border-none outline-none flex-1 min-w-0 text-ellipsis text-xs"
+                  style={{ maxWidth: '100px' }}
                 />
-                <span className="text-gray-400 text-xs">to</span>
+                <span className="text-gray-400 text-xs px-1">to</span>
                 <input
                   type="date"
                   value={dateRange.endDate}
                   onChange={(e) =>
                     setDateRange({ ...dateRange, endDate: e.target.value })
                   }
-                  className="bg-transparent border-none outline-none text-xs md:text-sm flex-1 min-w-0"
+                  className="bg-transparent border-none outline-none flex-1 min-w-0 text-ellipsis text-xs"
+                  style={{ maxWidth: '100px' }}
                 />
               </div>
 
-              {/* Store Filter */}
+              {/* Store Filter - Added responsive width */}
               <AdvancedFilterDropdown
                 label="Stores"
                 options={storeOptions}
                 selectedValues={selectedStores}
                 onSelectionChange={setSelectedStores}
                 loading={storesLoading}
-                placeholder={storesLoading ? 'Loading stores...' : 'Select stores'}
+                placeholder={storesLoading ? 'Loading...' : 'Stores'}
+                className="min-w-0 flex-1 sm:flex-none"
               />
 
-              {/* Category Filter */}
+              {/* Category Filter - Added responsive width */}
               <AdvancedFilterDropdown
                 label="Categories"
                 options={categoryOptions}
                 selectedValues={selectedCategories}
                 onSelectionChange={setSelectedCategories}
                 loading={categoriesLoading}
-                placeholder={categoriesLoading ? 'Loading categories...' : 'Select categories'}
+                placeholder={categoriesLoading ? 'Loading...' : 'Categories'}
+                className="min-w-0 flex-1 sm:flex-none"
               />
 
-              {/* Export Button */}
+              {/* Export Button - More compact on mobile */}
               <button
                 onClick={() => handleExport('excel')}
-                className="px-3 md:px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2 text-xs md:text-sm font-medium whitespace-nowrap"
+                className="px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-xs font-medium min-w-0 flex-shrink-0"
               >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export All</span>
-                <span className="sm:hidden">Export</span>
+                <Download className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden sm:inline truncate">Export</span>
+                <span className="inline sm:hidden">Export</span>
               </button>
             </div>
           </div>

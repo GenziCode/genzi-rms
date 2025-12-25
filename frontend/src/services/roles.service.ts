@@ -133,6 +133,42 @@ class RolesService {
     const response = await api.get(`/users/${userId}/roles`);
     return response.data.data;
   }
+
+  /**
+   * Get role analytics
+   */
+  async getAnalytics(): Promise<{
+    totalRoles: number;
+    activeRoles: number;
+    systemRoles: number;
+    customRoles: number;
+  }> {
+    const response = await api.get('/roles/analytics');
+    return response.data.data;
+  }
+
+  /**
+   * Get role distribution by category
+   */
+  async getDistribution(): Promise<{ distribution: Record<string, number> }> {
+    const response = await api.get('/roles/distribution');
+    return response.data.data;
+  }
+
+  /**
+   * Get built-in system roles
+   */
+  async getBuiltInRoles(): Promise<{ roles: Role[] }> {
+    const response = await api.get('/roles/built-in');
+    return response.data.data;
+  }
+
+  /**
+   * Initialize default roles for tenant
+   */
+  async initializeDefaultRoles(): Promise<void> {
+    await api.post('/roles/initialize');
+  }
 }
 
 export const rolesService = new RolesService();

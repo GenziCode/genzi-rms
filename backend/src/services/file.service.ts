@@ -84,7 +84,15 @@ export class FileService {
       page?: number;
       limit?: number;
     } = {}
-  ) {
+  ): Promise<{
+    files: IFile[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     const tenantConn = await getTenantConnection(tenantId);
     const File = tenantConn.model<IFile>('File', FileSchema);
 

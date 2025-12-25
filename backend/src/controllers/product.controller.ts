@@ -146,13 +146,38 @@ export class ProductController {
   };
 
   /**
+   * Get product by barcode
+   * GET /api/products/barcode/:code
+   */
+  getProductByBarcode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+      const { code } = req.params;
+
+      const product = await this.productService.getProductByBarcode(tenantId, code);
+
+      // Add full URLs
+      const productData = product.toObject();
+      // Image URL processing disabled
+      // if (productData.images && productData.images.length > 0) {
+      //   productData.images = productData.images.map((img: string) => getFileUrl(req, img));
+      // }
+
+      res.json(successResponse(productData, 'Product retrieved successfully'));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * Scan QR code and get product
    * POST /api/products/scan-qr
    */
   scanQRCode = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.tenant!.id;
-      const { qrData } = req.body;
+      // Check body (POST) or params (GET)
+      const qrData = req.body.qrData || req.params.data;
 
       if (!qrData) {
         throw new AppError('QR code data is required', 400);
@@ -293,6 +318,22 @@ export class ProductController {
       const results = await this.productService.bulkImportProducts(tenantId, userId, products);
 
       res.json(successResponse(results, 'Bulk import completed', 200));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get product statistics
+   * GET /api/products/stats
+   */
+  getProductStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const tenantId = req.tenant!.id;
+
+      const stats = await this.productService.getProductStats(tenantId);
+
+      res.json(successResponse(stats, 'Product statistics retrieved successfully'));
     } catch (error) {
       next(error);
     }

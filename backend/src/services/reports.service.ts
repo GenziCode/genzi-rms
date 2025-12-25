@@ -1,30 +1,44 @@
 import mongoose from 'mongoose';
-import { getTenantConnection } from '../config/database';
-import { SaleSchema, ISale } from '../models/sale.model';
-import { ProductSchema, IProduct } from '../models/product.model';
-import { CustomerSchema, ICustomer } from '../models/customer.model';
-import { VendorSchema, IVendor } from '../models/vendor.model';
+import { getTenantConnection, getTenantModel } from '../config/database';
 import { logger } from '../utils/logger';
 import moment from 'moment-timezone';
+import { ISale, SaleSchema } from '../models/sale.model';
 
 export class ReportsService {
   private async getModels(tenantId: string) {
     const connection = await getTenantConnection(tenantId);
     return {
-      Sale: connection.model<ISale>('Sale', SaleSchema),
-      Product: connection.model<IProduct>('Product', ProductSchema),
-      Customer: connection.model<ICustomer>('Customer', CustomerSchema),
-      Vendor: connection.model<IVendor>('Vendor', VendorSchema),
+      Sale: getTenantModel<ISale>(connection, 'Sale', SaleSchema),
+      Product: connection.model('Product'),
+      Customer: connection.model('Customer'),
+      Vendor: connection.model('Vendor'),
     };
   }
 
   /**
    * Dashboard KPIs
    */
-  async getDashboard(tenantId: string, period: 'today' | 'week' | 'month' = 'today'): Promise<any> {
+  async getDashboard(tenantId: string, period: 'today' | 'week' | 'month' = 'today', isSubscriptionExpired: boolean = false): Promise<any> {
     try {
-      const { Sale, Product, Customer, Vendor } = await this.getModels(tenantId);
+      const { Sale, Product, Customer } = await this.getModels(tenantId);
       const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
+
+      const buildTotalItemsAccumulator = () => ({
+        $sum: {
+          $reduce: {
+            input: '$items',
+            initialValue: 0,
+            in: {
+              $add: [
+                '$$value',
+                {
+                  $ifNull: ['$$this.quantity', 0],
+                },
+              ],
+            },
+          },
+        },
+      });
 
       // Date range
       const now = moment();
@@ -42,86 +56,165 @@ export class ReportsService {
           break;
       }
 
-      // Sales stats
-      const salesData = await Sale.aggregate([
-        {
-          $match: {
-            tenantId: tenantObjectId,
-            createdAt: { $gte: startDate },
-            status: { $in: ['completed', 'paid'] },
+      if (isSubscriptionExpired) {
+        // Return basic dashboard data for expired subscriptions
+        const salesData = await Sale.aggregate([
+          {
+            $match: {
+              tenantId: tenantObjectId,
+              createdAt: { $gte: startDate },
+              status: { $in: ['completed', 'paid'] },
+            },
           },
-        },
-        {
-          $group: {
-            _id: null,
-            totalSales: { $sum: '$total' },
-            totalTransactions: { $sum: 1 },
-            totalItems: { $sum: { $sum: '$items.quantity' } },
-            totalTax: { $sum: '$tax' },
-            totalDiscount: { $sum: '$discount' },
+          {
+            $group: {
+              _id: null,
+              totalSales: { $sum: '$total' },
+              totalTransactions: { $sum: 1 },
+              totalItems: buildTotalItemsAccumulator(),
+              totalTax: { $sum: '$tax' },
+              totalDiscount: { $sum: '$discount' },
+            },
           },
-        },
-      ]);
+        ]);
 
-      const sales = salesData[0] || {
-        totalSales: 0,
-        totalTransactions: 0,
-        totalItems: 0,
-        totalTax: 0,
-        totalDiscount: 0,
-      };
+        const sales = salesData[0] || {
+          totalSales: 0,
+          totalTransactions: 0,
+          totalItems: 0,
+          totalTax: 0,
+          totalDiscount: 0,
+        };
 
-      // Product stats
-      const totalProducts = await Product.countDocuments({ tenantId: tenantObjectId, isActive: true });
-      const lowStockProducts = await Product.countDocuments({
-        tenantId: tenantObjectId,
-        isActive: true,
-        trackInventory: true,
-        stock: { $lte: 10 },
-      });
-      const outOfStockProducts = await Product.countDocuments({
-        tenantId: tenantObjectId,
-        isActive: true,
-        trackInventory: true,
-        stock: { $lte: 0 },
-      });
+        // Basic product stats
+        const totalProducts = await Product.countDocuments({ tenantId: tenantObjectId, isActive: true });
+        const lowStockProducts = await Product.countDocuments({
+          tenantId: tenantObjectId,
+          isActive: true,
+          trackInventory: true,
+          stock: { $lte: 10, $gt: 0 },
+        });
+        const outOfStockProducts = await Product.countDocuments({
+          tenantId: tenantObjectId,
+          isActive: true,
+          trackInventory: true,
+          stock: { $lte: 0 },
+        });
 
-      // Customer stats
-      const totalCustomers = await Customer.countDocuments({ tenantId: tenantObjectId, isActive: true });
-      const newCustomersCount = await Customer.countDocuments({
-        tenantId: tenantObjectId,
-        isActive: true,
-        createdAt: { $gte: startDate },
-      });
+        // Basic customer stats
+        const totalCustomers = await Customer.countDocuments({ tenantId: tenantObjectId, isActive: true });
 
-      // Average order value
-      const avgOrderValue =
-        sales.totalTransactions > 0 ? sales.totalSales / sales.totalTransactions : 0;
+        // Calculate average order value
+        const avgOrderValue = sales.totalTransactions > 0 ? sales.totalSales / sales.totalTransactions : 0;
 
-      return {
-        period,
-        dateRange: {
-          start: startDate,
-          end: now.toDate(),
-        },
-        sales: {
-          total: sales.totalSales,
-          transactions: sales.totalTransactions,
-          items: sales.totalItems,
-          tax: sales.totalTax,
-          discount: sales.totalDiscount,
-          avgOrderValue: Math.round(avgOrderValue * 100) / 100,
-        },
-        products: {
-          total: totalProducts,
-          lowStock: lowStockProducts,
-          outOfStock: outOfStockProducts,
-        },
-        customers: {
-          total: totalCustomers,
-          new: newCustomersCount,
-        },
-      };
+        return {
+          period,
+          dateRange: {
+            start: startDate,
+            end: now.toDate(),
+          },
+          sales: {
+            total: Math.round(sales.totalSales * 100) / 100,
+            transactions: sales.totalTransactions,
+            items: sales.totalItems,
+            tax: Math.round(sales.totalTax * 100) / 100,
+            discount: Math.round(sales.totalDiscount * 100) / 100,
+            avgOrderValue: Math.round(avgOrderValue * 100) / 100,
+          },
+          products: {
+            total: totalProducts,
+            lowStock: lowStockProducts,
+            outOfStock: outOfStockProducts,
+          },
+          customers: {
+            total: totalCustomers,
+            new: 0, // Skip intensive query for expired subscription
+          },
+          subscriptionStatus: 'expired',
+          message: 'Subscription expired - limited data available',
+        };
+      } else {
+        // Full dashboard for active subscriptions
+        const salesData = await Sale.aggregate([
+          {
+            $match: {
+              tenantId: tenantObjectId,
+              createdAt: { $gte: startDate },
+              status: { $in: ['completed', 'paid'] },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalSales: { $sum: '$total' },
+              totalTransactions: { $sum: 1 },
+              totalItems: buildTotalItemsAccumulator(),
+              totalTax: { $sum: '$tax' },
+              totalDiscount: { $sum: '$discount' },
+            },
+          },
+        ]);
+
+        const sales = salesData[0] || {
+          totalSales: 0,
+          totalTransactions: 0,
+          totalItems: 0,
+          totalTax: 0,
+          totalDiscount: 0,
+        };
+
+        // Full product stats
+        const totalProducts = await Product.countDocuments({ tenantId: tenantObjectId, isActive: true });
+        const lowStockProducts = await Product.countDocuments({
+          tenantId: tenantObjectId,
+          isActive: true,
+          trackInventory: true,
+          stock: { $lte: 10 },
+        });
+        const outOfStockProducts = await Product.countDocuments({
+          tenantId: tenantObjectId,
+          isActive: true,
+          trackInventory: true,
+          stock: { $lte: 0 },
+        });
+
+        // Full customer stats
+        const totalCustomers = await Customer.countDocuments({ tenantId: tenantObjectId, isActive: true });
+        const newCustomersCount = await Customer.countDocuments({
+          tenantId: tenantObjectId,
+          isActive: true,
+          createdAt: { $gte: startDate },
+        });
+
+        // Calculate average order value
+        const avgOrderValue = sales.totalTransactions > 0 ? sales.totalSales / sales.totalTransactions : 0;
+
+        return {
+          period,
+          dateRange: {
+            start: startDate,
+            end: now.toDate(),
+          },
+          sales: {
+            total: Math.round(sales.totalSales * 100) / 100,
+            transactions: sales.totalTransactions,
+            items: sales.totalItems,
+            tax: Math.round(sales.totalTax * 100) / 100,
+            discount: Math.round(sales.totalDiscount * 100) / 100,
+            avgOrderValue: Math.round(avgOrderValue * 100) / 100,
+          },
+          products: {
+            total: totalProducts,
+            lowStock: lowStockProducts,
+            outOfStock: outOfStockProducts,
+          },
+          customers: {
+            total: totalCustomers,
+            new: newCustomersCount,
+          },
+          subscriptionStatus: 'active',
+        };
+      }
     } catch (error) {
       logger.error('Error getting dashboard:', error);
       throw error;
@@ -131,16 +224,23 @@ export class ReportsService {
   /**
    * Sales trends (daily breakdown)
    */
-  async getSalesTrends(tenantId: string, startDate: Date, endDate: Date): Promise<any[]> {
+  async getSalesTrends(tenantId: string, startDate: Date, endDate: Date, isSubscriptionExpired: boolean = false): Promise<any> {
     try {
       const { Sale } = await this.getModels(tenantId);
       const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
+
+      let adjustedEndDate = endDate;
+      if (isSubscriptionExpired) {
+        // For expired subscriptions, limit to 7 days to reduce load
+        const maxEndDate = moment(startDate).add(7, 'days').toDate();
+        adjustedEndDate = endDate > maxEndDate ? maxEndDate : endDate;
+      }
 
       const trends = await Sale.aggregate([
         {
           $match: {
             tenantId: tenantObjectId,
-            createdAt: { $gte: startDate, $lte: endDate },
+            createdAt: { $gte: startDate, $lte: adjustedEndDate },
             status: { $in: ['completed', 'paid'] },
           },
         },
@@ -161,12 +261,24 @@ export class ReportsService {
         },
       ]);
 
-      return trends.map((t) => ({
+      const result = trends.map((t) => ({
         date: `${t._id.year}-${String(t._id.month).padStart(2, '0')}-${String(t._id.day).padStart(2, '0')}`,
         totalSales: Math.round(t.totalSales * 100) / 100,
         transactions: t.transactions,
         avgOrderValue: Math.round(t.avgOrderValue * 100) / 100,
       }));
+
+      if (isSubscriptionExpired) {
+        return {
+          trends: result,
+          subscriptionStatus: 'expired',
+          message: 'Subscription expired - limited to 7-day trends',
+          originalDateRange: { start: startDate, end: endDate },
+          actualDateRange: { start: startDate, end: adjustedEndDate },
+        };
+      }
+
+      return result;
     } catch (error) {
       logger.error('Error getting sales trends:', error);
       throw error;
@@ -264,7 +376,7 @@ export class ReportsService {
    */
   async getProfitLoss(tenantId: string, startDate: Date, endDate: Date): Promise<any> {
     try {
-      const { Sale, Product } = await this.getModels(tenantId);
+      const { Sale } = await this.getModels(tenantId);
       const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
       // Sales revenue
@@ -292,7 +404,7 @@ export class ReportsService {
         totalDiscount: 0,
       };
 
-      // Calculate cost of goods sold (using current cost price)
+      // Calculate cost of goods sold
       const soldItems = await Sale.aggregate([
         {
           $match: {
@@ -324,7 +436,6 @@ export class ReportsService {
       ]);
 
       const cogs = soldItems[0]?.cogs || 0;
-
       const grossProfit = sales.totalRevenue - cogs;
       const netProfit = grossProfit - sales.totalDiscount;
       const profitMargin = sales.totalRevenue > 0 ? (netProfit / sales.totalRevenue) * 100 : 0;
@@ -353,7 +464,7 @@ export class ReportsService {
   }
 
   /**
-   * Inventory valuation trends
+   * Inventory valuation
    */
   async getInventoryValuation(tenantId: string): Promise<any> {
     try {
@@ -362,7 +473,10 @@ export class ReportsService {
 
       const valuation = await Product.aggregate([
         {
-          $match: { tenantId: tenantObjectId, isActive: true },
+          $match: {
+            tenantId: tenantObjectId,
+            isActive: true,
+          },
         },
         {
           $group: {
@@ -440,8 +554,7 @@ export class ReportsService {
         email: c.customerInfo?.email,
         totalSpent: Math.round(c.totalSpent * 100) / 100,
         visits: c.visits,
-        avgOrderValue:
-          c.visits > 0 ? Math.round((c.totalSpent / c.visits) * 100) / 100 : 0,
+        avgOrderValue: c.visits > 0 ? Math.round((c.totalSpent / c.visits) * 100) / 100 : 0,
       }));
 
       const totalCustomers = await Customer.countDocuments({ tenantId: tenantObjectId, isActive: true });
@@ -471,9 +584,9 @@ export class ReportsService {
       const { Vendor } = await this.getModels(tenantId);
       const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
 
+      // Get all vendors for the tenant
       const vendors = await Vendor.find({ tenantId: tenantObjectId, isActive: true })
         .select('name email phone stats')
-        .sort('-stats.totalPurchased')
         .limit(10);
 
       return vendors.map((v) => ({
@@ -483,10 +596,9 @@ export class ReportsService {
         phone: v.phone,
         totalOrders: v.stats?.totalOrders || 0,
         totalPurchased: v.stats?.totalPurchased || 0,
-        avgOrderValue:
-          v.stats && v.stats.totalOrders > 0
-            ? Math.round((v.stats.totalPurchased / v.stats.totalOrders) * 100) / 100
-            : 0,
+        avgOrderValue: v.stats && v.stats.totalOrders > 0
+          ? Math.round((v.stats.totalPurchased / v.stats.totalOrders) * 100) / 100
+          : 0,
       }));
     } catch (error) {
       logger.error('Error getting vendor performance:', error);

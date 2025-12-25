@@ -139,7 +139,15 @@ export class PaymentService {
       page?: number;
       limit?: number;
     } = {}
-  ) {
+  ): Promise<{
+    payments: IPayment[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     const tenantConn = await getTenantConnection(tenantId);
     const Payment = tenantConn.model<IPayment>('Payment', PaymentSchema);
 

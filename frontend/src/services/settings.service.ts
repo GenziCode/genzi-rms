@@ -45,6 +45,31 @@ export const receiptSettingsDefaults: ReceiptSettings = {
   showNotes: true,
 };
 
+const paymentSettingsDefaults: PaymentSettings = {
+  allowCash: true,
+  allowCard: true,
+  allowBankTransfer: true,
+  allowStoreCredit: true,
+  requireSignature: false,
+  autoCapture: true,
+  supportedCurrencies: ['USD'],
+  defaultCurrency: 'USD',
+  paymentMethods: {
+    cash: { enabled: true, currencies: ['USD'] },
+    card: { enabled: true, surcharge: 2.5, surchargeType: 'percentage', currencies: ['USD'] },
+    mobile: { enabled: true, surcharge: 1.5, surchargeType: 'percentage', currencies: ['USD'] },
+    bank: { enabled: true, currencies: ['USD'] },
+    credit: { enabled: true, currencies: ['USD'] },
+    other: { enabled: true, currencies: ['USD'] },
+  },
+  stripe: {
+    enabled: false,
+    publishableKey: '',
+    secretKeySet: false,
+    webhookSecretSet: false,
+  },
+};
+
 const posSettingsDefaults: POSSettings = {
   autoLogoutMinutes: 30,
   soundEnabled: true,
@@ -265,19 +290,31 @@ export const settingsService = {
   },
 
   async getBusinessSettings(): Promise<BusinessSettings> {
-    const response = await api.get<{ data: BusinessSettings }>('/settings/business');
+    const response = await api.get<{
+      success: boolean;
+      data: BusinessSettings;
+      message: string;
+    }>('/settings/business');
     return response.data.data;
   },
 
   async updateBusinessSettings(
     data: Partial<BusinessSettings>
   ): Promise<BusinessSettings> {
-    const response = await api.put<{ data: BusinessSettings }>('/settings/business', data);
+    const response = await api.put<{
+      success: boolean;
+      data: BusinessSettings;
+      message: string;
+    }>('/settings/business', data);
     return response.data.data;
   },
 
   async getTaxSettings(): Promise<TaxSettings> {
-    const response = await api.get<{ data: TaxSettings }>('/settings/tax');
+    const response = await api.get<{
+      success: boolean;
+      data: TaxSettings;
+      message: string;
+    }>('/settings/tax');
     return {
       ...taxDefaults,
       ...response.data.data,
@@ -285,7 +322,11 @@ export const settingsService = {
   },
 
   async updateTaxSettings(data: Partial<TaxSettings>): Promise<TaxSettings> {
-    const response = await api.put<{ data: TaxSettings }>('/settings/tax', data);
+    const response = await api.put<{
+      success: boolean;
+      data: TaxSettings;
+      message: string;
+    }>('/settings/tax', data);
     return {
       ...taxDefaults,
       ...response.data.data,
@@ -293,47 +334,82 @@ export const settingsService = {
   },
 
   async getReceiptSettings(): Promise<ReceiptSettings> {
-    const response = await api.get<{ data: ReceiptSettings }>('/settings/receipt');
+    const response = await api.get<{
+      success: boolean;
+      data: ReceiptSettings;
+      message: string;
+    }>('/settings/receipt');
     return mergeReceiptSettings(response.data.data);
   },
 
   async updateReceiptSettings(data: ReceiptSettings): Promise<ReceiptSettings> {
-    const response = await api.put<{ data: ReceiptSettings }>('/settings/receipt', data);
+    const response = await api.put<{
+      success: boolean;
+      data: ReceiptSettings;
+      message: string;
+    }>('/settings/receipt', data);
     return mergeReceiptSettings(response.data.data);
   },
 
   async getPOSSettings(): Promise<POSSettings> {
-    const response = await api.get<{ data: POSSettings }>('/settings/pos');
+    const response = await api.get<{
+      success: boolean;
+      data: POSSettings;
+      message: string;
+    }>('/settings/pos');
     return mergePosSettings(response.data.data);
   },
 
   async updatePOSSettings(data: POSSettings): Promise<POSSettings> {
-    const response = await api.put<{ data: POSSettings }>('/settings/pos', data);
+    const response = await api.put<{
+      success: boolean;
+      data: POSSettings;
+      message: string;
+    }>('/settings/pos', data);
     return mergePosSettings(response.data.data);
   },
 
   async getPaymentSettings(): Promise<PaymentSettings> {
-    const response = await api.get<{ data: PaymentSettings }>('/settings/payments');
-    return response.data.data;
+    const response = await api.get<{
+      success: boolean;
+      data: PaymentSettings;
+      message: string;
+    }>('/settings/payments');
+    return {
+      ...paymentSettingsDefaults,
+      ...response.data.data,
+    };
   },
 
   async updatePaymentSettings(
     data: UpdatePaymentSettingsRequest
   ): Promise<PaymentSettings> {
     const payload = preparePaymentPayload(data);
-    const response = await api.put<{ data: PaymentSettings }>('/settings/payments', payload);
+    const response = await api.put<{
+      success: boolean;
+      data: PaymentSettings;
+      message: string;
+    }>('/settings/payments', payload);
     return response.data.data;
   },
 
   async testStripeConnection() {
-    const response = await api.post<{ data: { connected: boolean } }>(
+    const response = await api.post<{
+      success: boolean;
+      data: { connected: boolean };
+      message: string;
+    }>(
       '/payments/test-stripe'
     );
     return response.data.data;
   },
 
   async getIntegrationSettings(): Promise<IntegrationSettings> {
-    const response = await api.get<{ data: IntegrationSettings }>('/settings/integrations');
+    const response = await api.get<{
+      success: boolean;
+      data: IntegrationSettings;
+      message: string;
+    }>('/settings/integrations');
     return response.data.data;
   },
 
@@ -341,7 +417,11 @@ export const settingsService = {
     data: UpdateIntegrationSettingsRequest
   ): Promise<IntegrationSettings> {
     const payload = prepareIntegrationPayload(data);
-    const response = await api.put<{ data: IntegrationSettings }>(
+    const response = await api.put<{
+      success: boolean;
+      data: IntegrationSettings;
+      message: string;
+    }>(
       '/settings/integrations',
       payload
     );
@@ -349,7 +429,11 @@ export const settingsService = {
   },
 
   async getComplianceSettings(): Promise<ComplianceSettings> {
-    const response = await api.get<{ data: ComplianceSettings }>('/settings/compliance');
+    const response = await api.get<{
+      success: boolean;
+      data: ComplianceSettings;
+      message: string;
+    }>('/settings/compliance');
     return response.data.data;
   },
 
@@ -357,7 +441,11 @@ export const settingsService = {
     data: UpdateComplianceSettingsRequest
   ): Promise<ComplianceSettings> {
     const payload = prepareCompliancePayload(data);
-    const response = await api.put<{ data: ComplianceSettings }>(
+    const response = await api.put<{
+      success: boolean;
+      data: ComplianceSettings;
+      message: string;
+    }>(
       '/settings/compliance',
       payload
     );
@@ -365,14 +453,22 @@ export const settingsService = {
   },
 
   async getCommunicationSettings(): Promise<CommunicationSettings> {
-    const response = await api.get<{ data: CommunicationSettings }>('/settings/communications');
+    const response = await api.get<{
+      success: boolean;
+      data: CommunicationSettings;
+      message: string;
+    }>('/settings/communications');
     return response.data.data;
   },
 
   async updateCommunicationSettings(
     data: UpdateCommunicationSettingsRequest
   ): Promise<CommunicationSettings> {
-    const response = await api.put<{ data: CommunicationSettings }>(
+    const response = await api.put<{
+      success: boolean;
+      data: CommunicationSettings;
+      message: string;
+    }>(
       '/settings/communications',
       data
     );

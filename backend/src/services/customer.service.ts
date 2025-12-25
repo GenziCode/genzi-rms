@@ -1,4 +1,4 @@
-import { Connection, Types } from 'mongoose';
+import { Types } from 'mongoose';
 import { getTenantConnection } from '../config/database';
 import { CustomerSchema, ICustomer } from '../models/customer.model';
 import { SaleSchema, ISale } from '../models/sale.model';
@@ -11,7 +11,7 @@ export class CustomerService {
     return connection.model<ICustomer>('Customer', CustomerSchema);
   }
 
-  async getCustomerStats(tenantId: string) {
+  async getCustomerStats(tenantId: string): Promise<any> {
     try {
       const Customer = await this.getCustomerModel(tenantId);
       const tenantObjectId = new Types.ObjectId(tenantId);

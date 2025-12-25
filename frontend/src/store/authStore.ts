@@ -8,6 +8,7 @@ export interface User {
   lastName: string;
   role: 'owner' | 'admin' | 'manager' | 'cashier' | 'kitchen' | 'waiter';
   isActive: boolean;
+  phone?: string;
   permissions?: string[];
   tenantId?: string;
 }

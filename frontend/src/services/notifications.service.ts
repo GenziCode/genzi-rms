@@ -91,14 +91,22 @@ export const notificationAdminService = {
     page?: number;
     limit?: number;
   }): Promise<NotificationLogListResponse> {
-    const response = await api.get<{ data: NotificationLogListResponse }>('/notifications', {
+    const response = await api.get<{
+      success: boolean;
+      data: NotificationLogListResponse;
+      message: string;
+    }>('/notifications', {
       params,
     });
     return response.data.data;
   },
 
   async create(payload: CreateNotificationLogRequest): Promise<NotificationLog> {
-    const response = await api.post<{ data: NotificationLog }>('/notifications', payload);
+    const response = await api.post<{
+      success: boolean;
+      data: NotificationLog;
+      message: string;
+    }>('/notifications', payload);
     return response.data.data;
   },
 
@@ -106,7 +114,11 @@ export const notificationAdminService = {
     id: string,
     payload: { status: NotificationStatus; deliveredAt?: string; error?: string }
   ): Promise<NotificationLog> {
-    const response = await api.patch<{ data: NotificationLog }>(
+    const response = await api.patch<{
+      success: boolean;
+      data: NotificationLog;
+      message: string;
+    }>(
       `/notifications/${id}/status`,
       payload
     );
@@ -114,7 +126,11 @@ export const notificationAdminService = {
   },
 
   async listRoutes(): Promise<NotificationRouteConfig[]> {
-    const response = await api.get<{ data: NotificationRouteConfig[] }>(
+    const response = await api.get<{
+      success: boolean;
+      data: NotificationRouteConfig[];
+      message: string;
+    }>(
       '/notifications/routes/list'
     );
     return response.data.data;
@@ -126,7 +142,11 @@ export const notificationAdminService = {
     filters?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
   }): Promise<NotificationRouteConfig> {
-    const response = await api.post<{ data: NotificationRouteConfig }>(
+    const response = await api.post<{
+      success: boolean;
+      data: NotificationRouteConfig;
+      message: string;
+    }>(
       '/notifications/routes',
       payload
     );
@@ -164,7 +184,11 @@ export const notificationsService = {
    * Mark inbox notification as read/unread
    */
   async markInboxRead(id: string, read = true): Promise<InboxNotification> {
-    const response = await api.patch<{ data: InboxNotification }>(
+    const response = await api.patch<{
+      success: boolean;
+      data: InboxNotification;
+      message: string;
+    }>(
       `/notifications/inbox/${id}/read`,
       { read }
     );
@@ -175,7 +199,11 @@ export const notificationsService = {
    * Mark all inbox notifications as read
    */
   async markAllInboxRead(): Promise<number> {
-    const response = await api.patch<{ data: { count: number } }>(
+    const response = await api.patch<{
+      success: boolean;
+      data: { count: number };
+      message: string;
+    }>(
       '/notifications/inbox/read-all'
     );
     return response.data.data.count;
@@ -193,7 +221,9 @@ export const notificationsService = {
    */
   async getPreferences() {
     const response = await api.get<{
+      success: boolean;
       data: { preferences: NotificationPreferences };
+      message: string;
     }>('/notifications/preferences');
     return response.data.data.preferences;
   },
@@ -203,7 +233,9 @@ export const notificationsService = {
    */
   async updatePreferences(preferences: NotificationPreferences) {
     const response = await api.put<{
+      success: boolean;
       data: { preferences: NotificationPreferences };
+      message: string;
     }>('/notifications/preferences', preferences);
     return response.data.data.preferences;
   },
@@ -219,7 +251,9 @@ export const notificationsService = {
     actionUrl?: string;
   }) {
     const response = await api.post<{
+      success: boolean;
       data: { queued: number; targetCount: number };
+      message: string;
     }>('/notifications/broadcast', payload);
     return response.data.data;
   },
@@ -228,7 +262,11 @@ export const notificationsService = {
    * Send test email
    */
   async testEmail(email: string) {
-    const response = await api.post<{ data: { success: boolean } }>(
+    const response = await api.post<{
+      success: boolean;
+      data: { success: boolean };
+      message: string;
+    }>(
       '/notifications/test-email',
       { email }
     );
@@ -239,7 +277,11 @@ export const notificationsService = {
    * Send test SMS
    */
   async testSMS(phone: string) {
-    const response = await api.post<{ data: { success: boolean } }>(
+    const response = await api.post<{
+      success: boolean;
+      data: { success: boolean };
+      message: string;
+    }>(
       '/notifications/test-sms',
       { phone }
     );

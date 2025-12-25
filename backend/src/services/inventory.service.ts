@@ -1,4 +1,3 @@
-import { Connection } from 'mongoose';
 import { getTenantConnection } from '../config/database';
 import {
   StockMovementSchema,

@@ -31,11 +31,20 @@ export const purchaseOrdersService = {
         page: number;
         totalPages: number;
       };
+      message: string;
+      meta?: {
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
+          totalPages: number;
+        };
+      };
     }>('/purchase-orders', { params: cleanFilters });
-    
+
     return {
       purchaseOrders: response.data.data.purchaseOrders,
-      pagination: {
+      pagination: response.data.meta?.pagination || {
         page: response.data.data.page,
         limit: filters?.limit || 20,
         total: response.data.data.total,

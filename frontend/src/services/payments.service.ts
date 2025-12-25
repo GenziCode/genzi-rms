@@ -62,7 +62,11 @@ export const paymentsService = {
     customerId?: string;
     description?: string;
   }) {
-    const response = await api.post<{ data: { intent: PaymentIntent } }>(
+    const response = await api.post<{
+      success: boolean;
+      data: { intent: PaymentIntent };
+      message: string;
+    }>(
       '/payments/intent',
       data
     );
@@ -76,7 +80,11 @@ export const paymentsService = {
     paymentIntentId: string;
     paymentMethodId: string;
   }) {
-    const response = await api.post<{ data: { payment: Payment } }>(
+    const response = await api.post<{
+      success: boolean;
+      data: { payment: Payment };
+      message: string;
+    }>(
       '/payments/confirm',
       data
     );
@@ -87,7 +95,11 @@ export const paymentsService = {
    * Get payment by ID
    */
   async getById(id: string) {
-    const response = await api.get<{ data: { payment: Payment } }>(
+    const response = await api.get<{
+      success: boolean;
+      data: { payment: Payment };
+      message: string;
+    }>(
       `/payments/${id}`
     );
     return response.data.data.payment;
@@ -107,12 +119,22 @@ export const paymentsService = {
     limit?: number;
   }) {
     const response = await api.get<{
+      success: boolean;
       data: {
         payments: Payment[];
         pagination: {
           total: number;
           page: number;
           limit: number;
+          totalPages: number;
+        };
+      };
+      message: string;
+      meta?: {
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
           totalPages: number;
         };
       };
@@ -130,7 +152,11 @@ export const paymentsService = {
       reason?: string;
     }
   ) {
-    const response = await api.post<{ data: { payment: Payment } }>(
+    const response = await api.post<{
+      success: boolean;
+      data: { payment: Payment };
+      message: string;
+    }>(
       `/payments/${id}/refund`,
       data
     );
@@ -148,10 +174,12 @@ export const paymentsService = {
     }
   ) {
     const response = await api.get<{
+      success: boolean;
       data: {
         payments: Payment[];
         pagination: any;
       };
+      message: string;
     }>(`/payments/customer/${customerId}`, { params: filters });
     return response.data.data;
   },
@@ -161,9 +189,11 @@ export const paymentsService = {
    */
   async getByInvoice(invoiceId: string) {
     const response = await api.get<{
+      success: boolean;
       data: {
         payments: Payment[];
       };
+      message: string;
     }>(`/payments/invoice/${invoiceId}`);
     return response.data.data.payments;
   },
@@ -177,9 +207,11 @@ export const paymentsService = {
     customerId?: string;
   }) {
     const response = await api.get<{
+      success: boolean;
       data: {
         statistics: PaymentStatistics;
       };
+      message: string;
     }>('/payments/statistics', { params: filters });
     return response.data.data.statistics;
   },

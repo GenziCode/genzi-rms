@@ -31,6 +31,7 @@ export default function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [filters, setFilters] = useState<{
     type?: DocumentType;
     status?: DocumentStatus;
@@ -55,10 +56,10 @@ export default function InvoicesPage() {
     mutationFn: (id: string) => invoiceService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      alert('Invoice deleted successfully');
+      toast.success('Invoice deleted successfully');
     },
     onError: (error: any) => {
-      alert(error.response?.data?.message || 'Failed to delete invoice');
+      toast.error(error.response?.data?.message || 'Failed to delete invoice');
     },
   });
 
@@ -115,6 +116,11 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleEdit = (invoice: Invoice) => {
+    setEditingInvoice(invoice);
+    setShowCreateModal(true);
+  };
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -128,7 +134,10 @@ export default function InvoicesPage() {
           </p>
         </div>
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={() => {
+            setEditingInvoice(null);
+            setShowCreateModal(true);
+          }}
           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
         >
           <Plus className="w-5 h-5 mr-2" />
@@ -218,7 +227,10 @@ export default function InvoicesPage() {
               : 'Create your first invoice to get started'}
           </p>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              setEditingInvoice(null);
+              setShowCreateModal(true);
+            }}
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -309,6 +321,7 @@ export default function InvoicesPage() {
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
+                        onClick={() => handleEdit(invoice)}
                         className="p-1 text-gray-600 hover:bg-gray-50 rounded"
                         title="Edit"
                       >
@@ -438,12 +451,22 @@ export default function InvoicesPage() {
 
       {/* Modals */}
       {showCreateModal && (
-        <InvoiceFormModal onClose={() => setShowCreateModal(false)} />
+        <InvoiceFormModal
+          onClose={() => {
+            setShowCreateModal(false);
+            setEditingInvoice(null);
+          }}
+          invoice={editingInvoice || undefined}
+        />
       )}
       {viewingInvoice && (
         <InvoiceDetailModal
           invoice={viewingInvoice}
           onClose={() => setViewingInvoice(null)}
+          onEdit={() => {
+            setViewingInvoice(null);
+            handleEdit(viewingInvoice);
+          }}
           onDelete={() => {
             if (confirm('Delete this invoice?')) {
               deleteMutation.mutate(viewingInvoice.id);

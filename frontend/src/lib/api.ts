@@ -3,7 +3,13 @@ import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import logger from '@/utils/logger';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const envApiUrl = import.meta.env.VITE_API_URL;
+const API_URL =
+  envApiUrl && envApiUrl.trim().length > 0
+    ? envApiUrl
+    : import.meta.env.DEV
+      ? '/api'
+      : 'http://localhost:5000/api';
 
 // Create axios instance
 export const api = axios.create({
@@ -26,9 +32,20 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
 
+    // Skip tenant header for public endpoints
+    const url = (config.url || '').toString();
+    const isPublicAuth = url.startsWith('/auth/login') || url.startsWith('/auth/refresh');
+    const isPublicTenant = url.startsWith('/tenants/register');
+
     // Add X-Tenant header (required for protected routes)
-    if (tenant && config.headers) {
-      config.headers['X-Tenant'] = tenant;
+    if (!isPublicAuth && !isPublicTenant && config.headers) {
+      if (tenant) {
+        config.headers['X-Tenant'] = tenant;
+      } else if (import.meta.env.DEV) {
+        // Fallback for development if tenant is missing in store
+        // This fixes the TENANT_NOT_FOUND error when running locally
+        config.headers['X-Tenant'] = 'haseebautos';
+      }
     }
 
     return config;
@@ -127,4 +144,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-

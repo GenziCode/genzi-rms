@@ -42,7 +42,7 @@ export const authService = {
       currentPassword,
       newPassword,
     });
-    return response.data;
+    return response.data.data;
   },
 
   // Refresh token

@@ -39,7 +39,15 @@ export class InvoiceService {
       page?: number;
       limit?: number;
     } = {}
-  ) {
+  ): Promise<{
+    invoices: IInvoice[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     const tenantConn = await getTenantConnection(tenantId);
     const Invoice = tenantConn.model<IInvoice>('Invoice', InvoiceSchema);
 

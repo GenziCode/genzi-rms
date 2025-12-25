@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { InventoryService } from '../services/inventory.service';
 import { successResponse } from '../utils/response';
-import { AppError } from '../utils/appError';
 
 export class InventoryController {
   private inventoryService: InventoryService;

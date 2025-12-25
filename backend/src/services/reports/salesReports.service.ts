@@ -30,7 +30,7 @@ export class SalesReportsService {
       endDate?: Date;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale, Store } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().startOf('day').toDate();
@@ -107,7 +107,7 @@ export class SalesReportsService {
       weekEnd?: Date;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale } = await this.getModels(tenantId);
 
     const weekStart = filters.weekStart || moment().startOf('week').toDate();
@@ -206,7 +206,7 @@ export class SalesReportsService {
       year?: number;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale } = await this.getModels(tenantId);
 
     const year = filters.year || moment().year();
@@ -305,7 +305,7 @@ export class SalesReportsService {
       productId?: string;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale, Product } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(30, 'days').startOf('day').toDate();
@@ -395,7 +395,7 @@ export class SalesReportsService {
       categoryId?: string;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale, Product } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(30, 'days').startOf('day').toDate();
@@ -496,7 +496,7 @@ export class SalesReportsService {
       endDate?: Date;
       storeIds?: string[];
     }
-  ) {
+  ): Promise<any> {
     const { Sale, Store } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(30, 'days').startOf('day').toDate();
@@ -563,7 +563,7 @@ export class SalesReportsService {
       employeeId?: string;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale, User } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(30, 'days').startOf('day').toDate();
@@ -649,7 +649,7 @@ export class SalesReportsService {
       storeId?: string;
       limit?: number;
     }
-  ) {
+  ): Promise<any> {
     const { Sale, Customer } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(30, 'days').startOf('day').toDate();
@@ -740,7 +740,7 @@ export class SalesReportsService {
       period2End: Date;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale } = await this.getModels(tenantId);
 
     const matchStage1: any = {
@@ -847,7 +847,7 @@ export class SalesReportsService {
       sortBy?: 'revenue' | 'quantity' | 'transactions';
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale, Product } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(30, 'days').startOf('day').toDate();
@@ -937,7 +937,7 @@ export class SalesReportsService {
       sortBy?: 'revenue' | 'quantity' | 'transactions';
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale, Product } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(30, 'days').startOf('day').toDate();
@@ -1026,7 +1026,7 @@ export class SalesReportsService {
       period?: 'day' | 'week' | 'month';
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(90, 'days').startOf('day').toDate();
@@ -1107,7 +1107,7 @@ export class SalesReportsService {
       endDate?: Date;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(30, 'days').startOf('day').toDate();
@@ -1201,7 +1201,7 @@ export class SalesReportsService {
       endDate?: Date;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale } = await this.getModels(tenantId);
 
     const startDate = filters.startDate || moment().subtract(30, 'days').startOf('day').toDate();
@@ -1265,7 +1265,7 @@ export class SalesReportsService {
       forecastDays?: number;
       storeId?: string;
     }
-  ) {
+  ): Promise<any> {
     const { Sale } = await this.getModels(tenantId);
 
     const forecastDays = filters.forecastDays || 30;

@@ -32,7 +32,7 @@ export class SettingsController {
    */
   updateStoreSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId.toString();
       const userId = req.user!.id;
 
       const store = await this.settingsService.updateStoreSettings(tenantId, userId, req.body);
@@ -46,7 +46,7 @@ export class SettingsController {
    * Update business settings
    * PUT /api/settings/business
    */
-  getBusinessSettings = async (req: Request, res: Response, next: NextFunction) => {
+  getBusinessSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.user!.tenantId;
       const business = await this.settingsService.getBusinessSettings(tenantId);
@@ -81,7 +81,7 @@ export class SettingsController {
    * Update tax settings
    * PUT /api/settings/tax
    */
-  getTaxSettings = async (req: Request, res: Response, next: NextFunction) => {
+  getTaxSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.user!.tenantId;
       const tax = await this.settingsService.getTaxSettings(tenantId);
@@ -107,7 +107,7 @@ export class SettingsController {
    * Update receipt settings
    * PUT /api/settings/receipt
    */
-  getReceiptSettings = async (req: Request, res: Response, next: NextFunction) => {
+  getReceiptSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.user!.tenantId;
       const receipt = await this.settingsService.getReceiptSettings(tenantId);
@@ -137,7 +137,7 @@ export class SettingsController {
    * Update POS settings
    * PUT /api/settings/pos
    */
-  getPOSSettings = async (req: Request, res: Response, next: NextFunction) => {
+  getPOSSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.user!.tenantId;
       const pos = await this.settingsService.getPOSSettings(tenantId);
@@ -149,7 +149,7 @@ export class SettingsController {
 
   updatePOSSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = req.user!.tenantId;
+      const tenantId = req.user!.tenantId.toString();
       const userId = req.user!.id;
 
       const pos = await this.settingsService.updatePOSSettings(tenantId, userId, req.body);
@@ -159,7 +159,7 @@ export class SettingsController {
     }
   };
 
-  getPaymentSettings = async (req: Request, res: Response, next: NextFunction) => {
+  getPaymentSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.user!.tenantId;
       const payments = await this.settingsService.getPaymentSettings(tenantId);
@@ -186,7 +186,7 @@ export class SettingsController {
     }
   };
 
-  getIntegrationSettings = async (req: Request, res: Response, next: NextFunction) => {
+  getIntegrationSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.user!.tenantId;
       const integrations = await this.settingsService.getIntegrationSettings(tenantId);
@@ -217,7 +217,7 @@ export class SettingsController {
     }
   };
 
-  getComplianceSettings = async (req: Request, res: Response, next: NextFunction) => {
+  getComplianceSettings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const tenantId = req.user!.tenantId;
       const compliance = await this.settingsService.getComplianceSettings(tenantId);

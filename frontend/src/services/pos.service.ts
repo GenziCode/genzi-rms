@@ -163,25 +163,25 @@ const normalizeSale = (sale: any): Sale => {
   return normalized;
 };
 
-const normalizeSaleList = (payload: {
-  sales: any[];
-  total: number;
-  page: number;
-  totalPages: number;
-}): SaleListResponse => ({
-  sales: Array.isArray(payload.sales)
-    ? payload.sales.map((sale) => normalizeSale(sale))
-    : [],
-  total: payload.total ?? 0,
-  page: payload.page ?? 1,
-  totalPages: payload.totalPages ?? 1,
-  pagination: {
-    page: payload.page ?? 1,
-    limit: payload.sales?.length ?? 0,
-    total: payload.total ?? 0,
-    totalPages: payload.totalPages ?? 1,
-  },
-});
+const normalizeSaleList = (payload: any): SaleListResponse => {
+  // Handle API response structure: { success, data: { sales, total, page, totalPages }, message, meta }
+  const data = payload.data || payload;
+
+  return {
+    sales: Array.isArray(data.sales)
+      ? data.sales.map((sale: any) => normalizeSale(sale))
+      : [],
+    total: data.total ?? 0,
+    page: data.page ?? 1,
+    totalPages: data.totalPages ?? 1,
+    pagination: {
+      page: data.page ?? 1,
+      limit: data.sales?.length ?? 0,
+      total: data.total ?? 0,
+      totalPages: data.totalPages ?? 1,
+    },
+  };
+};
 
 export const posService = {
   /**
@@ -190,7 +190,7 @@ export const posService = {
    */
   async createSale(data: CreateSaleRequest) {
     const response = await api.post<{ data: Sale }>('/sales', data);
-    return normalizeSale(response.data.data);
+    return normalizeSale(response.data);
   },
 
   /**
@@ -199,9 +199,19 @@ export const posService = {
    */
   async getSales(params?: SaleQueryParams) {
     const response = await api.get<{
+      success: boolean;
       data: { sales: Sale[]; total: number; page: number; totalPages: number };
+      message: string;
+      meta?: {
+        pagination: {
+          page: number;
+          limit: number;
+          total: number;
+          totalPages: number;
+        };
+      };
     }>('/sales', { params });
-    return normalizeSaleList(response.data.data);
+    return normalizeSaleList(response.data);
   },
 
   /**
@@ -210,7 +220,7 @@ export const posService = {
    */
   async getSaleById(id: string) {
     const response = await api.get<{ data: Sale }>(`/sales/${id}`);
-    return normalizeSale(response.data.data);
+    return normalizeSale(response.data);
   },
 
   /**
@@ -219,7 +229,7 @@ export const posService = {
    */
   async holdTransaction(data: HoldTransactionRequest) {
     const response = await api.post<{ data: Sale }>('/sales/hold', data);
-    return normalizeSale(response.data.data);
+    return normalizeSale(response.data);
   },
 
   /**
@@ -228,8 +238,8 @@ export const posService = {
    */
   async getHeldTransactions() {
     const response = await api.get<{ data: Sale[] }>('/sales/hold');
-    return Array.isArray(response.data.data)
-      ? response.data.data.map((sale) => normalizeSale(sale))
+    return Array.isArray(response.data)
+      ? response.data.map((sale) => normalizeSale(sale))
       : [];
   },
 
@@ -242,7 +252,7 @@ export const posService = {
       `/sales/resume/${id}`,
       data
     );
-    return normalizeSale(response.data.data);
+    return normalizeSale(response.data);
   },
 
   /**
@@ -251,7 +261,7 @@ export const posService = {
    */
   async voidSale(id: string, data: VoidSaleRequest) {
     const response = await api.post<{ data: Sale }>(`/sales/${id}/void`, data);
-    return normalizeSale(response.data.data);
+    return normalizeSale(response.data);
   },
 
   /**
@@ -263,7 +273,7 @@ export const posService = {
       `/sales/${id}/refund`,
       data
     );
-    return normalizeSale(response.data.data);
+    return normalizeSale(response.data);
   },
 
   /**
@@ -277,6 +287,6 @@ export const posService = {
         params,
       }
     );
-    return response.data.data;
+    return response.data;
   },
 };

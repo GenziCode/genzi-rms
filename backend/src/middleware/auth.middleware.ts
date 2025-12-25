@@ -27,9 +27,23 @@ export const authenticate = async (
     // Verify token
     const decoded = verifyAccessToken(token);
 
-    // Verify token belongs to current tenant
-    if (req.tenant && decoded.tenantId !== req.tenant.id) {
-      throw new ForbiddenError('Invalid token for this tenant');
+    // Verify token belongs to current tenant (skip check if no tenant is set - for IP-based access)
+    // For IP-based access, we may use a default tenant that differs from the token's tenant
+    if (req.tenant && req.tenant.id && decoded.tenantId !== req.tenant.id) {
+      // Allow access if we're in development or accessing via localhost/IP
+      const hostHeader = req.get('host') || '';
+      const hostname = req.hostname || hostHeader.split(':')[0];
+      const isLocalAccess = hostname === 'localhost' ||
+                           hostname === '127.0.0.1' ||
+                           hostname === '::1' ||
+                           hostname.startsWith('192.168.') ||
+                           hostname.startsWith('10.') ||
+                           /^172\.(1[6-9]|2\d|3[01])\./.test(hostname) ||
+                           hostname === '39.39.213.253'; // Your public IP
+      
+      if (!isLocalAccess) {
+        throw new ForbiddenError('Invalid token for this tenant');
+      }
     }
 
     // Get user from database to ensure still active

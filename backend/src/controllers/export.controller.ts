@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { ExportService } from '../services/export.service';
-import { logger } from '../utils/logger';
 
 export class ExportController {
   private exportService: ExportService;

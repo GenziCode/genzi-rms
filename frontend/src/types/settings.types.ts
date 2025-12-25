@@ -191,6 +191,13 @@ export interface StripeSettings {
   lastTestResult?: PaymentTestResult;
 }
 
+export interface PaymentMethodConfig {
+  enabled: boolean;
+  surcharge?: number; // Percentage surcharge (e.g., 2.5 for 2.5%)
+  surchargeType?: 'percentage' | 'fixed'; // Type of surcharge
+  currencies?: string[]; // Supported currencies for this method
+}
+
 export interface PaymentSettings {
   allowCash: boolean;
   allowCard: boolean;
@@ -198,6 +205,16 @@ export interface PaymentSettings {
   allowStoreCredit: boolean;
   requireSignature: boolean;
   autoCapture: boolean;
+  supportedCurrencies: string[]; // List of supported currencies
+  defaultCurrency: string;
+  paymentMethods: {
+    cash: PaymentMethodConfig;
+    card: PaymentMethodConfig;
+    mobile: PaymentMethodConfig;
+    bank: PaymentMethodConfig;
+    credit: PaymentMethodConfig;
+    other: PaymentMethodConfig;
+  };
   stripe: StripeSettings;
 }
 

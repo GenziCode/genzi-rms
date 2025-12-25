@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { TenantRequest } from '../types';
 import { fieldPermissionService } from '../services/fieldPermission.service';
 import { sendSuccess, sendError } from '../utils/response';

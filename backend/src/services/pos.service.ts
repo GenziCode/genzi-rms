@@ -1,4 +1,3 @@
-import { Connection } from 'mongoose';
 import { getTenantConnection } from '../config/database';
 import { SaleSchema, ISale, ISaleItem, IPayment } from '../models/sale.model';
 import { ProductSchema, IProduct } from '../models/product.model';

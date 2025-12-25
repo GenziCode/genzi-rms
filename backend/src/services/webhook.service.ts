@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { getTenantConnection } from '../config/database';
 import { WebhookSchema, WebhookDeliverySchema, IWebhook, WebhookEvent } from '../models/webhook.model';
-import { NotFoundError, BadRequestError } from '../utils/appError';
+import { NotFoundError } from '../utils/appError';
 import { logger } from '../utils/logger';
 import { triggerWebhook } from '../utils/webhook-trigger';
 
@@ -47,7 +47,7 @@ export class WebhookService {
   /**
    * Get all webhooks
    */
-  async getAll(tenantId: string) {
+  async getAll(tenantId: string): Promise<{ webhooks: IWebhook[] }> {
     const tenantConn = await getTenantConnection(tenantId);
     const Webhook = tenantConn.model<IWebhook>('Webhook', WebhookSchema);
 
@@ -124,7 +124,15 @@ export class WebhookService {
     webhookId: string,
     page: number = 1,
     limit: number = 50
-  ) {
+  ): Promise<{
+    logs: Record<string, unknown>[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     const tenantConn = await getTenantConnection(tenantId);
     const WebhookDelivery = tenantConn.model('WebhookDelivery', WebhookDeliverySchema);
 
@@ -154,7 +162,7 @@ export class WebhookService {
    * Test webhook
    */
   async test(tenantId: string, webhookId: string): Promise<boolean> {
-    const webhook = await this.getById(tenantId, webhookId);
+    await this.getById(tenantId, webhookId);
 
     const testPayload = {
       test: true,

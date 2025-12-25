@@ -36,7 +36,14 @@ export class InventoryForecastService {
     return connection.model<IForecastOverride>('ForecastOverride', ForecastOverrideSchema);
   }
 
-  async getForecasts(tenantId: string, filters: ForecastFilters = {}) {
+  async getForecasts(tenantId: string, filters: ForecastFilters = {}): Promise<{
+    forecasts: any[];
+    metadata: {
+      generatedAt: Date;
+      lookbackDays: number;
+      totalProducts: number;
+    };
+  }> {
     const StockMovement = await this.getStockMovementModel(tenantId);
     const Product = await this.getProductModel(tenantId);
     const ForecastOverride = await this.getOverrideModel(tenantId);
@@ -83,11 +90,11 @@ export class InventoryForecastService {
           ? { avgDailyDemand: { $gte: filters.minVelocity } }
           : {},
       },
-      { $sort: { avgDailyDemand: -1 } },
+      { $sort: { avgDailyDemand: -1 as const } },
       { $limit: limit },
     ];
 
-    const aggregates = await StockMovement.aggregate(pipeline);
+    const aggregates = await StockMovement.aggregate(pipeline as any);
 
     if (!aggregates.length) {
       return {
@@ -181,7 +188,7 @@ export class InventoryForecastService {
     productId: string,
     payload: OverridePayload,
     userId: string
-  ) {
+  ): Promise<IForecastOverride> {
     const ForecastOverride = await this.getOverrideModel(tenantId);
 
     const override = await ForecastOverride.findOneAndUpdate(

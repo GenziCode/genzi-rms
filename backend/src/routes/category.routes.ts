@@ -1,11 +1,13 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { CategoryController } from '../controllers/category.controller';
+import { CategoryApprovalController } from '../controllers/categoryApproval.controller';
 import { authenticate } from '../middleware/auth.middleware';
-import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
 import { auditMiddleware } from '../middleware/audit.middleware';
 import { requireFormAccess } from '../middleware/formPermission.middleware';
 import { body, param, query } from 'express-validator';
+
+const categoryApprovalController = new CategoryApprovalController();
 
 const router = Router();
 const categoryController = new CategoryController();
@@ -38,6 +40,10 @@ const createCategoryValidation = [
     .matches(/^#[0-9A-F]{6}$/i)
     .withMessage('Color must be a valid hex color code (e.g., #FF5733)'),
   body('icon').optional().trim(),
+  body('parent')
+    .optional()
+    .isMongoId()
+    .withMessage('Parent must be a valid category ID'),
   body('sortOrder')
     .optional()
     .isInt({ min: 0 })
@@ -64,6 +70,10 @@ const updateCategoryValidation = [
     .matches(/^#[0-9A-F]{6}$/i)
     .withMessage('Color must be a valid hex color code (e.g., #FF5733)'),
   body('icon').optional().trim(),
+  body('parent')
+    .optional()
+    .isMongoId()
+    .withMessage('Parent must be a valid category ID'),
   body('sortOrder')
     .optional()
     .isInt({ min: 0 })
@@ -106,6 +116,9 @@ const getCategoriesValidation = [
 // GET /api/categories/stats - Get category statistics (must be before /:id)
 router.get('/stats', categoryController.getCategoryStats);
 
+// GET /api/categories/tree - Get categories in tree structure
+router.get('/tree', categoryController.getCategoriesTree);
+
 // PUT /api/categories/sort-order - Update sort order (must be before /:id)
 router.put(
   '/sort-order',
@@ -146,6 +159,81 @@ router.delete(
   validate,
   auditMiddleware({ action: 'delete', entityType: 'category' }),
   categoryController.deleteCategory
+);
+
+// POST /api/categories/:id/archive - Archive category
+router.post(
+  '/:id/archive',
+  categoryIdValidation,
+  validate,
+  auditMiddleware({ action: 'update', entityType: 'category' }),
+  categoryController.archiveCategory
+);
+
+// POST /api/categories/:id/unarchive - Unarchive category
+router.post(
+  '/:id/unarchive',
+  categoryIdValidation,
+  validate,
+  auditMiddleware({ action: 'update', entityType: 'category' }),
+  categoryController.unarchiveCategory
+);
+
+// GET /api/categories/templates - Get category templates
+router.get('/templates', categoryController.getTemplates);
+
+// POST /api/categories/from-template - Create categories from template
+router.post('/from-template', categoryController.createFromTemplate);
+
+// POST /api/categories/save-template - Save category as template
+router.post('/save-template', categoryController.saveAsTemplate);
+
+// POST /api/categories/:id/approvals - Create approval request for category
+router.post(
+  '/:id/approvals',
+  categoryIdValidation,
+  validate,
+  (req: Request, res: Response, next: NextFunction) => auditMiddleware({ action: 'update', entityType: 'category' })(req as any, res, next),
+  categoryApprovalController.createApprovalRequest
+);
+
+// GET /api/categories/:id/approvals - Get approval requests for category
+router.get(
+  '/:id/approvals',
+  categoryIdValidation,
+  validate,
+  categoryApprovalController.getApprovalRequestsForCategory
+);
+
+// GET /api/categories/approvals/my-requests - Get approval requests created by current user
+router.get(
+  '/approvals/my-requests',
+  validate,
+  categoryApprovalController.getApprovalRequestsForUser
+);
+
+// POST /api/categories/approvals/:id/approve - Submit approval decision
+router.post(
+  '/approvals/:id/approve',
+  param('id').isMongoId().withMessage('Invalid approval ID'),
+  validate,
+  (req: Request, res: Response, next: NextFunction) => auditMiddleware({ action: 'update', entityType: 'category' })(req as any, res, next),
+  categoryApprovalController.submitApprovalDecision
+);
+
+// DELETE /api/categories/approvals/:id - Cancel approval request
+router.delete(
+  '/approvals/:id',
+  param('id').isMongoId().withMessage('Invalid approval ID'),
+  validate,
+  (req: Request, res: Response, next: NextFunction) => auditMiddleware({ action: 'update', entityType: 'category' })(req as any, res, next),
+  categoryApprovalController.cancelApprovalRequest
+);
+
+// GET /api/categories/approvals/pending - Get pending approvals for current user
+router.get(
+  '/approvals/pending',
+  categoryApprovalController.getPendingApprovalRequests
 );
 
 export default router;

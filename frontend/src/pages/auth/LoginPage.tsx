@@ -18,6 +18,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const {
     register,
@@ -29,6 +30,7 @@ function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+    setFormError(null);
     
     try {
       const response = await authService.login(data.email, data.password);
@@ -50,8 +52,11 @@ function LoginPage() {
         navigate('/dashboard');
       }, 100);
     } catch (error: any) {
+      const status = error?.response?.status;
       const message =
-        error.response?.data?.message || 'Login failed. Please try again.';
+        error?.response?.data?.message ||
+        (status === 401 ? 'Invalid email or password' : 'Login failed. Please try again.');
+      setFormError(message);
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -114,6 +119,13 @@ function LoginPage() {
               </p>
             )}
           </div>
+
+          {/* Form-level error */}
+          {formError && (
+            <div className="-mt-2">
+              <p className="text-sm text-red-600">{formError}</p>
+            </div>
+          )}
 
           {/* Submit Button */}
           <button

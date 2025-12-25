@@ -1,17 +1,20 @@
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
-import { User, Mail, Lock, Bell, Shield, Save } from 'lucide-react';
+import { User, Mail, Lock, Bell, Shield, Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { userService } from '@/services/user.service';
+import { authService } from '@/services/auth.service';
 
 export default function UserProfilePage() {
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'notifications'>('profile');
 
   const [profileData, setProfileData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
-    phone: '',
+    phone: user?.phone || '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -20,9 +23,36 @@ export default function UserProfilePage() {
     confirmPassword: '',
   });
 
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: typeof profileData) => userService.updateProfile(data),
+    onSuccess: (updatedUser) => {
+      updateUser(updatedUser);
+      toast.success('Profile updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update profile');
+    },
+  });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: (data: typeof passwordData) =>
+      authService.changePassword(data.currentPassword, data.newPassword),
+    onSuccess: () => {
+      toast.success('Password changed successfully');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to change password');
+    },
+  });
+
   const handleProfileUpdate = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Profile updated successfully');
+    updateProfileMutation.mutate(profileData);
   };
 
   const handlePasswordChange = (e: React.FormEvent) => {
@@ -31,8 +61,7 @@ export default function UserProfilePage() {
       toast.error('Passwords do not match');
       return;
     }
-    toast.success('Password changed successfully');
-    setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    changePasswordMutation.mutate(passwordData);
   };
 
   return (
@@ -60,33 +89,30 @@ export default function UserProfilePage() {
             <nav className="space-y-2">
               <button
                 onClick={() => setActiveTab('profile')}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition ${
-                  activeTab === 'profile'
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition ${activeTab === 'profile'
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <User className="w-5 h-5" />
                 Profile
               </button>
               <button
                 onClick={() => setActiveTab('security')}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition ${
-                  activeTab === 'security'
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition ${activeTab === 'security'
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <Lock className="w-5 h-5" />
                 Security
               </button>
               <button
                 onClick={() => setActiveTab('notifications')}
-                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition ${
-                  activeTab === 'notifications'
-                    ? 'bg-blue-50 text-blue-600'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition ${activeTab === 'notifications'
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-50'
+                  }`}
               >
                 <Bell className="w-5 h-5" />
                 Notifications
@@ -149,9 +175,14 @@ export default function UserProfilePage() {
                 </div>
                 <button
                   type="submit"
-                  className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={updateProfileMutation.isPending}
+                  className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  <Save className="w-5 h-5 mr-2" />
+                  {updateProfileMutation.isPending ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="w-5 h-5 mr-2" />
+                  )}
                   Save Changes
                 </button>
               </form>
@@ -203,9 +234,14 @@ export default function UserProfilePage() {
                 </div>
                 <button
                   type="submit"
-                  className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={changePasswordMutation.isPending}
+                  className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  <Lock className="w-5 h-5 mr-2" />
+                  {changePasswordMutation.isPending ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <Lock className="w-5 h-5 mr-2" />
+                  )}
                   Update Password
                 </button>
               </form>
@@ -254,4 +290,3 @@ export default function UserProfilePage() {
     </div>
   );
 }
-

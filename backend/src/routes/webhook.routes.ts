@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 import { paymentController } from '../controllers/payment.controller';
 import express from 'express';
 

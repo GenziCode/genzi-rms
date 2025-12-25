@@ -10,6 +10,9 @@ import {
   Send,
   CheckCircle,
   XCircle,
+  Eye,
+  EyeOff,
+  Copy,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -46,6 +49,7 @@ export default function WebhooksPage() {
     events: [] as string[],
     maxRetries: 3,
   });
+  const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({});
 
   // Fetch webhooks
   const { data, isLoading } = useQuery({
@@ -162,6 +166,13 @@ export default function WebhooksPage() {
     testMutation.mutate(webhook._id);
   };
 
+  const toggleSecret = (id: string) => {
+    setVisibleSecrets(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -253,6 +264,32 @@ export default function WebhooksPage() {
                   <p className="text-sm text-gray-600 font-mono mb-3">
                     {webhook.url}
                   </p>
+
+                  {/* Secret Display */}
+                  <div className="flex items-center gap-2 mb-3 bg-gray-50 p-2 rounded-md w-fit">
+                    <span className="text-xs font-semibold text-gray-500 uppercase">Secret:</span>
+                    <code className="text-sm font-mono text-gray-800">
+                      {visibleSecrets[webhook._id] ? webhook.secret : '••••••••••••••••••••••••'}
+                    </code>
+                    <button
+                      onClick={() => toggleSecret(webhook._id)}
+                      className="p-1 text-gray-500 hover:text-gray-700"
+                      title={visibleSecrets[webhook._id] ? 'Hide Secret' : 'Show Secret'}
+                    >
+                      {visibleSecrets[webhook._id] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(webhook.secret);
+                        toast.success('Secret copied to clipboard');
+                      }}
+                      className="p-1 text-gray-500 hover:text-gray-700"
+                      title="Copy Secret"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+
                   <div className="flex flex-wrap gap-2 mb-3">
                     {webhook.events.map((event) => (
                       <span

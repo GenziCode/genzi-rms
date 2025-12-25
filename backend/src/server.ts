@@ -11,7 +11,7 @@ import { UserSchema } from './models/user.model';
 dotenv.config();
 initObservability();
 
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5000', 10);
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 /**
@@ -50,7 +50,7 @@ const startServer = async () => {
     const app = createApp();
 
     // Start HTTP server
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       logger.info('='.repeat(60));
       logger.info(`🚀 Genzi RMS API Server running!`);
       logger.info(`📍 URL: http://localhost:${PORT}`);

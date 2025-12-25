@@ -7,6 +7,7 @@ import { CategorySchema } from '../models/category.model';
 import { ProductSchema } from '../models/product.model';
 import { StoreSchema } from '../models/store.model';
 import { VendorSchema } from '../models/vendor.model';
+import { TenantSchema } from '../models/tenant.model';
 
 // Connection cache for tenant databases
 const connections = new Map<string, Connection>();
@@ -23,7 +24,7 @@ export const getMasterConnection = async (): Promise<Connection> => {
   }
 
   try {
-    const uri = process.env.MASTER_DB_URI || 'mongodb://localhost:27017/genzi_master';
+    const uri = process.env.MASTER_DB_URI || 'mongodb://127.0.0.1:27017/genzi_master';
 
     logger.info(`Connecting to Master database at: ${uri}`);
 
@@ -103,9 +104,23 @@ export const getTenantConnection = async (
 
   try {
     if (!dbName) {
-      throw new Error('Tenant database name is required to establish new connection');
+      // Fallback: resolve dbName from master database using tenantId
+      try {
+        const masterConn = await getMasterConnection();
+        const Tenant = masterConn.model('Tenant', TenantSchema);
+        const tenant = await Tenant.findById(tenantId).lean();
+
+        if (tenant?.dbName) {
+          dbName = tenant.dbName as string;
+        } else {
+          throw new Error(`Tenant database name not found for tenant ${tenantId}`);
+        }
+      } catch (lookupError) {
+        logger.error('Failed to resolve tenant database name from master DB:', lookupError);
+        throw new Error('Tenant database name is required to establish new connection');
+      }
     }
-    const baseUri = process.env.TENANT_DB_BASE_URI || 'mongodb://localhost:27017';
+    const baseUri = process.env.TENANT_DB_BASE_URI || 'mongodb://127.0.0.1:27017';
     const uri = `${baseUri}/${dbName}`;
 
     logger.info(`Connecting to tenant database: ${dbName}`);

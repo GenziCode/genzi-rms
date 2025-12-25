@@ -233,21 +233,21 @@ export default function PhysicalAuditsPage() {
                           <ActionButton
                             label="Start"
                             onClick={() => mutation.mutate({ action: 'start', id: session._id })}
-                            loading={mutation.isLoading}
+                            loading={mutation.isPending}
                           />
                         ) : null}
                         {session.status === 'counting' ? (
                           <ActionButton
                             label="Move to review"
                             onClick={() => mutation.mutate({ action: 'review', id: session._id })}
-                            loading={mutation.isLoading}
+                            loading={mutation.isPending}
                           />
                         ) : null}
                         {session.status === 'review' ? (
                           <ActionButton
                             label="Complete"
                             onClick={() => mutation.mutate({ action: 'complete', id: session._id })}
-                            loading={mutation.isLoading}
+                            loading={mutation.isPending}
                           />
                         ) : null}
                       </div>
@@ -608,10 +608,10 @@ function CreateAuditDrawer({ isOpen, onClose }: CreateAuditDrawerProps) {
               </button>
               <button
                 type="submit"
-                disabled={createMutation.isLoading}
+                disabled={createMutation.isPending}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
               >
-                {createMutation.isLoading ? (
+                {createMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <ClipboardList className="w-4 h-4" />

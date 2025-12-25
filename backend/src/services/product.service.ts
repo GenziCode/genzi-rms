@@ -1,9 +1,9 @@
-import { Connection } from 'mongoose';
 import { getTenantConnection } from '../config/database';
 import { ProductSchema, IProduct } from '../models/product.model';
 import { CategorySchema } from '../models/category.model';
 import { AppError } from '../utils/appError';
 import { logger } from '../utils/logger';
+import { isValidObjectId } from '../utils/validators';
 // File upload disabled - import QRCode from 'qrcode';
 // File upload disabled - import path from 'path';
 // File upload disabled - import fs from 'fs';
@@ -241,12 +241,63 @@ export class ProductService {
     }
   }
 
-  // ========================================
-  // GET PRODUCT BY QR CODE - DISABLED
-  // ========================================
-  // getProductByQRCode method removed - QR code disabled
+  /**
+   * Get product by barcode
+   */
+  async getProductByBarcode(tenantId: string, barcode: string): Promise<IProduct> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const product = await Product.findOne({ barcode, isActive: true })
+        .populate('category', 'name color icon');
+
+      if (!product) {
+        throw new AppError('Product not found', 404);
+      }
+
+      return product;
+    } catch (error) {
+      logger.error('Error getting product by barcode:', error);
+      throw error;
+    }
+  }
 
   /**
+   * Get product by QR code data
+   * Note: QR code generation is disabled, but we can search by SKU or barcode
+   */
+  async getProductByQRCode(tenantId: string, qrData: string): Promise<IProduct> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const queryConditions: any[] = [
+        { sku: qrData },
+        { barcode: qrData },
+      ];
+
+      if (isValidObjectId(qrData)) {
+        queryConditions.push({ _id: qrData });
+      }
+
+      // Try to find by SKU or barcode (QR code typically contains one of these)
+      const product = await Product.findOne({
+        $or: queryConditions,
+        isActive: true,
+      }).populate('category', 'name color icon');
+
+      if (!product) {
+        throw new AppError('Product not found', 404);
+      }
+
+      return product;
+    } catch (error) {
+      logger.error('Error getting product by QR code:', error);
+      throw error;
+    }
+  }
+
+  /**
+
    * Update product
    */
   async updateProduct(
@@ -428,6 +479,73 @@ export class ProductService {
     }
 
     return results;
+  }
+
+  /**
+   * Get product statistics
+   */
+  async getProductStats(tenantId: string): Promise<{
+    totalProducts: number;
+    activeProducts: number;
+    inactiveProducts: number;
+    lowStockProducts: number;
+    outOfStockProducts: number;
+    totalValue: number;
+    averagePrice: number;
+  }> {
+    try {
+      const Product = await this.getProductModel(tenantId);
+
+      const [
+        totalProducts,
+        activeProducts,
+        inactiveProducts,
+        lowStockProducts,
+        outOfStockProducts,
+        valueStats,
+      ] = await Promise.all([
+        Product.countDocuments(),
+        Product.countDocuments({ isActive: true }),
+        Product.countDocuments({ isActive: false }),
+        Product.countDocuments({
+          trackInventory: true,
+          isActive: true,
+          $expr: { $lte: ['$stock', '$minStock'] },
+        }),
+        Product.countDocuments({
+          trackInventory: true,
+          isActive: true,
+          stock: 0,
+        }),
+        Product.aggregate([
+          { $match: { isActive: true } },
+          {
+            $group: {
+              _id: null,
+              totalValue: {
+                $sum: { $multiply: ['$price', { $ifNull: ['$stock', 0] }] },
+              },
+              avgPrice: { $avg: '$price' },
+            },
+          },
+        ]),
+      ]);
+
+      const stats = valueStats[0] || { totalValue: 0, avgPrice: 0 };
+
+      return {
+        totalProducts,
+        activeProducts,
+        inactiveProducts,
+        lowStockProducts,
+        outOfStockProducts,
+        totalValue: stats.totalValue || 0,
+        averagePrice: stats.avgPrice || 0,
+      };
+    } catch (error) {
+      logger.error('Error getting product stats:', error);
+      throw error;
+    }
   }
 }
 

@@ -1,19 +1,19 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { PurchaseOrderController } from '../controllers/purchaseOrder.controller';
 import { authenticate } from '../middleware/auth.middleware';
-import { resolveTenant } from '../middleware/tenant.middleware';
 import { validate } from '../middleware/validation.middleware';
-import { body, param, query } from 'express-validator';
+import { body, param } from 'express-validator';
 import { requireFormAccess } from '../middleware/formPermission.middleware';
 
 const router = Router();
 const poController = new PurchaseOrderController();
 
-// resolveTenant is already applied in routes/index.ts
-router.use(authenticate);
+// All routes require authentication
+// Note: resolveTenant is already applied in routes/index.ts
+router.use((req: Request, res: Response, next: NextFunction) => authenticate(req as any, res, next));
 
 // All purchase order routes require form access
-router.use(requireFormAccess('frmPurchaseOrder'));
+router.use((req: Request, res: Response, next: NextFunction) => requireFormAccess('frmPurchaseOrder')(req as any, res, next));
 
 const createPOValidation = [
   body('vendorId').notEmpty().isMongoId().withMessage('Invalid vendor ID'),
